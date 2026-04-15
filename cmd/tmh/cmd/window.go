@@ -35,6 +35,6 @@ func newWindowCmd() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().StringVar(&dir, "dir", "", "working directory (default: $PWD)")
+	c.Flags().StringVar(&dir, "dir", "", i18n.T("cli.flag.window.dir"))
 	return c
 }

@@ -53,7 +53,7 @@ func newLayoutSaveCmd() *cobra.Command {
 			})
 		},
 	}
-	c.Flags().StringVar(&description, "description", "", "human-readable description for layouts[<name>]")
+	c.Flags().StringVar(&description, "description", "", i18n.T("cli.flag.layout.description"))
 	return c
 }
 

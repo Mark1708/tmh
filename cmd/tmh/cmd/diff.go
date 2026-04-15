@@ -48,7 +48,7 @@ func newDiffCmd() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().BoolVar(&jsonOut, "json", false, "print JSON")
+	c.Flags().BoolVar(&jsonOut, "json", false, i18n.T("cli.flag.json"))
 	return c
 }
 

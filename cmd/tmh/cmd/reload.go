@@ -76,14 +76,14 @@ func newReloadCmd() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().BoolVar(&shell, "shell", false, "source ~/.zshrc in idle shell panes")
-	c.Flags().BoolVar(&tmuxOnly, "tmux", false, "tmux source-file ~/.tmux.conf")
-	c.Flags().BoolVar(&all, "all", false, "shell + tmux (default when no flag)")
-	c.Flags().BoolVar(&busy, "busy", false, "enqueue non-idle panes for deferred reload")
-	c.Flags().BoolVar(&respawn, "respawn", false, "kill-server + init from snapshot (unimplemented)")
-	c.Flags().BoolVar(&status, "status", false, "print pending deferred reloads")
-	c.Flags().StringVar(&rcFile, "rc", "", "override path to zsh rc file")
-	c.Flags().StringVar(&tmuxConf, "tmux-conf", "", "override path to tmux conf")
+	c.Flags().BoolVar(&shell, "shell", false, i18n.T("cli.flag.reload.shell"))
+	c.Flags().BoolVar(&tmuxOnly, "tmux", false, i18n.T("cli.flag.reload.tmux"))
+	c.Flags().BoolVar(&all, "all", false, i18n.T("cli.flag.reload.all"))
+	c.Flags().BoolVar(&busy, "busy", false, i18n.T("cli.flag.reload.busy"))
+	c.Flags().BoolVar(&respawn, "respawn", false, i18n.T("cli.flag.reload.respawn"))
+	c.Flags().BoolVar(&status, "status", false, i18n.T("cli.flag.reload.status"))
+	c.Flags().StringVar(&rcFile, "rc", "", i18n.T("cli.flag.reload.rc"))
+	c.Flags().StringVar(&tmuxConf, "tmux-conf", "", i18n.T("cli.flag.reload.tmux_conf"))
 	return c
 }
 

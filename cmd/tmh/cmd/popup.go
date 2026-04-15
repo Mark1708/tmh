@@ -36,11 +36,11 @@ func newPopupCmd() *cobra.Command {
 			})
 		},
 	}
-	c.Flags().StringVar(&width, "width", "", "popup width (e.g. 80% or 120)")
-	c.Flags().StringVar(&height, "height", "", "popup height")
-	c.Flags().BoolVar(&noEnv, "no-env", false, "do not inherit env from config")
-	c.Flags().BoolVar(&noCwd, "no-cwd", false, "do not inherit cwd from config")
-	c.Flags().StringVar(&sessionN, "session", "", "session name to derive env/cwd from")
-	c.Flags().StringVar(&windowN, "window", "", "window name to derive cwd from")
+	c.Flags().StringVar(&width, "width", "", i18n.T("cli.flag.popup.width"))
+	c.Flags().StringVar(&height, "height", "", i18n.T("cli.flag.popup.height"))
+	c.Flags().BoolVar(&noEnv, "no-env", false, i18n.T("cli.flag.popup.no_env"))
+	c.Flags().BoolVar(&noCwd, "no-cwd", false, i18n.T("cli.flag.popup.no_cwd"))
+	c.Flags().StringVar(&sessionN, "session", "", i18n.T("cli.flag.popup.session"))
+	c.Flags().StringVar(&windowN, "window", "", i18n.T("cli.flag.popup.window"))
 	return c
 }

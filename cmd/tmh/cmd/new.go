@@ -67,12 +67,12 @@ func newNewCmd() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().StringVar(&name, "name", "", "session name")
-	c.Flags().StringVar(&dir, "dir", "", "working directory")
-	c.Flags().StringVar(&layout, "layout", "", "1-pane | 2-pane | 3-pane (default 3-pane)")
-	c.Flags().StringVar(&group, "group", "", "group tag (only used with --save)")
-	c.Flags().BoolVar(&save, "save", false, "also write this session to config.yml")
-	c.Flags().BoolVar(&attach, "attach", false, "attach after creating")
+	c.Flags().StringVar(&name, "name", "", i18n.T("cli.flag.new.name"))
+	c.Flags().StringVar(&dir, "dir", "", i18n.T("cli.flag.new.dir"))
+	c.Flags().StringVar(&layout, "layout", "", i18n.T("cli.flag.new.layout"))
+	c.Flags().StringVar(&group, "group", "", i18n.T("cli.flag.new.group"))
+	c.Flags().BoolVar(&save, "save", false, i18n.T("cli.flag.new.save"))
+	c.Flags().BoolVar(&attach, "attach", false, i18n.T("cli.flag.new.attach"))
 	return c
 }
 

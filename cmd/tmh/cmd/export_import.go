@@ -32,8 +32,8 @@ func newExportCmd() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().BoolVar(&minimal, "minimal", false, "redact secrets and rewrite absolute paths via roots")
-	c.Flags().StringVar(&only, "only", "", "export only this session (implies --minimal=false unless set)")
+	c.Flags().BoolVar(&minimal, "minimal", false, i18n.T("cli.flag.export.minimal"))
+	c.Flags().StringVar(&only, "only", "", i18n.T("cli.flag.export.only"))
 	return c
 }
 
@@ -70,7 +70,7 @@ func newImportCmd() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().BoolVar(&merge, "merge", false, "merge entries (overlay wins on conflicts)")
-	c.Flags().BoolVar(&replace, "replace", false, "replace entire config")
+	c.Flags().BoolVar(&merge, "merge", false, i18n.T("cli.flag.import.merge"))
+	c.Flags().BoolVar(&replace, "replace", false, i18n.T("cli.flag.import.replace"))
 	return c
 }

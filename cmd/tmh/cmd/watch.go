@@ -72,6 +72,6 @@ func newWatchCmd() *cobra.Command {
 			}
 		},
 	}
-	c.Flags().BoolVar(&auto, "auto", false, "apply reload automatically without confirmation")
+	c.Flags().BoolVar(&auto, "auto", false, i18n.T("cli.flag.watch.auto"))
 	return c
 }

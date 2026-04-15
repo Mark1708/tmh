@@ -45,7 +45,7 @@ func newScratchCmd() *cobra.Command {
 			return actions.Attach(context.Background(), r, name)
 		},
 	}
-	c.Flags().StringVar(&dir, "dir", "", "working directory (default: $PWD)")
+	c.Flags().StringVar(&dir, "dir", "", i18n.T("cli.flag.scratch.dir"))
 	c.Flags().DurationVar(&ttl, "ttl", 0, "auto-kill after duration (e.g. 1h, 30m); zero = no expiry")
 	return c
 }

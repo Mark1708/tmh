@@ -28,6 +28,6 @@ func newInitCmd() *cobra.Command {
 			})
 		},
 	}
-	c.Flags().StringSliceVar(&only, "only", nil, "restrict to these session names")
+	c.Flags().StringSliceVar(&only, "only", nil, i18n.T("cli.flag.init.only"))
 	return c
 }

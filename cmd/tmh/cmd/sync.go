@@ -63,11 +63,11 @@ config from live, --bootstrap to import all live sessions into an empty config.`
 			return nil
 		},
 	}
-	c.Flags().BoolVar(&push, "push", false, "live ← config (create missing sessions/windows)")
-	c.Flags().BoolVar(&pull, "pull", false, "config ← live (import new, rewrite drifted dirs)")
-	c.Flags().BoolVar(&bootstrap, "bootstrap", false, "import all live sessions into empty config")
-	c.Flags().BoolVar(&applyAll, "all", false, "apply drifted/gone entries (default: skipped)")
-	c.Flags().BoolVar(&dryRun, "dry-run", false, "print actions without executing")
+	c.Flags().BoolVar(&push, "push", false, i18n.T("cli.flag.sync.push"))
+	c.Flags().BoolVar(&pull, "pull", false, i18n.T("cli.flag.sync.pull"))
+	c.Flags().BoolVar(&bootstrap, "bootstrap", false, i18n.T("cli.flag.sync.bootstrap"))
+	c.Flags().BoolVar(&applyAll, "all", false, i18n.T("cli.flag.sync.all"))
+	c.Flags().BoolVar(&dryRun, "dry-run", false, i18n.T("cli.flag.sync.dry_run"))
 	return c
 }
 

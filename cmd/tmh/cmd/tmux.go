@@ -39,7 +39,7 @@ func newTmuxAuditCmd() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().BoolVar(&jsonOut, "json", false, "print findings as JSON")
+	c.Flags().BoolVar(&jsonOut, "json", false, i18n.T("cli.flag.tmux.audit.json"))
 	return c
 }
 
@@ -68,7 +68,7 @@ func newTmuxSetupCmd() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().BoolVar(&appendToFile, "append", false, "append recommended block to ~/.tmux.conf")
+	c.Flags().BoolVar(&appendToFile, "append", false, i18n.T("cli.flag.tmux.setup.append"))
 	return c
 }
 
