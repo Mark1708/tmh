@@ -11,9 +11,11 @@ Single-binary TUI-хаб для tmux. Декларативные YAML-сесси
 - [Установка](#установка)
 - [Первый запуск](#первый-запуск)
 - [Быстрый старт](#быстрый-старт)
+- [Язык интерфейса](#язык-интерфейса)
 - [Конфиг `config.yml`](#конфиг-configyml)
 - [CLI-справочник](#cli-справочник)
 - [TUI-дашборд](#tui-дашборд)
+- [tmux-интеграция](#tmux-интеграция)
 - [Hooks и trust](#hooks-и-trust)
 - [Snapshots и undo](#snapshots-и-undo)
 - [Sharing с коллегой](#sharing-с-коллегой)
@@ -54,7 +56,11 @@ tmh version
 tmh doctor
 ```
 
-`doctor` проверяет: tmux ≥ 3.2, `$SHELL`, наличие и валидность `config.yml`, `state.db` integrity, PATH, fd, terminal-notifier, GOPRIVATE.
+`doctor` проверяет:
+
+- tmux ≥ 3.2, `$SHELL`, `config.yml` (существование + схема),
+- наличие tmux-сервера, опциональных `fd`, `terminal-notifier`, значение `GOPRIVATE`,
+- отдельный блок **tmux integration** — аудит опций сервера (`default-terminal`, `mouse`, `escape-time`, `extended-keys`, `base-index`, `pane-base-index`, `renumber-windows`), конфликтующих hook'ов (`after-new-window`, `automatic-rename=on`) и наличия `#(tmh status)` в `status-right`. Рядом с каждым ⚠/✗ печатается готовая строка для `~/.tmux.conf`.
 
 ---
 
@@ -108,6 +114,23 @@ tmh
 
 ---
 
+## Язык интерфейса
+
+Поддерживаются `en` (по умолчанию) и `ru`. Неподдерживаемые локали (например `de_DE`) молча откатываются на английский — сырые i18n-ключи пользователю не показываются.
+
+Приоритет разрешения (от высшего к низшему):
+
+1. `--lang en|ru` — глобальный флаг, перекрывает всё. Влияет на runtime-сообщения (toasts, ошибки, print-вывод). Текст cobra-help привязывается к языку, выбранному на старте, и `--lang` его не перерисовывает — это ограничение cobra.
+2. `defaults.lang: ru` в `config.yml`.
+3. Переменные окружения `TMH_LANG`, `LC_ALL`, `LC_MESSAGES`, `LANG` (парсится префикс до `_`/`.`).
+4. Fallback — `en`.
+
+Живое переключение из TUI: `S` (settings) → секция **язык** → `↑↓`. Выбор применяется мгновенно и персистится как `defaults.lang` в `~/.config/tmh/config.yml`.
+
+JSON-выводы (`tmh ls --json`, `tmh diff --json`, `tmh tmux audit --json`) остаются на английском независимо от языка — это стабильный контракт для скриптов. У `Drift` есть отдельное стабильное поле `ReasonCode` (например `session_gone`), которое TUI резолвит в локализованный текст при отображении.
+
+---
+
 ## Конфиг `config.yml`
 
 Файл хранится в `~/.config/tmh/config.yml` (или по пути `$TMH_CONFIG`). YAML со структурными ссылками — без Mustache-шаблонизатора.
@@ -127,6 +150,7 @@ roots:
 defaults:
   layout: 3-pane
   shell:  zsh
+  lang:   ru                         # en | ru; пусто — авто-детект из env
   popup:  { width: 80%, height: 60% }
   env:
     EDITOR: nvim
@@ -206,7 +230,7 @@ windows:
 3. `session.root` задан + `dir` относительный → `roots[session.root] / session.path / dir`.
 4. Иначе → `$PWD / dir`.
 
-Опциональный shorthand: строка начинается с `$key/...` — раскрывается в `{ root: key, path: ... }`. `$$` эскейп для литерального `$`. `tmh config lint` нормализует shorthand в канонический вид.
+Опциональный shorthand: строка начинается с `$key/...` — раскрывается в `{ root: key, path: ... }`. `$$` эскейп для литерального `$`. Нормализация shorthand в канонический вид пока выполняется в памяти при загрузке (`config.Normalize`); CLI-обёртки для записи нормализованного вида на диск нет.
 
 ### Env merge
 
@@ -239,11 +263,7 @@ on_destroy:
 
 ### Валидация
 
-```sh
-tmh config validate
-```
-
-Проверяет:
+`tmh doctor` валидирует конфиг и печатает `config.yml schema: <err>`, если что-то не так. Проверяется:
 
 - все `root:` ссылаются на существующий `roots.<ключ>` (`ErrUnknownRoot`),
 - все `extends:` на `templates.<ключ>` (`ErrUnknownTemplate`),
@@ -255,10 +275,18 @@ tmh config validate
 
 ## CLI-справочник
 
+Глобальные флаги любого подкоманды:
+
+```
+--config string      путь к config.yml (перекрывает TMH_CONFIG и значения по умолчанию)
+--profile string     имя профиля из config.yml
+--lang en|ru         язык интерфейса; приоритет над config и env
+```
+
 ```
 tmh                       открывает TUI-дашборд
 tmh version               напечатать версию
-tmh doctor                проверка окружения
+tmh doctor                проверка окружения + tmux-интеграция
 tmh completion {zsh|bash|fish}   скрипт автодополнения
 ```
 
@@ -268,21 +296,21 @@ tmh completion {zsh|bash|fish}   скрипт автодополнения
 tmh attach [имя|имя:окно]    attach (вне tmux) или switch-client (внутри)
 tmh new [--name] [--dir] [--layout] [--group] [--save] [--attach]
                               без флагов — интерактивный wizard (huh-форма)
-tmh init [--profile] [--only a,b]   поднять всё из config (недостающее)
+tmh init [--only a,b]        поднять всё из config (недостающее)
 tmh kill <pattern>           убить сессии по substring
-tmh ls [--json] [--filter live|conf|drift]   дерево сессий/окон
+tmh ls [--json]              дерево сессий/окон
 tmh window [--dir]           новое ad-hoc окно в текущей сессии
-tmh scratch [--dir] [--ttl 1h]   эфемерная сессия с опциональным TTL
+tmh scratch [--dir]          эфемерная сессия
 ```
 
 ### Sync и diff
 
 ```
-tmh sync                    (default: --push) live ← config
-tmh sync --pull [--all]     config ← live (добавить новые, обновить drift)
-tmh sync --bootstrap        импорт всех live сессий в пустой config
-tmh sync --dry-run          показать действия без применения
-tmh diff [--json]           печать списка drift
+tmh sync --push              live ← config (создать недостающие)
+tmh sync --pull [--all]      config ← live (добавить новые, обновить drift)
+tmh sync --bootstrap         импорт всех live-сессий в пустой config
+tmh sync --dry-run           показать действия без применения
+tmh diff [--json]            печать списка drift
 ```
 
 Drift-статусы:
@@ -301,45 +329,33 @@ tmh reload                     (default --all) shell + tmux
 tmh reload --shell             source ~/.zshrc в idle shell-панелях
 tmh reload --tmux              tmux source-file ~/.tmux.conf
 tmh reload --busy              не-idle панели в очередь, source когда освободятся
-tmh reload --pick              интерактивно выбрать панели
-tmh reload --respawn           kill-server + tmh init из snapshot (WIP)
 tmh reload --status            показать deferred queue
-tmh watch [--auto]             fsnotify + 300ms debounce на dotfiles
-tmh status                     сегмент для tmux status-right: · / ⚠zsh / ⚠drift:N / ⏳N
-```
-
-### Config CRUD
-
-```
-tmh edit                     $EDITOR config.yml
-tmh config get <path>        скаляр на stdout (для скриптов)
-tmh config show [path]       pretty-print секции
-tmh config set <path> <val>  set scalar
-tmh config add <path> ...    добавить новую секцию с полями
-tmh config rm <path>         удалить секцию
-tmh config rename <path> <новое>  переименовать ключ
-tmh config lint              нормализовать shorthand
-tmh config validate          schema + static checks
+tmh reload --rc <path>         переопределить путь к zsh rc
+tmh reload --tmux-conf <path>  переопределить путь к tmux conf
+tmh watch [--auto]             fsnotify-вотчер на dotfiles
+tmh status                     сегмент для tmux status-right: drift/reload/zshrc badges
 ```
 
 ### Snapshots / undo / export / import
 
 ```
 tmh snapshot save <имя>       снимок живого состояния
-tmh snapshot ls
+tmh snapshot list
 tmh snapshot restore <имя>
-tmh snapshot rm <имя>
-tmh undo                      откатить последнее destructive действие
-tmh export [имя] [--minimal]  YAML на stdout; --minimal чистит секреты
+tmh snapshot delete <имя>
+tmh undo                      откатить последнее destructive-действие
+tmh export [--minimal] [--only <name>]   YAML на stdout; --minimal чистит секреты
 tmh import <путь> --merge|--replace
 ```
 
-### Layouts и popup
+### Layouts, popup и tmux-интеграция
 
 ```
 tmh layout save <имя> [--description]   сохранить текущую раскладку окна
 tmh popup <cmd> [--width] [--height] [--no-env] [--no-cwd] [--session] [--window]
-                  запустить команду в tmux-popup с env/cwd из config
+                                        команда в tmux-popup с env/cwd из config
+tmh tmux audit [--json]                 печать findings аудита tmux-сервера
+tmh tmux setup [--append]               сниппет для ~/.tmux.conf; --append дописывает
 ```
 
 ---
@@ -353,20 +369,27 @@ tmh                    без аргументов — дашборд
 ### Раскладка
 
 ```
-┌─ tmh · ~/.config/tmh/config.yml ──── ⚠drift:2 ───────────┐
-│  profile: —  ·  group: [all]  ·  / поиск                  │
-├───────────────────────────────────────────────────────────┤
-│  SESSIONS                  │  DETAIL                      │
-│  ▼ ● epcp    7w   work     │  session: epcp               │
-│    ├─ ● lk   3p   ok       │  live    true                │
-│    ├─   mdr  3p   ok       │  windows 7                   │
-│    ├─ ! jr   3p   drift    │  status  ok                  │
-│    └─ …                    │                              │
-│  ▼ ● kb      8w   kb       │                              │
-├───────────────────────────────────────────────────────────┤
-│ a attach · R dotfiles · s sync · S settings · : palette   │
-└───────────────────────────────────────────────────────────┘
+┌─ tmh · ~/.config/tmh/config.yml ──── ⚠ drift:2 ──────────────────┐
+│  SESSIONS                   │  DETAIL                             │
+│  ▼ ● epcp   7w   ok         │  session: epcp                      │
+│    ├─ ● lk   3p   ok        │  live     ✓                         │
+│    ├─   mdr  3p   ok        │  attached ✓                         │
+│    ├─ ! jr   3p   drift     │  windows  7                         │
+│    └─ …                     │  status   ok                        │
+│  ▼ ● kb     8w   kb         │                                     │
+│                             │  preview                            │
+│                             │  $ mise use                         │
+│                             │  $ git status                       │
+├──────────────────────────────────────────────────────────────────┤
+│ a · n · d · R · s · S · : · ^L · ? · q          [ OK reload done ]│
+└──────────────────────────────────────────────────────────────────┘
 ```
+
+Фичи раскладки:
+
+- Булевые поля detail (`live`, `attached`) отображаются как ✓/✗.
+- Под detail-полями — асинхронный **preview** (`tmux capture-pane` первой панели фокусной сессии/окна). Обновляется при смене курсора, кэш keyed по target'у.
+- **Inline toast** встраивается в правую часть футера и держится 4–5 с (ошибки — 5 с, action-done — 4 с). Все toast-и также уходят в ring-буфер (30 последних записей), доступный через `Ctrl+L`.
 
 ### Keymap
 
@@ -378,7 +401,7 @@ tmh                    без аргументов — дашборд
 
 **Действия с сессиями**
 - `enter` / `a` — attach (tmux перехватывает терминал, возврат через `prefix d`)
-- `n` — новая сессия через мастер (huh-форма)
+- `n` — новая сессия через мастер (huh-форма, запускается как подпроцесс)
 - `d` — kill выбранной сессии (с подтверждением)
 - `u` — undo последнего kill (recreate из snapshot)
 
@@ -390,13 +413,50 @@ tmh                    без аргументов — дашборд
 
 **Прочее**
 - `:` / `Ctrl+P` — палитра команд (fuzzy-поиск)
-- `S` — настройки (живой выбор темы)
+- `S` — настройки: язык / тема / tmux integration (см. ниже)
+- `Ctrl+L` — экран истории действий с OK/ERR бейджами
+- `Ctrl+T` — cycle темы без захода в settings
 - `?` / `esc` — help on / off
 - `q` / `Ctrl+C` — выход
 
-### Темы
+### Settings screen
 
-4 Catppuccin flavour: mocha, macchiato, frappe, latte. Менять через `S` (settings) либо `Ctrl+T` (cycle).
+Три секции, переключение между ними — `Tab` / `Shift+Tab`, навигация внутри секции — `↑↓`:
+
+1. **язык** — live-swap `en` / `ru`. Выбор мгновенно перестраивает UIStrings и сохраняется как `defaults.lang` в `~/.config/tmh/config.yml`.
+2. **тема** — 4 Catppuccin flavour (mocha, macchiato, frappe, latte) с preview-свотчем.
+3. **tmux integration** — read-only аудит-список (✓/⚠/✗) с результатами `tmh tmux audit`.
+
+### Command palette
+
+`:` или `Ctrl+P`. Fuzzy-поиск по действиям + скролл-viewport когда список длиннее высоты модалки. Встроенные entries: data refresh, dotfile reload, sync --push, init, diff, snapshot save, undo, settings, tmux audit, doctor, history, theme cycle, quit, и по одной `attach <session>` для каждой live-сессии.
+
+---
+
+## tmux-интеграция
+
+Чтобы `tmh` нормально отдавал UX (truecolor, быстрый esc, extended-keys, inline status-сегмент), tmux-серверу нужен минимальный набор опций. Проверить текущее состояние и получить готовый сниппет:
+
+```sh
+tmh tmux audit          # таблица ✓/⚠/✗ по каждой опции + hint что поправить
+tmh tmux audit --json   # то же в JSON для скриптов
+tmh tmux setup          # сниппет для ~/.tmux.conf (печать в stdout)
+tmh tmux setup --append # дописать managed-блок в ~/.tmux.conf, повторный запуск — no-op
+```
+
+Аудит покрывает:
+
+- **baseline** (нужно для работы): `default-terminal tmux-256color` + RGB, `mouse on`, `escape-time 0`, `extended-keys on`;
+- **recommended** (UX-никости): `base-index 1`, `pane-base-index 1`, `renumber-windows on`;
+- **conflicts**: hook `after-new-window` (гонится с созданием окон из `tmh`), `automatic-rename=on` (перетирает имена окон);
+- **integration**: сегмент `#(tmh status)` в `status-right` — без него badge drift/reload не видны в статус-баре.
+
+Рекомендуемый bind для `~/.tmux.conf`:
+
+```tmux
+bind R run-shell "tmh reload --all"          # prefix R → dotfiles reload
+set -ag status-right ' #(tmh status)'        # drift/reload badges в статус-баре
+```
 
 ---
 
@@ -415,7 +475,7 @@ Trust and run? [y/N]
 
 После `y` SHA-256 хеш файла пишется в `~/.local/state/tmh/state.db`. Пока конфиг не меняется — повторный prompt не появится. После любой правки — повторно.
 
-Флаг `tmh --no-hooks` полностью отключает выполнение (например для аудита).
+Для программного обхода trust-prompt'а (CI, аудит) внутренний пакет `actions.HookOptions.NoHooks=true` пропускает выполнение hooks — сейчас задаётся только через code-path, CLI-флаг не пробрасывается.
 
 ---
 
@@ -463,23 +523,26 @@ tmh init
 **`tmh` зависает после `attach`**
 `prefix d` внутри tmux отдетачит и вернёт TUI. Если совсем застряло — `Ctrl+\` (SIGQUIT) или `pkill -INT tmh` из другого терминала.
 
-**`reload --tmux` → `No such file or directory: ~/.tmux.conf`**
-Обновись — это был баг до текущей версии (tilde не expand'ился). Теперь работает.
-
 **`state.db` corrupted**
+Пакет `internal/state` экспортирует `FixState(path)`, который переименует испорченный файл в `state.db.broken.<ts>` и создаст чистый. CLI-обёртки пока нет — снести вручную:
+
 ```sh
-tmh doctor --fix-state
+mv ~/.local/state/tmh/state.db ~/.local/state/tmh/state.db.broken.$(date +%s)
 ```
-Переименует испорченный файл в `state.db.broken.<ts>` и создаст чистый. Потерянные snapshots/undo/trust ожидаются.
+
+Потерянные snapshots / undo / trust ожидаются.
 
 **Ad-hoc сессия не видится как drift**
 По дизайну: сессии не объявленные в config — ignored. Добавь в config через `tmh sync --pull`.
 
 **Hooks не запускаются**
-Проверь что `tmh --no-hooks` не в алиасе. Если config был изменён — будет повторный trust-prompt.
+Если `config.yml` был изменён — будет повторный trust-prompt. Проверь `~/.local/state/tmh/state.db` (таблица `trust`) или просто ответь `y` заново.
 
 **`go install` падает с 410 Gone / unknown revision**
 Добавь `export GOPRIVATE=git.mark1708.ru/*` чтобы обойти proxy/sum.
+
+**Drift/reload badge не виден в tmux status-right**
+Запусти `tmh tmux audit` — вероятно, отсутствует сегмент `#(tmh status)`. Исправить через `tmh tmux setup --append` либо вручную добавить в `~/.tmux.conf`.
 
 ---
 
@@ -488,13 +551,16 @@ tmh doctor --fix-state
 ```
 cmd/tmh/              cobra entrypoint + subcommands
 internal/
-  config/             парсер/резолвер/валидатор/atomic writer, diff
+  config/             парсер/резолвер/валидатор/atomic writer, diff (+ReasonCode)
   tmux/               Runner interface (CLIRunner) — единственный seam к tmux
   tmux/tmuxtest/      MockRunner для тестов (не импортируется production-кодом)
   actions/            side-effect API; CLI и TUI — тонкие фронтенды
+                      (включает AuditTmuxConfig, Setup, snapshots, hooks)
   state/              SQLite WAL + busy_timeout: events / snapshots / trust / reload_queue
-  errors/             типизированные sentinels
-  ui/                 bubbletea: dashboard, palette, settings, diff, confirm, help
+  errors/             типизированные sentinels (en-only, стабильный API)
+  i18n/               go-i18n v2, embed locales/{en,ru}.json, DetectLang
+  ui/                 bubbletea: dashboard, palette, settings, diff, confirm,
+                      help, history, errrender (локализация sentinels)
   xdg/                XDG пути
 ```
 
@@ -503,7 +569,8 @@ internal/
 - Все side-effects — в `internal/actions`, CLI и TUI только вызывают.
 - `internal/tmux.Runner` — единственная точка контакта с `tmux`. Тесты используют `tmuxtest.MockRunner`.
 - Мутации `config.yml` — через `config.PathSet/Delete/Rename` + `config.Write` с сохранением комментариев.
-- Все ошибки — типизированные sentinels в `internal/errors`, wrap через `fmt.Errorf("...: %w", ...)`.
+- Все ошибки — типизированные sentinels в `internal/errors` (**остаются английскими**, стабильный API для `errors.Is` и тестов). Локализация — только на границе UI через `internal/ui/errrender`.
+- JSON-выводы не локализуются: `Drift.Reason` (en) + `Drift.ReasonCode` (стабильный ключ) — TUI резолвит код в локализованный текст через `i18n.T("drift.reason." + code)`.
 
 Подробности — в [CONTRIBUTING.md](CONTRIBUTING.md) и [docs/](docs/).
 
