@@ -629,6 +629,63 @@ func (m *Model) undoCmd() tea.Cmd {
 	}
 }
 
+// initCmd runs actions.Init so the palette can create every configured
+// session that isn't already live. Toasts success count or error.
+func (m *Model) initCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		cfg, err := m.deps.LoadConfig()
+		if err != nil {
+			return errorMsg{Err: err}
+		}
+		if err := actions.Init(ctx, m.deps.Runner, cfg, actions.InitOptions{Profile: m.deps.Profile}); err != nil {
+			return errorMsg{Err: err}
+		}
+		return actionDoneMsg{Text: "init: " + i18n.T("tui.toast.reload_triggered")}
+	}
+}
+
+// snapshotSaveCmd captures the current live state under an auto-timestamped
+// name (tmh-YYYYMMDD-HHMMSS). The user can inspect / restore via CLI.
+func (m *Model) snapshotSaveCmd() tea.Cmd {
+	return func() tea.Msg {
+		if m.deps.State == nil {
+			return errorMsg{Err: fmt.Errorf("%s", m.str.Toast.UndoUnavailable)}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		name := "tmh-" + time.Now().Format("20060102-150405")
+		if err := actions.SaveSnapshot(ctx, m.deps.Runner, m.deps.State, name); err != nil {
+			return errorMsg{Err: err}
+		}
+		return actionDoneMsg{Text: "snapshot: " + name}
+	}
+}
+
+// doctorCmd runs the tmux audit in-process and pushes a one-line summary
+// (✓n ⚠n ✗n) to the history so the palette user can inspect results.
+func (m *Model) doctorCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		findings := actions.AuditTmuxConfig(ctx, m.deps.Runner)
+		var ok, warn, errs int
+		for _, f := range findings {
+			switch f.Level {
+			case actions.AuditOK:
+				ok++
+			case actions.AuditWarn:
+				warn++
+			case actions.AuditError:
+				errs++
+			}
+		}
+		text := fmt.Sprintf("doctor: ✓%d ⚠%d ✗%d", ok, warn, errs)
+		return actionDoneMsg{Text: text}
+	}
+}
+
 // maybeLoadPreview triggers an async CapturePane for the current selection
 // when the dashboard's cached preview doesn't match. Returns nil when no
 // fetch is needed (no selection, or cache is fresh).
@@ -692,12 +749,24 @@ func (m *Model) paletteActions() []PaletteAction {
 		{Title: i18n.T("tui.palette.action.refresh.title"), Subtitle: i18n.T("tui.palette.action.refresh.subtitle"), Run: func() tea.Cmd { return m.loadDataCmd() }},
 		{Title: i18n.T("tui.palette.action.reload.title"), Subtitle: i18n.T("tui.palette.action.reload.subtitle"), Run: func() tea.Cmd { return m.reloadAllCmd() }},
 		{Title: i18n.T("tui.palette.action.sync.title"), Subtitle: i18n.T("tui.palette.action.sync.subtitle"), Run: func() tea.Cmd { return m.syncPushCmd() }},
+		{Title: i18n.T("tui.palette.action.init.title"), Subtitle: i18n.T("tui.palette.action.init.subtitle"), Run: func() tea.Cmd { return m.initCmd() }},
 		{Title: i18n.T("tui.palette.action.diff.title"), Subtitle: i18n.T("tui.palette.action.diff.subtitle"), Run: func() tea.Cmd {
 			m.diff = newDiffScreen(m.keys, m.st, m.str, m.drift)
 			m.diff.Resize(m.width, m.height-2)
 			return func() tea.Msg { return switchScreenMsg{Screen: ScreenDiff} }
 		}},
+		{Title: i18n.T("tui.palette.action.snapshot_save.title"), Subtitle: i18n.T("tui.palette.action.snapshot_save.subtitle"), Run: func() tea.Cmd { return m.snapshotSaveCmd() }},
 		{Title: i18n.T("tui.palette.action.undo.title"), Subtitle: i18n.T("tui.palette.action.undo.subtitle"), Run: func() tea.Cmd { return m.undoCmd() }},
+		{Title: i18n.T("tui.palette.action.settings.title"), Subtitle: i18n.T("tui.palette.action.settings.subtitle"), Run: func() tea.Cmd {
+			return func() tea.Msg { return switchScreenMsg{Screen: ScreenSettings} }
+		}},
+		{Title: i18n.T("tui.palette.action.tmux_audit.title"), Subtitle: i18n.T("tui.palette.action.tmux_audit.subtitle"), Run: func() tea.Cmd {
+			return func() tea.Msg { return switchScreenMsg{Screen: ScreenSettings} }
+		}},
+		{Title: i18n.T("tui.palette.action.doctor.title"), Subtitle: i18n.T("tui.palette.action.doctor.subtitle"), Run: func() tea.Cmd { return m.doctorCmd() }},
+		{Title: i18n.T("tui.palette.action.history.title"), Subtitle: i18n.T("tui.palette.action.history.subtitle"), Run: func() tea.Cmd {
+			return func() tea.Msg { return switchScreenMsg{Screen: ScreenHistory} }
+		}},
 		{Title: i18n.T("tui.palette.action.theme.title"), Subtitle: i18n.T("tui.palette.action.theme.subtitle"), Run: func() tea.Cmd {
 			m.st = theme.New(theme.Cycle(m.st.Palette))
 			if m.dashboard != nil {
