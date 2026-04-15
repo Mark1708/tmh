@@ -3,12 +3,30 @@ package actions
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/tmux"
 )
+
+// expandHome rewrites a leading ~ to $HOME. tmux source-file and
+// `source <path>` need an absolute path — the shell normally expands ~
+// before exec, but exec.Command does not.
+func expandHome(p string) string {
+	if p == "" {
+		return p
+	}
+	if p == "~" {
+		return os.Getenv("HOME")
+	}
+	if strings.HasPrefix(p, "~/") {
+		return filepath.Join(os.Getenv("HOME"), p[2:])
+	}
+	return p
+}
 
 // ReloadOptions selects what to reload and how.
 type ReloadOptions struct {
@@ -40,6 +58,7 @@ func Reload(ctx context.Context, r tmux.Runner, db *state.DB, rc string, opts Re
 		opts.BusyTTL = 10 * time.Minute
 	}
 
+	rcExpanded := expandHome(opts.RcFile)
 	if opts.Shell {
 		panes, err := r.ListPanes(ctx, "")
 		if err != nil {
@@ -48,7 +67,7 @@ func Reload(ctx context.Context, r tmux.Runner, db *state.DB, rc string, opts Re
 		for _, p := range panes {
 			if isIdleShell(p.Command) {
 				target := paneTarget(p)
-				if err := r.SendKeys(ctx, target, fmt.Sprintf("source %s", opts.RcFile), "Enter"); err != nil {
+				if err := r.SendKeys(ctx, target, fmt.Sprintf("source %s", rcExpanded), "Enter"); err != nil {
 					return rep, err
 				}
 				rep.ReloadedPanes = append(rep.ReloadedPanes, target)
@@ -71,7 +90,7 @@ func Reload(ctx context.Context, r tmux.Runner, db *state.DB, rc string, opts Re
 		if path == "" {
 			path = "~/.tmux.conf"
 		}
-		if err := r.SourceFile(ctx, path); err != nil {
+		if err := r.SourceFile(ctx, expandHome(path)); err != nil {
 			return rep, err
 		}
 		rep.TmuxSourced = true
@@ -112,13 +131,14 @@ func DrainReloadQueue(ctx context.Context, r tmux.Runner, db *state.DB, rcFile s
 		if !isIdleShell(p.Command) {
 			continue
 		}
+		expanded := expandHome(rcFile)
 		switch e.Action {
 		case "shell":
-			if err := r.SendKeys(ctx, e.PaneTarget, fmt.Sprintf("source %s", rcFile), "Enter"); err != nil {
+			if err := r.SendKeys(ctx, e.PaneTarget, fmt.Sprintf("source %s", expanded), "Enter"); err != nil {
 				return done, err
 			}
 		case "tmux":
-			if err := r.SourceFile(ctx, rcFile); err != nil {
+			if err := r.SourceFile(ctx, expanded); err != nil {
 				return done, err
 			}
 		}

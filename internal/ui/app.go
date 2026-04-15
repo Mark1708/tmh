@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -234,27 +235,13 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case keyMatches(msg, m.keys.Undo):
 		return m, m.undoCmd()
-	case keyMatches(msg, m.keys.Attach):
+	case keyMatches(msg, m.keys.Attach), keyMatches(msg, m.keys.Enter):
 		target := m.dashboard.SelectedTarget()
 		if target == "" {
 			return m, nil
 		}
 		return m, tea.Sequence(
-			tea.ExitAltScreen,
-			attachCmd(m.deps.Runner, target),
-			tea.EnterAltScreen,
-			m.loadDataCmd(),
-		)
-	case keyMatches(msg, m.keys.Enter):
-		// Same as attach when in dashboard.
-		target := m.dashboard.SelectedTarget()
-		if target == "" {
-			return m, nil
-		}
-		return m, tea.Sequence(
-			tea.ExitAltScreen,
-			attachCmd(m.deps.Runner, target),
-			tea.EnterAltScreen,
+			attachCmd(m.deps.Runner, m.deps.Runner.InTmux(), target),
 			m.loadDataCmd(),
 		)
 	}
@@ -438,11 +425,30 @@ func (m *Model) syncPushCmd() tea.Cmd {
 	}
 }
 
-func attachCmd(r tmux.Runner, target string) tea.Cmd {
-	return func() tea.Msg {
-		_ = actions.Attach(context.Background(), r, target)
-		return nil
+// attachCmd hands the controlling terminal over to tmux for an
+// attach/switch-client. tea.ExecProcess properly suspends the bubbletea
+// event loop, restores the alt-screen on return, and gives the child
+// process direct access to stdin/stdout/stderr — without this, tmux
+// receives a useless pipe and the user can't type into the attached
+// session.
+func attachCmd(r tmux.Runner, inTmux bool, target string) tea.Cmd {
+	args := []string{"attach-session", "-t", target}
+	if inTmux {
+		// switch-client doesn't take over the terminal; it sends a tmux
+		// command to the running client, then returns immediately. Run via
+		// runner so the parent process keeps its TTY.
+		return func() tea.Msg {
+			_ = r.SwitchClient(context.Background(), target)
+			return nil
+		}
 	}
+	cmd := exec.Command("tmux", args...)
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		if err != nil {
+			return errorMsg{Err: fmt.Errorf("attach: %w", err)}
+		}
+		return nil
+	})
 }
 
 func (m *Model) killTargetCmd(target string) tea.Cmd {
@@ -517,7 +523,7 @@ func (m *Model) paletteActions() []PaletteAction {
 			out = append(out, PaletteAction{
 				Title:    "attach " + s.Name,
 				Subtitle: fmt.Sprintf("%d windows", len(s.Windows)),
-				Run:      func() tea.Cmd { return tea.Sequence(tea.ExitAltScreen, attachCmd(m.deps.Runner, s.Name), tea.EnterAltScreen, m.loadDataCmd()) },
+				Run:      func() tea.Cmd { return tea.Sequence(attachCmd(m.deps.Runner, m.deps.Runner.InTmux(), s.Name), m.loadDataCmd()) },
 			})
 		}
 	}

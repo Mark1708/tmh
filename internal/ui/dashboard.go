@@ -158,19 +158,26 @@ func (d *dashboardModel) View() string {
 		return d.st.Hint.Render("no sessions yet — press n to create one")
 	}
 
-	// Side-by-side: tree (45%) | detail (rest)
-	treeWidth := d.width * 45 / 100
-	if treeWidth < 30 {
-		treeWidth = d.width
+	// Side-by-side: tree (45%) | detail (rest). Each panel adds a 1-cell
+	// border + 1-cell horizontal padding on both sides, so subtract 4 from
+	// the rendered width before formatting rows; otherwise content reaches
+	// the panel's inner edge and lipgloss wraps it onto a second line.
+	const panelChrome = 4
+	treeOuter := d.width * 45 / 100
+	if treeOuter < 30 {
+		treeOuter = d.width
 	}
-	tree := d.renderTree(treeWidth)
-	if treeWidth == d.width {
-		return tree
+	treeInner := maxInt(10, treeOuter-panelChrome)
+	tree := d.renderTree(treeInner)
+	if treeOuter >= d.width {
+		return d.st.PanelFocus.Width(d.width).Render(tree)
 	}
-	detail := d.renderDetail(d.width - treeWidth - 4)
+	detailOuter := d.width - treeOuter
+	detailInner := maxInt(10, detailOuter-panelChrome)
+	detail := d.renderDetail(detailInner)
 	return lipgloss.JoinHorizontal(lipgloss.Top,
-		d.st.PanelFocus.Width(treeWidth).Render(tree),
-		d.st.Panel.Width(d.width-treeWidth-4).Render(detail),
+		d.st.PanelFocus.Width(treeOuter).Render(tree),
+		d.st.Panel.Width(detailOuter).Render(detail),
 	)
 }
 
