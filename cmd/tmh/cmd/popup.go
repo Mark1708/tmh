@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"git.mark1708.ru/me/tmh/internal/actions"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 
 	"github.com/spf13/cobra"
 )
@@ -17,7 +18,7 @@ func newPopupCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "popup [-- command...]",
-		Short: "Run a command in a tmux popup with env/cwd from config",
+		Short: i18n.T("cli.popup.short"),
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
 			cmdline := strings.Join(args, " ")

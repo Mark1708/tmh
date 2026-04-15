@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"git.mark1708.ru/me/tmh/internal/actions"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 
@@ -20,7 +21,7 @@ func newReloadCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "reload",
-		Short: "Re-source ~/.zshrc in idle shell panes and ~/.tmux.conf",
+		Short: i18n.T("cli.reload.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			if status {
 				return printReloadStatus(c)

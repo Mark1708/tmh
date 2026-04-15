@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"git.mark1708.ru/me/tmh/internal/actions"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 
@@ -20,7 +21,7 @@ func newScratchCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "scratch",
-		Short: "Create an ephemeral session, optionally with a TTL",
+		Short: i18n.T("cli.scratch.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			if dir == "" {
 				cwd, err := os.Getwd()

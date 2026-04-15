@@ -9,6 +9,7 @@ import (
 
 	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/tmux"
 
 	"github.com/spf13/cobra"
@@ -18,7 +19,7 @@ import (
 func newDoctorCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "doctor",
-		Short: "Check environment and configuration",
+		Short: i18n.T("cli.doctor.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			checks := runDoctor()
 			hasError := false

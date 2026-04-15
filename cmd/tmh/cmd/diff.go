@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/tmux"
 
 	"github.com/spf13/cobra"
@@ -15,7 +16,7 @@ func newDiffCmd() *cobra.Command {
 	var jsonOut bool
 	c := &cobra.Command{
 		Use:   "diff",
-		Short: "Show drift between live tmux and config.yml",
+		Short: i18n.T("cli.diff.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			cfg, err := loadConfig(false)
 			if err != nil {

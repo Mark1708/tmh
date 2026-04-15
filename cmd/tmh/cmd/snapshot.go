@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"git.mark1708.ru/me/tmh/internal/actions"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 
@@ -14,7 +15,7 @@ import (
 func newSnapshotCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "snapshot",
-		Short: "Save, list, restore, or delete live-state snapshots",
+		Short: i18n.T("cli.snapshot.short"),
 	}
 	c.AddCommand(snapshotSaveCmd(), snapshotRestoreCmd(), snapshotLsCmd(), snapshotRmCmd())
 	return c
@@ -31,7 +32,7 @@ func openStateOrExit(c *cobra.Command) (*state.DB, error) {
 func snapshotSaveCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "save <name>",
-		Short: "Snapshot every live session under NAME (overwrites)",
+		Short: i18n.T("cli.snapshot.save.short"),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
 			db, err := openStateOrExit(c)
@@ -52,7 +53,7 @@ func snapshotSaveCmd() *cobra.Command {
 func snapshotRestoreCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "restore <name>",
-		Short: "Recreate sessions from a saved snapshot",
+		Short: i18n.T("cli.snapshot.restore.short"),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
 			db, err := openStateOrExit(c)
@@ -84,7 +85,7 @@ func snapshotRestoreCmd() *cobra.Command {
 func snapshotLsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "ls",
-		Short: "List saved snapshots",
+		Short: i18n.T("cli.snapshot.list.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			db, err := openStateOrExit(c)
 			if err != nil {
@@ -110,7 +111,7 @@ func snapshotLsCmd() *cobra.Command {
 func snapshotRmCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "rm <name>",
-		Short: "Delete a snapshot",
+		Short: i18n.T("cli.snapshot.delete.short"),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
 			db, err := openStateOrExit(c)

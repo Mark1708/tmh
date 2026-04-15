@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"git.mark1708.ru/me/tmh/internal/actions"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 
 	"github.com/spf13/cobra"
 )
@@ -16,7 +17,7 @@ func newLsCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "ls",
-		Short: "List sessions (configured and live)",
+		Short: i18n.T("cli.ls.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			cfg, err := loadConfig(true)
 			if err != nil {

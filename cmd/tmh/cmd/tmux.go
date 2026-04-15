@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"git.mark1708.ru/me/tmh/internal/actions"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 
 	"github.com/spf13/cobra"
 )
@@ -15,7 +16,7 @@ import (
 func newTmuxCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "tmux",
-		Short: "Tmux integration audit and setup",
+		Short: i18n.T("cli.tmux.short"),
 	}
 	c.AddCommand(newTmuxAuditCmd(), newTmuxSetupCmd())
 	return c
@@ -25,7 +26,7 @@ func newTmuxAuditCmd() *cobra.Command {
 	var jsonOut bool
 	c := &cobra.Command{
 		Use:   "audit",
-		Short: "Check tmux server settings against tmh baseline + recommended list",
+		Short: i18n.T("cli.tmux.audit.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			r := newRunner()
 			findings := actions.AuditTmuxConfig(context.Background(), r)
@@ -46,7 +47,7 @@ func newTmuxSetupCmd() *cobra.Command {
 	var appendToFile bool
 	c := &cobra.Command{
 		Use:   "setup",
-		Short: "Generate a tmux.conf snippet for tmh; --append writes to ~/.tmux.conf",
+		Short: i18n.T("cli.tmux.setup.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			r := newRunner()
 			snippets := actions.Setup(context.Background(), r)

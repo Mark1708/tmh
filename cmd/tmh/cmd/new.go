@@ -9,6 +9,7 @@ import (
 
 	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 
 	"github.com/charmbracelet/huh"
@@ -26,7 +27,7 @@ func newNewCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "new",
-		Short: "Create a session (interactive wizard if flags are omitted)",
+		Short: i18n.T("cli.new.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			// When called without --name/--dir, run the interactive wizard.
 			if name == "" || dir == "" {

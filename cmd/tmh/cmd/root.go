@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/tmux"
 	"git.mark1708.ru/me/tmh/internal/ui"
@@ -19,6 +20,7 @@ import (
 type RootFlags struct {
 	ConfigPath string
 	Profile    string
+	Lang       string
 }
 
 var flags RootFlags
@@ -27,17 +29,27 @@ var flags RootFlags
 func NewRoot(version string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "tmh",
-		Short:         "tmux hub — declarative sessions, reload, drift sync",
+		Short:         i18n.T("cli.root.short"),
 		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: false,
+		// --lang applies only to runtime output (prints, errors, TUI); cobra
+		// help text was already bound at NewRoot time. See main.initLang for
+		// the startup-time resolution chain.
+		PersistentPreRunE: func(c *cobra.Command, args []string) error {
+			if flags.Lang != "" {
+				_ = i18n.Init(flags.Lang)
+			}
+			return nil
+		},
 		RunE: func(c *cobra.Command, args []string) error {
 			return launchTUI()
 		},
 	}
 
-	root.PersistentFlags().StringVar(&flags.ConfigPath, "config", "", "path to config.yml (overrides TMH_CONFIG and defaults)")
-	root.PersistentFlags().StringVar(&flags.Profile, "profile", "", "profile name from config.yml")
+	root.PersistentFlags().StringVar(&flags.ConfigPath, "config", "", i18n.T("cli.flag.config"))
+	root.PersistentFlags().StringVar(&flags.Profile, "profile", "", i18n.T("cli.flag.profile"))
+	root.PersistentFlags().StringVar(&flags.Lang, "lang", "", i18n.T("cli.flag.lang"))
 
 	root.AddCommand(
 		newAttachCmd(),

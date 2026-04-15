@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"git.mark1708.ru/me/tmh/internal/actions"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 
@@ -20,7 +21,7 @@ func newWatchCmd() *cobra.Command {
 	var auto bool
 	c := &cobra.Command{
 		Use:   "watch",
-		Short: "Foreground fsnotify watcher for ~/.zshrc, ~/.tmux.conf, config.yml",
+		Short: i18n.T("cli.watch.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer cancel()

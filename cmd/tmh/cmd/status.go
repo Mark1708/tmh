@@ -8,6 +8,7 @@ import (
 
 	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 
@@ -19,7 +20,7 @@ import (
 func newStatusCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
-		Short: "Compact statusbar segment for tmux",
+		Short: i18n.T("cli.status.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			fmt.Fprint(c.OutOrStdout(), renderStatus())
 			return nil

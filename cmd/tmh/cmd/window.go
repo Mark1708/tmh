@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/tmux"
 
 	"github.com/spf13/cobra"
@@ -14,7 +15,7 @@ func newWindowCmd() *cobra.Command {
 	var dir string
 	c := &cobra.Command{
 		Use:   "window",
-		Short: "Open an ad-hoc window in the current session (not written to config)",
+		Short: i18n.T("cli.window.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			if dir == "" {
 				cwd, err := os.Getwd()

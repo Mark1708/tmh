@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"git.mark1708.ru/me/tmh/internal/actions"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 
 	"github.com/spf13/cobra"
 )
@@ -12,7 +13,7 @@ import (
 func newKillCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "kill <pattern>",
-		Short: "Kill live sessions whose name contains the pattern",
+		Short: i18n.T("cli.kill.short"),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
 			r := newRunner()

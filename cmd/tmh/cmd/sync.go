@@ -6,6 +6,7 @@ import (
 
 	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 
 	"github.com/spf13/cobra"
@@ -17,7 +18,7 @@ func newSyncCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "sync",
-		Short: "Reconcile live tmux and config.yml",
+		Short: i18n.T("cli.sync.short"),
 		Long: `Default direction is --push (live matches config). Use --pull to update
 config from live, --bootstrap to import all live sessions into an empty config.`,
 		RunE: func(c *cobra.Command, args []string) error {

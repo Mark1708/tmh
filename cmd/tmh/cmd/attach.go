@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"git.mark1708.ru/me/tmh/internal/actions"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 
 	"github.com/spf13/cobra"
 )
@@ -11,7 +12,7 @@ import (
 func newAttachCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "attach [name|name:window]",
-		Short: "Attach to a session (or switch client if already inside tmux)",
+		Short: i18n.T("cli.attach.short"),
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
 			target := ""

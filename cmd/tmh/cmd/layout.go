@@ -9,6 +9,7 @@ import (
 
 	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 
 	"github.com/spf13/cobra"
@@ -17,7 +18,7 @@ import (
 func newLayoutCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "layout",
-		Short: "Manage named tmux layouts",
+		Short: i18n.T("cli.layout.short"),
 	}
 	c.AddCommand(newLayoutSaveCmd())
 	return c
@@ -27,7 +28,7 @@ func newLayoutSaveCmd() *cobra.Command {
 	var description string
 	c := &cobra.Command{
 		Use:   "save <name>",
-		Short: "Save the current window layout under NAME",
+		Short: i18n.T("cli.layout.save.short"),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
 			name := args[0]

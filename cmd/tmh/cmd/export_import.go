@@ -5,6 +5,7 @@ import (
 
 	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 
 	"github.com/spf13/cobra"
@@ -17,7 +18,7 @@ func newExportCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "export",
-		Short: "Export config to stdout",
+		Short: i18n.T("cli.export.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			cfg, err := loadConfig(false)
 			if err != nil {
@@ -42,7 +43,7 @@ func newImportCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "import <path>",
-		Short: "Import a config snippet (--merge or --replace)",
+		Short: i18n.T("cli.import.short"),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
 			if merge == replace {
