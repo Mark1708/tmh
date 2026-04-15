@@ -24,8 +24,11 @@ func TestInit_Russian(t *testing.T) {
 	if Active() != "ru" {
 		t.Fatalf("Active() = %q, want ru", Active())
 	}
-	if got := T("cli.root.short"); !strings.Contains(strings.ToLower(got), "tmux-хаб") {
-		t.Fatalf("Russian translation missing: %q", got)
+	// Use a stable Russian-only key for the smoke check: cli.root.short
+	// doubles as a marketing slogan and may legitimately vary. The keymap
+	// title is a short, content-stable phrase that's always localized.
+	if got := T("tui.keymap.title"); got != "клавиши" {
+		t.Fatalf("Russian translation missing: got %q for tui.keymap.title", got)
 	}
 }
 
