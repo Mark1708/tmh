@@ -52,6 +52,10 @@ func NewRoot(version string) *cobra.Command {
 		newPopupCmd(),
 		newWindowCmd(),
 		newLayoutCmd(),
+		newSnapshotCmd(),
+		newUndoCmd(),
+		newExportCmd(),
+		newImportCmd(),
 		newVersionCmd(version),
 		newDoctorCmd(),
 	)
