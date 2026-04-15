@@ -1,0 +1,49 @@
+# DevOps: cluster-per-environment with kubectl context env vars.
+version: 1
+
+roots:
+  infra: ~/Code/infra
+
+defaults:
+  layout: 2-pane
+
+templates:
+  cluster:
+    layout: 2-pane
+    command: k9s
+
+sessions:
+  dev-cluster:
+    group: [k8s, dev]
+    root: infra
+    path: dev
+    env:
+      KUBE_CONTEXT: dev-eu
+      AWS_PROFILE: ops-dev
+    on_attach:
+      - kubectl config use-context dev-eu
+    windows:
+      pods:
+        extends: cluster
+      deploys:
+        extends: cluster
+        command: kubectl get deploy -A -w
+      logs:
+        extends: cluster
+        command: stern -A .
+
+  prod-cluster:
+    group: [k8s, prod]
+    root: infra
+    path: prod
+    env:
+      KUBE_CONTEXT: prod-eu
+      AWS_PROFILE: ops-prod
+    on_attach:
+      - kubectl config use-context prod-eu
+    windows:
+      pods:
+        extends: cluster
+      events:
+        extends: cluster
+        command: kubectl get events -A -w

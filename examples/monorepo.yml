@@ -1,0 +1,41 @@
+# Monorepo: every service is a window in the same session.
+version: 1
+
+roots:
+  acme: ~/Code/acme
+
+defaults:
+  layout: 3-pane
+
+templates:
+  go_service:
+    layout: 3-pane
+    command: go run ./cmd/main.go
+
+sessions:
+  acme:
+    group: [work]
+    root: acme
+    env:
+      ENV: dev
+      GO111MODULE: "on"
+    on_attach:
+      - docker compose up -d
+    windows:
+      gateway:
+        extends: go_service
+        path: services/gateway
+      auth:
+        extends: go_service
+        path: services/auth
+      worker:
+        extends: go_service
+        path: services/worker
+      web:
+        path: web
+        layout: 2-pane
+        command: pnpm dev
+      docs:
+        path: docs
+        layout: 1-pane
+        command: nvim .

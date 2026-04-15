@@ -1,0 +1,53 @@
+# Polyglot: separate sessions per stack, each with its own env and hooks.
+version: 1
+
+roots:
+  src: ~/src
+
+profiles:
+  work:
+    groups: [work]
+    env:
+      AWS_REGION: eu-central-1
+  personal:
+    groups: [personal]
+
+sessions:
+  api:
+    group: [work, backend]
+    root: src
+    path: api
+    env:
+      RUST_LOG: debug
+    on_attach:
+      - cargo check
+    windows:
+      lib: lib
+      bin:
+        path: bin
+        layout: 2-pane
+        command: cargo run
+
+  ui:
+    group: [work, frontend]
+    root: src
+    path: ui
+    env:
+      NODE_ENV: development
+    windows:
+      app: app
+      storybook:
+        path: storybook
+        layout: 2-pane
+        command: pnpm dev
+
+  blog:
+    group: [personal]
+    root: src
+    path: blog
+    defaults: { layout: 2-pane }
+    windows:
+      content: content
+      build:
+        path: .
+        command: hugo serve

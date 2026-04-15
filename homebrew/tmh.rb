@@ -1,0 +1,39 @@
+class Tmh < Formula
+  desc "TUI hub for tmux: declarative sessions, drift sync, dotfile reload"
+  homepage "https://git.mark1708.ru/me/tmh"
+  version "0.1.0"
+  license "MIT"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://git.mark1708.ru/me/tmh/releases/download/v#{version}/tmh_#{version}_darwin_arm64.tar.gz"
+      sha256 "REPLACE_WITH_DARWIN_ARM64_SHA256"
+    end
+    if Hardware::CPU.intel?
+      url "https://git.mark1708.ru/me/tmh/releases/download/v#{version}/tmh_#{version}_darwin_amd64.tar.gz"
+      sha256 "REPLACE_WITH_DARWIN_AMD64_SHA256"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "https://git.mark1708.ru/me/tmh/releases/download/v#{version}/tmh_#{version}_linux_arm64.tar.gz"
+      sha256 "REPLACE_WITH_LINUX_ARM64_SHA256"
+    end
+    if Hardware::CPU.intel?
+      url "https://git.mark1708.ru/me/tmh/releases/download/v#{version}/tmh_#{version}_linux_amd64.tar.gz"
+      sha256 "REPLACE_WITH_LINUX_AMD64_SHA256"
+    end
+  end
+
+  depends_on "tmux" => "3.2"
+
+  def install
+    bin.install "tmh"
+    generate_completions_from_executable(bin/"tmh", "completion")
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/tmh version")
+  end
+end

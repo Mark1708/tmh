@@ -1,0 +1,12 @@
+# Minimal config — one session, one window.
+version: 1
+
+defaults:
+  layout: 1-pane
+
+sessions:
+  notes:
+    windows:
+      main:
+        dir: ~/notes
+        command: nvim .
