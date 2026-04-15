@@ -48,6 +48,10 @@ func NewRoot(version string) *cobra.Command {
 		newReloadCmd(),
 		newWatchCmd(),
 		newStatusCmd(),
+		newScratchCmd(),
+		newPopupCmd(),
+		newWindowCmd(),
+		newLayoutCmd(),
 		newVersionCmd(version),
 		newDoctorCmd(),
 	)
