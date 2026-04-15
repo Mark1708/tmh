@@ -3,6 +3,11 @@ package config
 // Drift captures one tracked difference between the live tmux state and the
 // resolved config. Ad-hoc sessions and ad-hoc windows in ad-hoc sessions do
 // not appear here.
+//
+// Reason holds the English human-readable description and ships in JSON for
+// existing script consumers. ReasonCode is a stable dotted key (matching
+// drift.reason.* in the i18n bundle) that UI callers resolve into the
+// current language at render time.
 type Drift struct {
 	Status      DriftStatus
 	Session     string
@@ -10,8 +15,17 @@ type Drift struct {
 	ConfigDir   string // resolved dir from config
 	LiveDir     string // pane_current_path of first pane when available
 	ConfigEntry string // "session" or "session/window"
-	Reason      string
+	Reason      string // English description; stable for JSON
+	ReasonCode  string // e.g. "session_gone"; maps to drift.reason.<code> in i18n
 }
+
+// Drift reason codes. Kept in sync with drift.reason.* keys in the i18n bundle.
+const (
+	ReasonSessionGone = "session_gone"
+	ReasonWindowGone  = "window_gone"
+	ReasonDirDiffers  = "dir_differs"
+	ReasonWindowNew   = "window_new"
+)
 
 // DriftStatus is one of ok/drift/new/gone.
 type DriftStatus string
@@ -82,6 +96,7 @@ func Diff(resolved *Resolved, live LiveSnapshot) []Drift {
 					Session:     cs.Name,
 					ConfigEntry: cs.Name,
 					Reason:      "session in config, not running",
+					ReasonCode:  ReasonSessionGone,
 				})
 				continue
 			}
@@ -93,6 +108,7 @@ func Diff(resolved *Resolved, live LiveSnapshot) []Drift {
 					ConfigDir:   cw.Dir,
 					ConfigEntry: cs.Name + "/" + cw.Name,
 					Reason:      "window in config, not running",
+					ReasonCode:  ReasonWindowGone,
 				})
 			}
 			continue
@@ -116,6 +132,7 @@ func Diff(resolved *Resolved, live LiveSnapshot) []Drift {
 					ConfigDir:   cw.Dir,
 					ConfigEntry: entry,
 					Reason:      "window in config, not running",
+					ReasonCode:  ReasonWindowGone,
 				})
 				continue
 			}
@@ -128,6 +145,7 @@ func Diff(resolved *Resolved, live LiveSnapshot) []Drift {
 					LiveDir:     lw.Dir,
 					ConfigEntry: entry,
 					Reason:      "dir differs",
+					ReasonCode:  ReasonDirDiffers,
 				})
 				continue
 			}
@@ -153,6 +171,7 @@ func Diff(resolved *Resolved, live LiveSnapshot) []Drift {
 				LiveDir:     lw.Dir,
 				ConfigEntry: cs.Name + "/" + lw.Name,
 				Reason:      "window in live, not in config",
+				ReasonCode:  ReasonWindowNew,
 			})
 		}
 	}

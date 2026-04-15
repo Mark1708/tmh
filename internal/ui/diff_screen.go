@@ -63,7 +63,11 @@ func (d *diffModel) View() string {
 	for i := start; i < end; i++ {
 		it := d.items[i]
 		status := d.statusBadge(it.Status)
-		entry := fmt.Sprintf("%-6s  %-30s  %s", status, it.ConfigEntry, it.Reason)
+		reason := it.Reason
+		if it.ReasonCode != "" {
+			reason = i18n.T("drift.reason." + it.ReasonCode)
+		}
+		entry := fmt.Sprintf("%-6s  %-30s  %s", status, it.ConfigEntry, reason)
 		if i == d.cursor {
 			entry = d.st.Selected.Render(padRight(entry, d.width-2))
 		}

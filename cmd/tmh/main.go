@@ -7,6 +7,7 @@ import (
 	"git.mark1708.ru/me/tmh/cmd/tmh/cmd"
 	"git.mark1708.ru/me/tmh/internal/config"
 	"git.mark1708.ru/me/tmh/internal/i18n"
+	"git.mark1708.ru/me/tmh/internal/ui/errrender"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 )
 
@@ -17,7 +18,7 @@ func main() {
 	initLang()
 	root := cmd.NewRoot(Version)
 	if err := root.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "tmh:", err)
+		fmt.Fprintln(os.Stderr, "tmh:", errrender.Render(err))
 		os.Exit(1)
 	}
 }

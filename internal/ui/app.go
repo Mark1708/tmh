@@ -18,6 +18,7 @@ import (
 	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/tmux"
+	"git.mark1708.ru/me/tmh/internal/ui/errrender"
 	"git.mark1708.ru/me/tmh/internal/ui/theme"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -113,7 +114,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case dataLoadedMsg:
 		if msg.Err != nil {
-			m.errMsg = msg.Err.Error()
+			m.errMsg = errrender.Render(msg.Err)
 			m.current = ScreenError
 			return m, nil
 		}
@@ -140,7 +141,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case errorMsg:
-		m.toast = i18n.Tf("tui.toast.error_prefix", map[string]any{"msg": msg.Err.Error()})
+		m.toast = i18n.Tf("tui.toast.error_prefix", map[string]any{"msg": errrender.Render(msg.Err)})
 		m.toastEnd = time.Now().Add(3 * time.Second)
 		return m, tea.Tick(3*time.Second, func(time.Time) tea.Msg { return toastExpiredMsg{} })
 
