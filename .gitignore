@@ -1,0 +1,16 @@
+/dist/
+/tmh
+/tmh.exe
+*.test
+*.out
+*.log
+.DS_Store
+.idea/
+.vscode/
+coverage.out
+coverage.html
+/.env
+/.envrc
+/state.db
+/state.db-*
+/testdata/tmp/
