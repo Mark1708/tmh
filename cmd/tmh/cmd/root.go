@@ -43,6 +43,8 @@ func NewRoot(version string) *cobra.Command {
 		newInitCmd(),
 		newKillCmd(),
 		newLsCmd(),
+		newSyncCmd(),
+		newDiffCmd(),
 		newVersionCmd(version),
 		newDoctorCmd(),
 	)
@@ -57,14 +59,14 @@ func resolveConfigPath() string {
 	return xdg.ConfigPath()
 }
 
-// loadConfig loads and validates the config. Returns nil if the file is
-// missing and missingOK is true (pass-through mode).
+// loadConfig loads and validates the config. Returns an empty parseable
+// config if the file is missing and missingOK is true (pass-through mode).
 func loadConfig(missingOK bool) (*config.Config, error) {
 	path := resolveConfigPath()
 	c, err := config.Load(path)
 	if err != nil {
 		if missingOK {
-			return &config.Config{Version: 1}, nil
+			return config.Parse([]byte("version: 1\n"))
 		}
 		return nil, err
 	}
