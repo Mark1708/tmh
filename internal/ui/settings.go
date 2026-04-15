@@ -180,14 +180,25 @@ func (s *settingsModel) View() string {
 	hint := s.st.Hint.Inherit(mb)
 
 	var b strings.Builder
-	b.WriteString(paintLine(s.st.Palette, title.Render(s.str.Settings.Title)) + "\n\n")
-	b.WriteString(s.renderLanguageSection(bodyW) + "\n")
-	b.WriteString(s.renderThemeSection(bodyW) + "\n")
-	b.WriteString(s.renderTmuxSection(bodyW) + "\n")
+	b.WriteString(modalRow(s.st.Palette, bodyW, title.Render(s.str.Settings.Title)))
+	b.WriteString("\n")
+	b.WriteString(modalRow(s.st.Palette, bodyW, ""))
+	b.WriteString("\n")
+	b.WriteString(s.renderLanguageSection(bodyW))
+	b.WriteString("\n")
+	b.WriteString(modalRow(s.st.Palette, bodyW, ""))
+	b.WriteString("\n")
+	b.WriteString(s.renderThemeSection(bodyW))
+	b.WriteString("\n")
+	b.WriteString(modalRow(s.st.Palette, bodyW, ""))
+	b.WriteString("\n")
+	b.WriteString(s.renderTmuxSection(bodyW))
+	b.WriteString("\n")
+	b.WriteString(modalRow(s.st.Palette, bodyW, ""))
+	b.WriteString("\n")
 	footer := hint.Render(s.str.Settings.Hint + " · tab next section")
-	b.WriteString("\n" + paintLine(s.st.Palette, footer))
-	body := padBlock(b.String())
-	return placeMiddle(s.width, s.height, s.st.Modal.Render(body), s.st.Palette)
+	b.WriteString(modalRow(s.st.Palette, bodyW, footer))
+	return placeMiddle(s.width, s.height, s.st.Modal.Render(b.String()), s.st.Palette)
 }
 
 // contentWidth caps the modal body to ≈60% of the terminal width so that
@@ -207,7 +218,8 @@ func (s *settingsModel) renderLanguageSection(w int) string {
 	focused := s.section == sectionLanguage
 	mb := modalBg(s.st.Palette)
 	var b strings.Builder
-	b.WriteString(sectionHeader(s.st, s.str.Settings.Language, focused) + "\n")
+	b.WriteString(modalRow(s.st.Palette, w, sectionHeaderContent(s.st, s.str.Settings.Language, focused)))
+	b.WriteString("\n")
 	for i, lang := range s.languages {
 		marker := "  "
 		if focused && i == s.langIdx {
@@ -215,13 +227,12 @@ func (s *settingsModel) renderLanguageSection(w int) string {
 		}
 		label := strings.ToUpper(lang)
 		line := mb.Render(marker + label)
-		line = padRight(line, w)
 		if focused && i == s.langIdx {
-			line = s.st.Selected.Render(line)
+			b.WriteString(s.st.Selected.Width(w).Render(line))
 		} else {
-			line = paintLine(s.st.Palette, line)
+			b.WriteString(modalRow(s.st.Palette, w, line))
 		}
-		b.WriteString(line + "\n")
+		b.WriteString("\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -230,22 +241,23 @@ func (s *settingsModel) renderThemeSection(w int) string {
 	focused := s.section == sectionTheme
 	mb := modalBg(s.st.Palette)
 	var b strings.Builder
-	b.WriteString(sectionHeader(s.st, s.str.Settings.Theme, focused) + "\n")
+	b.WriteString(modalRow(s.st.Palette, w, sectionHeaderContent(s.st, s.str.Settings.Theme, focused)))
+	b.WriteString("\n")
 	for i, p := range s.themes {
 		marker := "  "
 		if focused && i == s.themeIdx {
 			marker = "▸ "
 		}
-		// Swatch has its own bg per block; we leave it as-is and just paint
-		// the whitespace on either side.
+		// Swatch cells have their own bg per block; we leave them as-is and
+		// only paint the whitespace on the left.
 		leftPad := mb.Render(marker + p.Name + "   ")
 		line := leftPad + themeSwatch(p)
 		if focused && i == s.themeIdx {
-			line = s.st.Selected.Render(padRight(line, w))
+			b.WriteString(s.st.Selected.Width(w).Render(line))
 		} else {
-			line = paintLine(s.st.Palette, padRight(line, w))
+			b.WriteString(modalRow(s.st.Palette, w, line))
 		}
-		b.WriteString(line + "\n")
+		b.WriteString("\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -255,15 +267,15 @@ func (s *settingsModel) renderTmuxSection(w int) string {
 	mb := modalBg(s.st.Palette)
 	hint := s.st.Hint.Inherit(mb)
 	var b strings.Builder
-	b.WriteString(sectionHeader(s.st, s.str.Settings.Tmux, focused) + "\n")
+	b.WriteString(modalRow(s.st.Palette, w, sectionHeaderContent(s.st, s.str.Settings.Tmux, focused)))
+	b.WriteString("\n")
 	if len(s.tmuxFindings) == 0 {
-		empty := paintLine(s.st.Palette, hint.Render("  "+i18n.T("tui.settings.tmux.empty")))
-		b.WriteString(empty)
+		b.WriteString(modalRow(s.st.Palette, w, hint.Render("  "+i18n.T("tui.settings.tmux.empty"))))
 		return b.String()
 	}
-	// Columns: marker(2) + badge(2) + space + check(checkW) + space + message.
+	// Columns: marker(2) + badge(1) + space + check(checkW) + space + message.
 	const checkW = 28
-	msgW := w - 2 - 2 - 1 - checkW - 1
+	msgW := w - 2 - 1 - 1 - checkW - 1
 	if msgW < 10 {
 		msgW = 10
 	}
@@ -281,29 +293,25 @@ func (s *settingsModel) renderTmuxSection(w int) string {
 			}
 		}
 		msg := truncate(msgText, msgW)
-		line := mb.Render(marker) + badge + mb.Render(" "+padRight(check, checkW)+" "+padRight(msg, msgW))
+		line := mb.Render(marker) + badge + mb.Render(" "+padRight(check, checkW)+" "+msg)
 		if focused && i == s.tmuxIdx {
-			line = s.st.Selected.Render(padRight(line, w))
+			b.WriteString(s.st.Selected.Width(w).Render(line))
 		} else {
-			line = paintLine(s.st.Palette, padRight(line, w))
+			b.WriteString(modalRow(s.st.Palette, w, line))
 		}
-		b.WriteString(line + "\n")
+		b.WriteString("\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// sectionHeader renders a section title; the focused one gets the accent
-// subtitle style and an explicit marker so the user can tell which one Tab
-// will affect. Painted with modal bg so it merges with the modal body.
-func sectionHeader(st theme.Styles, title string, focused bool) string {
+// sectionHeaderContent returns the styled content of a section header. The
+// caller is responsible for wrapping it in modalRow for full-width bg.
+func sectionHeaderContent(st theme.Styles, title string, focused bool) string {
 	mb := modalBg(st.Palette)
-	var rendered string
 	if focused {
-		rendered = st.Subtitle.Inherit(mb).Render("▸ " + title)
-	} else {
-		rendered = st.Hint.Inherit(mb).Render("  " + title)
+		return st.Subtitle.Inherit(mb).Render("▸ " + title)
 	}
-	return paintLine(st.Palette, rendered)
+	return st.Hint.Inherit(mb).Render("  " + title)
 }
 
 func findingBadge(st theme.Styles, lvl actions.AuditLevel) string {

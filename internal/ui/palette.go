@@ -127,37 +127,46 @@ func (p *paletteModel) View() string {
 	}
 
 	var b strings.Builder
-	b.WriteString(paintLine(p.st.Palette, p.input.View()) + "\n\n")
+	b.WriteString(modalRow(p.st.Palette, width, p.input.View()))
+	b.WriteString("\n")
+	b.WriteString(modalRow(p.st.Palette, width, ""))
+	b.WriteString("\n")
 	for i := start; i < end; i++ {
 		row := p.actions[p.matches[i]]
 		marker := "  "
 		if i == p.cursor {
 			marker = "▸ "
 		}
-		// Compose line with inner styles that inherit modal bg, then pad the
-		// whole thing and wrap once more so plain gaps (marker, separator,
-		// trailing) also carry the bg.
+		// Compose the line with inner styles that Inherit(modalBg); modalRow
+		// then pads the remainder up to the row width with bg-painted
+		// whitespace so the modal bg is uniform edge-to-edge.
 		line := mb.Render(marker) + title.Render(row.Title)
 		if row.Subtitle != "" {
 			line += mb.Render("  ") + hint.Render(row.Subtitle)
 		}
-		line = padRight(line, width)
 		if i == p.cursor {
-			line = p.st.Selected.Render(line)
+			// Selected rows use the Selected style for the full row width
+			// instead of modal bg so the highlight is visible.
+			b.WriteString(p.st.Selected.Width(width).Render(line))
 		} else {
-			line = paintLine(p.st.Palette, line)
+			b.WriteString(modalRow(p.st.Palette, width, line))
 		}
-		b.WriteString(line + "\n")
+		b.WriteString("\n")
 	}
 	if total == 0 {
-		b.WriteString(paintLine(p.st.Palette, hint.Render(p.str.Palette.NoMatches)) + "\n")
+		b.WriteString(modalRow(p.st.Palette, width, hint.Render(p.str.Palette.NoMatches)) + "\n")
 	}
 	// Scroll indicator: "N/M" aligned right so the user sees position at a
 	// glance when the list overflows.
 	if total > viewportRows {
 		scroll := fmt.Sprintf("%d/%d", p.cursor+1, total)
-		b.WriteString("\n" + paintLine(p.st.Palette, hint.Render(padRight("", width-lipgloss.Width(scroll))+scroll)))
+		b.WriteString(modalRow(p.st.Palette, width, ""))
+		b.WriteString("\n")
+		b.WriteString(lipgloss.PlaceHorizontal(width, lipgloss.Right,
+			hint.Render(scroll),
+			lipgloss.WithWhitespaceBackground(p.st.Palette.BgOverlay),
+		))
 	}
-	body := p.st.Modal.Render(padBlock(b.String()))
+	body := p.st.Modal.Render(b.String())
 	return placeMiddle(p.width, p.height, body, p.st.Palette)
 }

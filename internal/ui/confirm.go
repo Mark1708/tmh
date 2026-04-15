@@ -44,7 +44,21 @@ func (c *confirmModel) Update(msg tea.Msg) (*confirmModel, tea.Cmd) {
 }
 
 func (c *confirmModel) View() string {
-	body := c.st.Title.Render(c.title) + "\n\n" + c.body + "\n\n" +
-		c.str.Modal.ConfirmYes + "   " + c.str.Modal.ConfirmNo
-	return placeMiddle(c.width, c.height, c.st.Modal.Render(padBlock(body)), c.st.Palette)
+	mb := modalBg(c.st.Palette)
+	title := c.st.Title.Inherit(mb).Render(c.title)
+	rowW := maxInt(40, c.width-12)
+
+	var b strings.Builder
+	b.WriteString(modalRow(c.st.Palette, rowW, title))
+	b.WriteString("\n")
+	b.WriteString(modalRow(c.st.Palette, rowW, ""))
+	b.WriteString("\n")
+	for _, line := range strings.Split(c.body, "\n") {
+		b.WriteString(modalRow(c.st.Palette, rowW, mb.Render(line)))
+		b.WriteString("\n")
+	}
+	b.WriteString(modalRow(c.st.Palette, rowW, ""))
+	b.WriteString("\n")
+	b.WriteString(modalRow(c.st.Palette, rowW, mb.Render(c.str.Modal.ConfirmYes+"   "+c.str.Modal.ConfirmNo)))
+	return placeMiddle(c.width, c.height, c.st.Modal.Render(b.String()), c.st.Palette)
 }

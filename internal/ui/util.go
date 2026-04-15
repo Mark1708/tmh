@@ -72,12 +72,30 @@ func modalBg(p theme.Palette) lipgloss.Style {
 	return lipgloss.NewStyle().Background(p.BgOverlay)
 }
 
-// paintLine wraps an arbitrary line (which may already contain inner styled
-// spans) in the modal bg so trailing whitespace and plain separators also
-// carry the bg. Inner spans must Inherit(modalBg(...)) themselves because
-// their own reset sequences clobber the wrapper's bg for their own cells.
+// paintLine wraps an arbitrary line in modal bg. Useful when you don't know
+// the target width and just want inner bg-continuity for plain separators.
+// Prefer modalRow for fixed-width rows: the padding there is applied inside
+// lipgloss so trailing whitespace picks up the bg, which paintLine cannot
+// guarantee because a trailing \x1b[0m from any inner span kills the outer
+// wrapper's bg for every cell that follows.
 func paintLine(p theme.Palette, line string) string {
 	return modalBg(p).Render(line)
+}
+
+// modalRow pads line to width w with bg-aware whitespace. Use this for every
+// row inside a modal so the bg is uniform edge-to-edge, including the gap
+// between the end of the text and the modal's right border.
+//
+// Internally uses lipgloss.PlaceHorizontal with WithWhitespaceBackground so
+// the filler cells carry the modal bg even when the inner content already
+// ended with a reset sequence.
+func modalRow(p theme.Palette, w int, line string) string {
+	if w <= 0 {
+		return line
+	}
+	return lipgloss.PlaceHorizontal(w, lipgloss.Left, line,
+		lipgloss.WithWhitespaceBackground(p.BgOverlay),
+	)
 }
 
 // padBlock right-pads every line in a multi-line string to the block's

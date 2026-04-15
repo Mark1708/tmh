@@ -16,11 +16,17 @@ func (m *Model) renderHistory() string {
 	ok := m.st.StatusOK.Inherit(mb).Bold(true)
 	errS := m.st.StatusGone.Inherit(mb).Bold(true)
 
+	rowW := maxInt(40, m.width-12)
+
 	var b strings.Builder
-	b.WriteString(paintLine(m.st.Palette, title.Render(i18n.T("tui.history.title"))) + "\n\n")
+	b.WriteString(modalRow(m.st.Palette, rowW, title.Render(i18n.T("tui.history.title"))))
+	b.WriteString("\n")
+	b.WriteString(modalRow(m.st.Palette, rowW, ""))
+	b.WriteString("\n")
 
 	if len(m.history) == 0 {
-		b.WriteString(paintLine(m.st.Palette, hint.Render(i18n.T("tui.history.empty"))))
+		b.WriteString(modalRow(m.st.Palette, rowW, hint.Render(i18n.T("tui.history.empty"))))
+		b.WriteString("\n")
 	} else {
 		// newest first
 		for i := len(m.history) - 1; i >= 0; i-- {
@@ -32,13 +38,15 @@ func (m *Model) renderHistory() string {
 				badge = ok.Render(padRight(i18n.T("tui.history.ok_label"), 7))
 			}
 			ts := hint.Render(e.Stamp.Format("15:04:05"))
-			line := mb.Render(" ") + badge + mb.Render(" ") + ts + mb.Render("  "+truncate(e.Text, maxInt(30, m.width-30)))
-			b.WriteString(paintLine(m.st.Palette, line) + "\n")
+			line := mb.Render(" ") + badge + mb.Render(" ") + ts + mb.Render("  "+truncate(e.Text, maxInt(30, rowW-20)))
+			b.WriteString(modalRow(m.st.Palette, rowW, line))
+			b.WriteString("\n")
 		}
 	}
 
-	b.WriteString("\n" + paintLine(m.st.Palette, hint.Render(i18n.T("tui.history.back_hint"))))
-	body := padBlock(b.String())
-	return placeMiddle(m.width, m.height, m.st.Modal.Render(body), m.st.Palette)
+	b.WriteString(modalRow(m.st.Palette, rowW, ""))
+	b.WriteString("\n")
+	b.WriteString(modalRow(m.st.Palette, rowW, hint.Render(i18n.T("tui.history.back_hint"))))
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(b.String()), m.st.Palette)
 }
 

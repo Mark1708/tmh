@@ -420,20 +420,41 @@ func (m *Model) renderFooter() string {
 }
 
 func (m *Model) renderErrorScreen() string {
-	body := padBlock(m.st.StatusGone.Render(m.str.Modal.ErrorTitle) + "\n\n" + m.errMsg + "\n\n" + m.str.Modal.ErrorDismiss)
-	return placeMiddle(m.width, m.height, m.st.Modal.Render(body), m.st.Palette)
+	mb := modalBg(m.st.Palette)
+	rowW := maxInt(40, m.width-12)
+	title := m.st.StatusGone.Inherit(mb).Render(m.str.Modal.ErrorTitle)
+	var b strings.Builder
+	b.WriteString(modalRow(m.st.Palette, rowW, title))
+	b.WriteString("\n")
+	b.WriteString(modalRow(m.st.Palette, rowW, ""))
+	b.WriteString("\n")
+	for _, line := range strings.Split(m.errMsg, "\n") {
+		b.WriteString(modalRow(m.st.Palette, rowW, mb.Render(line)))
+		b.WriteString("\n")
+	}
+	b.WriteString(modalRow(m.st.Palette, rowW, ""))
+	b.WriteString("\n")
+	b.WriteString(modalRow(m.st.Palette, rowW, mb.Render(m.str.Modal.ErrorDismiss)))
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(b.String()), m.st.Palette)
 }
 
 func (m *Model) renderEmptyScreen() string {
-	body := padBlock(m.str.Modal.EmptyTitle + "\n\n" + m.str.Modal.EmptyHint)
-	return placeMiddle(m.width, m.height, m.st.Modal.Render(body), m.st.Palette)
+	mb := modalBg(m.st.Palette)
+	rowW := maxInt(40, m.width-12)
+	var b strings.Builder
+	b.WriteString(modalRow(m.st.Palette, rowW, mb.Render(m.str.Modal.EmptyTitle)))
+	b.WriteString("\n")
+	b.WriteString(modalRow(m.st.Palette, rowW, ""))
+	b.WriteString("\n")
+	b.WriteString(modalRow(m.st.Palette, rowW, mb.Render(m.str.Modal.EmptyHint)))
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(b.String()), m.st.Palette)
 }
 
 func (m *Model) overlayHelp(body string) string {
-	// Pad every line to the widest so the modal's Background fills the
-	// whole block — otherwise shorter rows leak through whatever is behind.
-	help := padBlock(m.helpText())
-	return placeMiddle(m.width, m.height, m.st.Modal.Render(help), m.st.Palette)
+	// helpText already produces modalRow-padded lines; just wrap with the
+	// Modal border + bg and centre it on the screen.
+	_ = body
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(m.helpText()), m.st.Palette)
 }
 
 func (m *Model) helpText() string {
@@ -473,18 +494,24 @@ func (m *Model) helpText() string {
 	keyBind := m.st.KeyBinding.Inherit(mb)
 	plain := mb
 
+	// Width budget: modal content area (screen width minus border + padding).
+	rowW := maxInt(40, m.width-12)
+
 	var b strings.Builder
-	b.WriteString(paintLine(m.st.Palette, title.Render(km.Title)))
-	b.WriteString("\n\n")
+	b.WriteString(modalRow(m.st.Palette, rowW, title.Render(km.Title)))
+	b.WriteString("\n")
+	b.WriteString(modalRow(m.st.Palette, rowW, ""))
+	b.WriteString("\n")
 	for si, sec := range sections {
-		b.WriteString(paintLine(m.st.Palette, subtitle.Render(sec.title)))
+		b.WriteString(modalRow(m.st.Palette, rowW, subtitle.Render(sec.title)))
 		b.WriteString("\n")
 		for _, row := range sec.rows {
 			line := plain.Render("  ") + keyBind.Render(row[0]) + plain.Render("   "+row[1])
-			b.WriteString(paintLine(m.st.Palette, line))
+			b.WriteString(modalRow(m.st.Palette, rowW, line))
 			b.WriteString("\n")
 		}
 		if si < len(sections)-1 {
+			b.WriteString(modalRow(m.st.Palette, rowW, ""))
 			b.WriteString("\n")
 		}
 	}
