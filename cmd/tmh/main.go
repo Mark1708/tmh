@@ -3,16 +3,17 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"git.mark1708.ru/me/tmh/cmd/tmh/cmd"
 )
 
 // Version is set at build time via -ldflags "-X main.Version=...".
 var Version = "dev"
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Println(Version)
-		return
+	root := cmd.NewRoot(Version)
+	if err := root.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, "tmh:", err)
+		os.Exit(1)
 	}
-	fmt.Fprintln(os.Stderr, "tmh: not implemented yet")
-	os.Exit(1)
 }
