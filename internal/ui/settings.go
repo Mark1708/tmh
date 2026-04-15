@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"git.mark1708.ru/me/tmh/internal/actions"
@@ -172,20 +171,41 @@ func (s *settingsModel) applyLanguage() tea.Cmd {
 }
 
 // View stacks the three sections vertically. Focused section gets an accent
-// border; others are dimmed.
+// border; others are dimmed. Content width is capped so long audit messages
+// don't balloon the modal past what the terminal can host.
 func (s *settingsModel) View() string {
+	bodyW := s.contentWidth()
+	mb := modalBg(s.st.Palette)
+	title := s.st.Title.Inherit(mb)
+	hint := s.st.Hint.Inherit(mb)
+
 	var b strings.Builder
-	b.WriteString(s.st.Title.Render(s.str.Settings.Title) + "\n\n")
-	b.WriteString(s.renderLanguageSection() + "\n")
-	b.WriteString(s.renderThemeSection() + "\n")
-	b.WriteString(s.renderTmuxSection() + "\n")
-	b.WriteString("\n" + s.st.Hint.Render(s.str.Settings.Hint+" · tab next section"))
+	b.WriteString(paintLine(s.st.Palette, title.Render(s.str.Settings.Title)) + "\n\n")
+	b.WriteString(s.renderLanguageSection(bodyW) + "\n")
+	b.WriteString(s.renderThemeSection(bodyW) + "\n")
+	b.WriteString(s.renderTmuxSection(bodyW) + "\n")
+	footer := hint.Render(s.str.Settings.Hint + " · tab next section")
+	b.WriteString("\n" + paintLine(s.st.Palette, footer))
 	body := padBlock(b.String())
 	return placeMiddle(s.width, s.height, s.st.Modal.Render(body), s.st.Palette)
 }
 
-func (s *settingsModel) renderLanguageSection() string {
+// contentWidth caps the modal body to ≈60% of the terminal width so that
+// long audit messages wrap/truncate instead of stretching the whole overlay.
+func (s *settingsModel) contentWidth() int {
+	w := s.width * 60 / 100
+	if w < 40 {
+		w = 40
+	}
+	if w > 90 {
+		w = 90
+	}
+	return w
+}
+
+func (s *settingsModel) renderLanguageSection(w int) string {
 	focused := s.section == sectionLanguage
+	mb := modalBg(s.st.Palette)
 	var b strings.Builder
 	b.WriteString(sectionHeader(s.st, s.str.Settings.Language, focused) + "\n")
 	for i, lang := range s.languages {
@@ -194,17 +214,21 @@ func (s *settingsModel) renderLanguageSection() string {
 			marker = "▸ "
 		}
 		label := strings.ToUpper(lang)
-		line := marker + label
+		line := mb.Render(marker + label)
+		line = padRight(line, w)
 		if focused && i == s.langIdx {
-			line = s.st.Selected.Render(padRight(line, 40))
+			line = s.st.Selected.Render(line)
+		} else {
+			line = paintLine(s.st.Palette, line)
 		}
 		b.WriteString(line + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func (s *settingsModel) renderThemeSection() string {
+func (s *settingsModel) renderThemeSection(w int) string {
 	focused := s.section == sectionTheme
+	mb := modalBg(s.st.Palette)
 	var b strings.Builder
 	b.WriteString(sectionHeader(s.st, s.str.Settings.Theme, focused) + "\n")
 	for i, p := range s.themes {
@@ -212,22 +236,36 @@ func (s *settingsModel) renderThemeSection() string {
 		if focused && i == s.themeIdx {
 			marker = "▸ "
 		}
-		line := marker + p.Name + "   " + themeSwatch(p)
+		// Swatch has its own bg per block; we leave it as-is and just paint
+		// the whitespace on either side.
+		leftPad := mb.Render(marker + p.Name + "   ")
+		line := leftPad + themeSwatch(p)
 		if focused && i == s.themeIdx {
-			line = s.st.Selected.Render(padRight(line, 60))
+			line = s.st.Selected.Render(padRight(line, w))
+		} else {
+			line = paintLine(s.st.Palette, padRight(line, w))
 		}
 		b.WriteString(line + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func (s *settingsModel) renderTmuxSection() string {
+func (s *settingsModel) renderTmuxSection(w int) string {
 	focused := s.section == sectionTmux
+	mb := modalBg(s.st.Palette)
+	hint := s.st.Hint.Inherit(mb)
 	var b strings.Builder
 	b.WriteString(sectionHeader(s.st, s.str.Settings.Tmux, focused) + "\n")
 	if len(s.tmuxFindings) == 0 {
-		b.WriteString(s.st.Hint.Render("  " + i18n.T("tui.settings.tmux.empty")))
+		empty := paintLine(s.st.Palette, hint.Render("  "+i18n.T("tui.settings.tmux.empty")))
+		b.WriteString(empty)
 		return b.String()
+	}
+	// Columns: marker(2) + badge(2) + space + check(checkW) + space + message.
+	const checkW = 28
+	msgW := w - 2 - 2 - 1 - checkW - 1
+	if msgW < 10 {
+		msgW = 10
 	}
 	for i, f := range s.tmuxFindings {
 		marker := "  "
@@ -235,9 +273,13 @@ func (s *settingsModel) renderTmuxSection() string {
 			marker = "▸ "
 		}
 		badge := findingBadge(s.st, f.Level)
-		line := fmt.Sprintf("%s%s %-32s %s", marker, badge, f.Check, f.Message)
+		check := truncate(f.Check, checkW)
+		msg := truncate(f.Message, msgW)
+		line := mb.Render(marker) + badge + mb.Render(" "+padRight(check, checkW)+" "+padRight(msg, msgW))
 		if focused && i == s.tmuxIdx {
-			line = s.st.Selected.Render(padRight(line, maxInt(60, s.width-4)))
+			line = s.st.Selected.Render(padRight(line, w))
+		} else {
+			line = paintLine(s.st.Palette, padRight(line, w))
 		}
 		b.WriteString(line + "\n")
 	}
@@ -246,12 +288,16 @@ func (s *settingsModel) renderTmuxSection() string {
 
 // sectionHeader renders a section title; the focused one gets the accent
 // subtitle style and an explicit marker so the user can tell which one Tab
-// will affect.
+// will affect. Painted with modal bg so it merges with the modal body.
 func sectionHeader(st theme.Styles, title string, focused bool) string {
+	mb := modalBg(st.Palette)
+	var rendered string
 	if focused {
-		return st.Subtitle.Render("▸ " + title)
+		rendered = st.Subtitle.Inherit(mb).Render("▸ " + title)
+	} else {
+		rendered = st.Hint.Inherit(mb).Render("  " + title)
 	}
-	return st.Hint.Render("  " + title)
+	return paintLine(st.Palette, rendered)
 }
 
 func findingBadge(st theme.Styles, lvl actions.AuditLevel) string {

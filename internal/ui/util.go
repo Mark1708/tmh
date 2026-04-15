@@ -63,6 +63,23 @@ func placeMiddle(width, height int, content string, p theme.Palette) string {
 	)
 }
 
+// modalBg returns a style that inherits the modal's background. Pass it to
+// Inherit() on any inner style so the inner span keeps its fg/bold/italic
+// but also paints its bg — which is required because lipgloss emits a full
+// reset (\x1b[0m) at the end of each Render(), wiping any outer bg applied
+// by a surrounding wrapper style.
+func modalBg(p theme.Palette) lipgloss.Style {
+	return lipgloss.NewStyle().Background(p.BgOverlay)
+}
+
+// paintLine wraps an arbitrary line (which may already contain inner styled
+// spans) in the modal bg so trailing whitespace and plain separators also
+// carry the bg. Inner spans must Inherit(modalBg(...)) themselves because
+// their own reset sequences clobber the wrapper's bg for their own cells.
+func paintLine(p theme.Palette, line string) string {
+	return modalBg(p).Render(line)
+}
+
 // padBlock right-pads every line in a multi-line string to the block's
 // widest visible width so lipgloss.Background fills the whole rectangle.
 // Without this, a Modal style with Background leaves unfilled gaps on any
@@ -79,14 +96,6 @@ func padBlock(s string) string {
 		lines[i] = padRight(l, max)
 	}
 	return strings.Join(lines, "\n")
-}
-
-func overlayBottomRight(base, overlay string, w, h int) string {
-	// Simple approach: position overlay using lipgloss.Place's right/bottom
-	// alignment over a transparent layer.
-	bottom := lipgloss.Place(w, 1, lipgloss.Right, lipgloss.Bottom, overlay)
-	_ = h
-	return base + "\n" + bottom
 }
 
 // collectLive mirrors actions.collectLive but lives here to avoid a

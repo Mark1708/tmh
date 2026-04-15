@@ -28,6 +28,9 @@ type dashboardModel struct {
 	cursor     int
 	listing    *actions.Listing
 	driftIndex map[string]config.DriftStatus // "session" or "session/window" → status
+
+	preview       string // cached capture-pane content for current row
+	previewTarget string // row key the cached preview belongs to
 }
 
 type dashboardRow struct {
@@ -54,6 +57,40 @@ func (d *dashboardModel) SetStyles(st theme.Styles) { d.st = st }
 
 // SetStrings swaps the translated string bundle (used after a language change).
 func (d *dashboardModel) SetStrings(str UIStrings) { d.str = str }
+
+// SetPreview updates the cached preview text for the row key it was
+// captured against. Noop if the selection has moved in the meantime, so an
+// in-flight fetch for an old row never overwrites a fresh one.
+func (d *dashboardModel) SetPreview(target, text string) {
+	if target != d.currentTargetKey() {
+		return
+	}
+	d.preview = text
+	d.previewTarget = target
+}
+
+// currentTargetKey returns a stable identifier for the current selection
+// used as preview cache key. Empty when nothing is selected.
+func (d *dashboardModel) currentTargetKey() string {
+	r := d.currentRow()
+	if r == nil {
+		return ""
+	}
+	if r.IsSession {
+		return r.Session
+	}
+	return r.Session + ":" + r.Window
+}
+
+// PreviewStale reports true when the current selection lacks a matching
+// capture in the cache; the root model triggers an async fetch in that case.
+func (d *dashboardModel) PreviewStale() (target string, stale bool) {
+	target = d.currentTargetKey()
+	if target == "" {
+		return "", false
+	}
+	return target, d.previewTarget != target
+}
 
 // SetData replaces the rendered tree with fresh data.
 func (d *dashboardModel) SetData(l *actions.Listing, drift []config.Drift) {
@@ -257,14 +294,14 @@ func (d *dashboardModel) renderDetail(width int) string {
 	if r.IsSession {
 		title := i18n.Tf("tui.dashboard.session_label", map[string]any{"name": r.Session})
 		b.WriteString(d.st.Title.Render(title) + "\n\n")
-		fmt.Fprintf(&b, "%-10s%v\n", i18n.T("tui.dashboard.field.live"), r.Live)
-		fmt.Fprintf(&b, "%-10s%v\n", i18n.T("tui.dashboard.field.attached"), r.Attached)
+		fmt.Fprintf(&b, "%-10s%s\n", i18n.T("tui.dashboard.field.live"), d.boolGlyph(r.Live))
+		fmt.Fprintf(&b, "%-10s%s\n", i18n.T("tui.dashboard.field.attached"), d.boolGlyph(r.Attached))
 		fmt.Fprintf(&b, "%-10s%d\n", i18n.T("tui.dashboard.field.windows"), r.WindowCnt)
 		fmt.Fprintf(&b, "%-10s%s\n", i18n.T("tui.dashboard.field.status"), d.statusLabel(r.Status))
 	} else {
 		title := i18n.Tf("tui.dashboard.window_label", map[string]any{"session": r.Session, "window": r.Window})
 		b.WriteString(d.st.Title.Render(title) + "\n\n")
-		fmt.Fprintf(&b, "%-8s%v\n", i18n.T("tui.dashboard.field.live"), r.Live)
+		fmt.Fprintf(&b, "%-8s%s\n", i18n.T("tui.dashboard.field.live"), d.boolGlyph(r.Live))
 		if r.Layout != "" {
 			fmt.Fprintf(&b, "%-8s%s\n", i18n.T("tui.dashboard.field.layout"), r.Layout)
 		}
@@ -273,8 +310,59 @@ func (d *dashboardModel) renderDetail(width int) string {
 		b.WriteString("\n")
 		b.WriteString(d.st.Hint.Render(d.str.AttachHint))
 	}
+	if d.preview != "" {
+		b.WriteString("\n\n")
+		b.WriteString(d.st.Subtitle.Render(i18n.T("tui.dashboard.preview_label")) + "\n")
+		b.WriteString(d.renderPreview(width))
+	}
 	_ = width
 	return b.String()
+}
+
+// boolGlyph renders true/false as a themed check/cross so the detail panel
+// reads at a glance.
+func (d *dashboardModel) boolGlyph(v bool) string {
+	if v {
+		return d.st.StatusOK.Render("✓")
+	}
+	return d.st.StatusGone.Render("✗")
+}
+
+// renderPreview paints the cached tmux capture-pane output for the current
+// row, truncated to fit the detail panel. Empty when no capture exists yet
+// (it's fetched asynchronously by loadPreviewCmd).
+func (d *dashboardModel) renderPreview(width int) string {
+	if d.preview == "" {
+		return ""
+	}
+	lines := strings.Split(strings.TrimRight(d.preview, "\n"), "\n")
+	maxLines := d.previewRows()
+	if maxLines <= 0 {
+		return ""
+	}
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
+	}
+	w := maxInt(10, width-2)
+	for i, l := range lines {
+		lines[i] = d.st.Hint.Render(truncate(l, w))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// previewRows returns how many rows are left below the detail fields for
+// the preview body.
+func (d *dashboardModel) previewRows() int {
+	// detail header + fields take ~8 rows; reserve a couple for preview label
+	// and margins.
+	budget := d.height - 12
+	if budget > 15 {
+		budget = 15
+	}
+	if budget < 0 {
+		return 0
+	}
+	return budget
 }
 
 // --- helpers ---

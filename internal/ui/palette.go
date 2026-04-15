@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -105,26 +107,56 @@ func (p *paletteModel) refresh() {
 }
 
 func (p *paletteModel) View() string {
-	maxRows := minInt(10, len(p.matches))
+	// Page size derived from the modal height: reserve 6 rows for border,
+	// padding, input row, and a trailing spacer so the cursor can't outrun
+	// the viewport at the bottom.
+	viewportRows := maxInt(5, minInt(12, p.height-10))
+	total := len(p.matches)
+	start := 0
+	if p.cursor >= viewportRows {
+		start = p.cursor - viewportRows + 1
+	}
+	end := minInt(total, start+viewportRows)
+
+	mb := modalBg(p.st.Palette)
+	title := p.st.Title.Inherit(mb)
+	hint := p.st.Hint.Inherit(mb)
+	width := minInt(80, p.width-8)
+	if width < 40 {
+		width = 40
+	}
+
 	var b strings.Builder
-	b.WriteString(p.input.View() + "\n\n")
-	for i := 0; i < maxRows; i++ {
+	b.WriteString(paintLine(p.st.Palette, p.input.View()) + "\n\n")
+	for i := start; i < end; i++ {
 		row := p.actions[p.matches[i]]
 		marker := "  "
 		if i == p.cursor {
 			marker = "▸ "
 		}
-		line := marker + p.st.Title.Render(row.Title)
+		// Compose line with inner styles that inherit modal bg, then pad the
+		// whole thing and wrap once more so plain gaps (marker, separator,
+		// trailing) also carry the bg.
+		line := mb.Render(marker) + title.Render(row.Title)
 		if row.Subtitle != "" {
-			line += "  " + p.st.Hint.Render(row.Subtitle)
+			line += mb.Render("  ") + hint.Render(row.Subtitle)
 		}
+		line = padRight(line, width)
 		if i == p.cursor {
-			line = p.st.Selected.Render(padRight(line, 70))
+			line = p.st.Selected.Render(line)
+		} else {
+			line = paintLine(p.st.Palette, line)
 		}
 		b.WriteString(line + "\n")
 	}
-	if len(p.matches) == 0 {
-		b.WriteString(p.st.Hint.Render(p.str.Palette.NoMatches + "\n"))
+	if total == 0 {
+		b.WriteString(paintLine(p.st.Palette, hint.Render(p.str.Palette.NoMatches)) + "\n")
+	}
+	// Scroll indicator: "N/M" aligned right so the user sees position at a
+	// glance when the list overflows.
+	if total > viewportRows {
+		scroll := fmt.Sprintf("%d/%d", p.cursor+1, total)
+		b.WriteString("\n" + paintLine(p.st.Palette, hint.Render(padRight("", width-lipgloss.Width(scroll))+scroll)))
 	}
 	body := p.st.Modal.Render(padBlock(b.String()))
 	return placeMiddle(p.width, p.height, body, p.st.Palette)

@@ -16,7 +16,7 @@ type Keys struct {
 	Attach, NewSession, Kill, Sync, Reload key.Binding
 	ConfigEditor, Diff, Snapshot, Undo     key.Binding
 	Palette, Help, Theme, Search           key.Binding
-	Refresh, Settings                      key.Binding
+	Refresh, Settings, History             key.Binding
 }
 
 // DefaultKeys returns the default key bindings.
@@ -51,5 +51,6 @@ func DefaultKeys() Keys {
 		Search:       key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 		Refresh:      key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 		Settings:     key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "settings")),
+		History:      key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("^L", "history")),
 	}
 }

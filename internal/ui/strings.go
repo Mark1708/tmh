@@ -26,7 +26,7 @@ type UIStrings struct {
 }
 
 type UIFooter struct {
-	Attach, Dotfiles, Sync, Settings, Palette, Help, Quit string
+	Attach, NewSession, Kill, Dotfiles, Sync, Settings, Palette, History, Help, Quit string
 }
 
 type UIModal struct {
@@ -87,13 +87,16 @@ func LoadStrings() UIStrings {
 	}
 
 	s.Footer = UIFooter{
-		Attach:   i18n.T("tui.footer.attach"),
-		Dotfiles: i18n.T("tui.footer.dotfiles"),
-		Sync:     i18n.T("tui.footer.sync"),
-		Settings: i18n.T("tui.footer.settings"),
-		Palette:  i18n.T("tui.footer.palette"),
-		Help:     i18n.T("tui.footer.help"),
-		Quit:     i18n.T("tui.footer.quit"),
+		Attach:     i18n.T("tui.footer.attach"),
+		NewSession: i18n.T("tui.footer.new"),
+		Kill:       i18n.T("tui.footer.kill"),
+		Dotfiles:   i18n.T("tui.footer.dotfiles"),
+		Sync:       i18n.T("tui.footer.sync"),
+		Settings:   i18n.T("tui.footer.settings"),
+		Palette:    i18n.T("tui.footer.palette"),
+		History:    i18n.T("tui.footer.history"),
+		Help:       i18n.T("tui.footer.help"),
+		Quit:       i18n.T("tui.footer.quit"),
 	}
 
 	s.Modal = UIModal{

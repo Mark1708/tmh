@@ -145,9 +145,8 @@ func New(p Palette) Styles {
 		StatusNew:   lipgloss.NewStyle().Foreground(p.New).Bold(true),
 		StatusGone:  lipgloss.NewStyle().Foreground(p.Gone).Bold(true),
 		Toast: lipgloss.NewStyle().
-			Border(border).BorderForeground(p.Accent).
-			Background(p.BgOverlay).Foreground(p.Text).
-			Padding(0, 2),
+			Background(p.Accent).Foreground(p.Bg).Bold(true).
+			Padding(0, 1),
 		Modal: lipgloss.NewStyle().
 			Border(border).BorderForeground(p.Accent).
 			Background(p.BgOverlay).Foreground(p.Text).

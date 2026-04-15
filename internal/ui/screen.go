@@ -12,4 +12,5 @@ const (
 	ScreenEmpty
 	ScreenConfirm
 	ScreenSettings
+	ScreenHistory
 )

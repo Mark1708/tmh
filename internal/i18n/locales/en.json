@@ -98,12 +98,21 @@
   "tui.keymap.other.quit": "quit",
 
   "tui.footer.attach": "attach",
+  "tui.footer.new": "new",
+  "tui.footer.kill": "kill",
   "tui.footer.dotfiles": "dotfiles",
   "tui.footer.sync": "sync",
   "tui.footer.settings": "settings",
   "tui.footer.palette": "palette",
+  "tui.footer.history": "history",
   "tui.footer.help": "help",
   "tui.footer.quit": "quit",
+
+  "tui.history.title": "action history",
+  "tui.history.empty": "no actions yet",
+  "tui.history.back_hint": "esc back · ↑↓ navigate",
+  "tui.history.error_label": "ERR",
+  "tui.history.ok_label": "OK",
 
   "tui.modal.error.title": "⚠ error",
   "tui.modal.error.dismiss": "esc / q to dismiss",
@@ -158,6 +167,7 @@
   "tui.dashboard.field.status": "status",
   "tui.dashboard.field.layout": "layout",
   "tui.dashboard.field.panes": "panes",
+  "tui.dashboard.preview_label": "preview",
 
   "tui.toast.error_prefix": "error: {{.msg}}",
   "tui.toast.sync_report": "sync: {{.created}} created, {{.updated}} updated",

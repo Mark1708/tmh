@@ -97,13 +97,22 @@
   "tui.keymap.other.help": "показать / скрыть help",
   "tui.keymap.other.quit": "выход",
 
-  "tui.footer.attach": "attach",
+  "tui.footer.attach": "подкл.",
+  "tui.footer.new": "новая",
+  "tui.footer.kill": "удалить",
   "tui.footer.dotfiles": "dotfiles",
-  "tui.footer.sync": "sync",
+  "tui.footer.sync": "синхр.",
   "tui.footer.settings": "настройки",
   "tui.footer.palette": "палитра",
-  "tui.footer.help": "help",
+  "tui.footer.history": "история",
+  "tui.footer.help": "помощь",
   "tui.footer.quit": "выход",
+
+  "tui.history.title": "история действий",
+  "tui.history.empty": "действий пока нет",
+  "tui.history.back_hint": "esc назад · ↑↓ навигация",
+  "tui.history.error_label": "ОШИБКА",
+  "tui.history.ok_label": "OK",
 
   "tui.modal.error.title": "⚠ ошибка",
   "tui.modal.error.dismiss": "esc / q чтобы закрыть",
@@ -158,6 +167,7 @@
   "tui.dashboard.field.status": "статус",
   "tui.dashboard.field.layout": "layout",
   "tui.dashboard.field.panes": "панелей",
+  "tui.dashboard.preview_label": "preview",
 
   "tui.toast.error_prefix": "ошибка: {{.msg}}",
   "tui.toast.sync_report": "sync: создано {{.created}}, обновлено {{.updated}}",

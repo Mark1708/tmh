@@ -62,8 +62,20 @@ type Model struct {
 
 	toast    string
 	toastEnd time.Time
+	// history is a ring-buffer of the last few toasts (including errors) so
+	// the user can glance back at what finished and with what outcome via
+	// ScreenHistory (`Ctrl+L`).
+	history    []toastEntry
+	historyMax int
 
 	pollEvery time.Duration
+}
+
+// toastEntry captures one entry in the toast history ring buffer.
+type toastEntry struct {
+	Text  string
+	Err   bool
+	Stamp time.Time
 }
 
 // New constructs the root model.
@@ -72,13 +84,24 @@ func New(deps Deps) *Model {
 	st := theme.New(theme.Mocha)
 	str := LoadStrings()
 	return &Model{
-		deps:      deps,
-		keys:      keys,
-		st:        st,
-		str:       str,
-		current:   ScreenDashboard,
-		dashboard: newDashboard(keys, st, str),
-		pollEvery: 2 * time.Second,
+		deps:       deps,
+		keys:       keys,
+		st:         st,
+		str:        str,
+		current:    ScreenDashboard,
+		dashboard:  newDashboard(keys, st, str),
+		pollEvery:  2 * time.Second,
+		historyMax: 30,
+	}
+}
+
+// pushHistory appends a message to the ring buffer and keeps the buffer
+// capped at historyMax. Callers classify errors via isErr so the history
+// screen can colour them distinctly.
+func (m *Model) pushHistory(text string, isErr bool) {
+	m.history = append(m.history, toastEntry{Text: text, Err: isErr, Stamp: time.Now()})
+	if len(m.history) > m.historyMax {
+		m.history = m.history[len(m.history)-m.historyMax:]
 	}
 }
 
@@ -123,15 +146,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.dashboard != nil {
 			m.dashboard.SetData(msg.Listing, msg.Drift)
 		}
+		return m, m.maybeLoadPreview()
+
+	case previewLoadedMsg:
+		if m.dashboard != nil && msg.Err == nil {
+			m.dashboard.SetPreview(msg.Target, msg.Data)
+		}
 		return m, nil
 
 	case toastMsg:
-		m.toast = msg.Text
 		ttl := msg.TTL
 		if ttl == 0 {
-			ttl = 2 * time.Second
+			ttl = 4 * time.Second
 		}
+		m.toast = msg.Text
 		m.toastEnd = time.Now().Add(ttl)
+		m.pushHistory(msg.Text, false)
 		return m, tea.Tick(ttl, func(time.Time) tea.Msg { return toastExpiredMsg{} })
 
 	case toastExpiredMsg:
@@ -141,14 +171,19 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case errorMsg:
-		m.toast = i18n.Tf("tui.toast.error_prefix", map[string]any{"msg": errrender.Render(msg.Err)})
-		m.toastEnd = time.Now().Add(3 * time.Second)
-		return m, tea.Tick(3*time.Second, func(time.Time) tea.Msg { return toastExpiredMsg{} })
+		rendered := errrender.Render(msg.Err)
+		m.toast = i18n.Tf("tui.toast.error_prefix", map[string]any{"msg": rendered})
+		const ttl = 5 * time.Second
+		m.toastEnd = time.Now().Add(ttl)
+		m.pushHistory(rendered, true)
+		return m, tea.Tick(ttl, func(time.Time) tea.Msg { return toastExpiredMsg{} })
 
 	case actionDoneMsg:
 		m.toast = msg.Text
-		m.toastEnd = time.Now().Add(2 * time.Second)
-		return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg { return toastExpiredMsg{} })
+		const ttl = 4 * time.Second
+		m.toastEnd = time.Now().Add(ttl)
+		m.pushHistory(msg.Text, false)
+		return m, tea.Tick(ttl, func(time.Time) tea.Msg { return toastExpiredMsg{} })
 
 	case switchScreenMsg:
 		m.prev = m.current
@@ -173,6 +208,14 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case keyMatches(msg, m.keys.Help):
 		m.helpVisible = !m.helpVisible
+		return m, nil
+	case keyMatches(msg, m.keys.History):
+		if m.current == ScreenHistory {
+			m.current = ScreenDashboard
+		} else {
+			m.prev = m.current
+			m.current = ScreenHistory
+		}
 		return m, nil
 	case keyMatches(msg, m.keys.Theme):
 		m.st = theme.New(theme.Cycle(m.st.Palette))
@@ -277,7 +320,7 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		)
 	}
 	_, cmd := m.dashboard.Update(msg)
-	return m, cmd
+	return m, tea.Batch(cmd, m.maybeLoadPreview())
 }
 
 // View renders the active screen + persistent overlays (toast, help).
@@ -310,15 +353,14 @@ func (m *Model) View() string {
 		if m.settings != nil {
 			body = m.settings.View()
 		}
+	case ScreenHistory:
+		body = m.renderHistory()
 	default:
 		body = m.dashboard.View()
 	}
 
 	if m.helpVisible {
 		body = m.overlayHelp(body)
-	}
-	if m.toast != "" {
-		body = m.overlayToast(body)
 	}
 	return body
 }
@@ -349,14 +391,32 @@ func (m *Model) renderHeader() string {
 func (m *Model) renderFooter() string {
 	hints := []string{
 		m.st.KeyBinding.Render("a") + " " + m.str.Footer.Attach,
+		m.st.KeyBinding.Render("n") + " " + m.str.Footer.NewSession,
+		m.st.KeyBinding.Render("d") + " " + m.str.Footer.Kill,
 		m.st.KeyBinding.Render("R") + " " + m.str.Footer.Dotfiles,
 		m.st.KeyBinding.Render("s") + " " + m.str.Footer.Sync,
 		m.st.KeyBinding.Render("S") + " " + m.str.Footer.Settings,
 		m.st.KeyBinding.Render(":") + " " + m.str.Footer.Palette,
+		m.st.KeyBinding.Render("^L") + " " + m.str.Footer.History,
 		m.st.KeyBinding.Render("?") + " " + m.str.Footer.Help,
 		m.st.KeyBinding.Render("q") + " " + m.str.Footer.Quit,
 	}
-	return m.st.Footer.Render(strings.Join(hints, " · "))
+	hintsStr := strings.Join(hints, " · ")
+	if m.toast == "" || m.width == 0 {
+		return m.st.Footer.Render(hintsStr)
+	}
+	// Inline toast right-aligned on the same footer row. We truncate hints
+	// from the right so the toast always fits; the full hint set stays
+	// visible in `?` help and in the palette.
+	toast := m.st.Toast.Render(m.toast)
+	contentW := m.width - 2 // Footer has Padding(0, 1)
+	toastW := lipgloss.Width(toast)
+	hintsW := contentW - toastW - 1
+	if hintsW < 0 {
+		hintsW = 0
+	}
+	line := truncate(hintsStr, hintsW) + strings.Repeat(" ", maxInt(1, contentW-lipgloss.Width(truncate(hintsStr, hintsW))-toastW)) + toast
+	return m.st.Footer.Render(line)
 }
 
 func (m *Model) renderErrorScreen() string {
@@ -367,11 +427,6 @@ func (m *Model) renderErrorScreen() string {
 func (m *Model) renderEmptyScreen() string {
 	body := padBlock(m.str.Modal.EmptyTitle + "\n\n" + m.str.Modal.EmptyHint)
 	return placeMiddle(m.width, m.height, m.st.Modal.Render(body), m.st.Palette)
-}
-
-func (m *Model) overlayToast(body string) string {
-	t := m.st.Toast.Render(m.toast)
-	return overlayBottomRight(body, t, m.width, m.height)
 }
 
 func (m *Model) overlayHelp(body string) string {
@@ -412,15 +467,22 @@ func (m *Model) helpText() string {
 			{"q / Ctrl+C", km.OtherQuit},
 		}},
 	}
+	mb := modalBg(m.st.Palette)
+	title := m.st.Title.Inherit(mb)
+	subtitle := m.st.Subtitle.Inherit(mb)
+	keyBind := m.st.KeyBinding.Inherit(mb)
+	plain := mb
+
 	var b strings.Builder
-	b.WriteString(m.st.Title.Render(km.Title))
+	b.WriteString(paintLine(m.st.Palette, title.Render(km.Title)))
 	b.WriteString("\n\n")
 	for si, sec := range sections {
-		b.WriteString(m.st.Subtitle.Render(sec.title))
+		b.WriteString(paintLine(m.st.Palette, subtitle.Render(sec.title)))
 		b.WriteString("\n")
 		for _, row := range sec.rows {
-			b.WriteString("  " + m.st.KeyBinding.Render(row[0]))
-			b.WriteString("   " + row[1] + "\n")
+			line := plain.Render("  ") + keyBind.Render(row[0]) + plain.Render("   "+row[1])
+			b.WriteString(paintLine(m.st.Palette, line))
+			b.WriteString("\n")
 		}
 		if si < len(sections)-1 {
 			b.WriteString("\n")
@@ -564,6 +626,34 @@ func (m *Model) undoCmd() tea.Cmd {
 			func() tea.Msg { return actionDoneMsg{Text: restored} },
 			m.loadDataCmd(),
 		)()
+	}
+}
+
+// maybeLoadPreview triggers an async CapturePane for the current selection
+// when the dashboard's cached preview doesn't match. Returns nil when no
+// fetch is needed (no selection, or cache is fresh).
+func (m *Model) maybeLoadPreview() tea.Cmd {
+	if m.dashboard == nil {
+		return nil
+	}
+	target, stale := m.dashboard.PreviewStale()
+	if !stale || target == "" {
+		return nil
+	}
+	return m.loadPreviewCmd(target)
+}
+
+func (m *Model) loadPreviewCmd(target string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+		defer cancel()
+		// tmux accepts `session` or `session:window`; for session-level rows
+		// we capture the active window's first pane.
+		data, err := m.deps.Runner.CapturePane(ctx, target, 200)
+		if err != nil {
+			return previewLoadedMsg{Target: target, Err: err}
+		}
+		return previewLoadedMsg{Target: target, Data: string(data)}
 	}
 }
 
