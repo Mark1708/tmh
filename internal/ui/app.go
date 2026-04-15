@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -276,6 +277,8 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.diff.Resize(m.width, m.height-2)
 		m.current = ScreenDiff
 		return m, nil
+	case keyMatches(msg, m.keys.NewSession):
+		return m, m.newSessionCmd()
 	case keyMatches(msg, m.keys.Kill):
 		target := m.dashboard.SelectedTarget()
 		if target == "" {
@@ -654,6 +657,25 @@ func (m *Model) undoCmd() tea.Cmd {
 			m.loadDataCmd(),
 		)()
 	}
+}
+
+// newSessionCmd launches the `tmh new` wizard as a subprocess. Bubbletea
+// owns the controlling TTY in alt-screen mode, so huh can't render its form
+// inside this process; tea.ExecProcess suspends the event loop, hands the
+// terminal over to the child, then restores the alt-screen when the child
+// exits. The next polling tick picks up any newly-created session.
+func (m *Model) newSessionCmd() tea.Cmd {
+	exe, err := os.Executable()
+	if err != nil || exe == "" {
+		exe = os.Args[0]
+	}
+	cmd := exec.Command(exe, "new")
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		if err != nil {
+			return errorMsg{Err: fmt.Errorf("new: %w", err)}
+		}
+		return actionDoneMsg{Text: i18n.T("tui.toast.session_created")}
+	})
 }
 
 // initCmd runs actions.Init so the palette can create every configured

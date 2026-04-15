@@ -188,6 +188,7 @@
 
   "tui.toast.reload_triggered": "reload triggered",
   "tui.toast.undo_unavailable": "undo: state.db unavailable",
+  "tui.toast.session_created": "session created",
 
   "tui.loading": "loading…",
   "tui.no_sessions": "no sessions yet — press n to create one",
