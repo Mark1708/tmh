@@ -58,7 +58,7 @@ config from live, --bootstrap to import all live sessions into an empty config.`
 				}); err != nil {
 					return err
 				}
-				fmt.Fprintln(c.OutOrStdout(), "config written:", path)
+				fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.config_written", map[string]any{"path": path}))
 			}
 			return nil
 		},
@@ -88,7 +88,7 @@ func printReport(c *cobra.Command, rep *actions.SyncReport) {
 		fmt.Fprintln(c.OutOrStdout(), " ", s)
 	}
 	if len(rep.Created)+len(rep.Updated)+len(rep.Deleted)+len(rep.Skipped) == 0 {
-		fmt.Fprintln(c.OutOrStdout(), "nothing to do")
+		fmt.Fprintln(c.OutOrStdout(), i18n.T("cli.print.nothing_to_do"))
 	}
 }
 

@@ -39,7 +39,7 @@ func newDiffCmd() *cobra.Command {
 				return enc.Encode(entries)
 			}
 			if len(entries) == 0 {
-				fmt.Fprintln(c.OutOrStdout(), "no drift")
+				fmt.Fprintln(c.OutOrStdout(), i18n.T("cli.print.no_drift"))
 				return nil
 			}
 			for _, e := range entries {

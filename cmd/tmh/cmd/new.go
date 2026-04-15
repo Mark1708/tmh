@@ -53,13 +53,13 @@ func newNewCmd() *cobra.Command {
 			if err := actions.CreateSession(context.Background(), r, sess, nil); err != nil {
 				return err
 			}
-			fmt.Fprintln(c.OutOrStdout(), "created:", name)
+			fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.created", map[string]any{"name": name}))
 
 			if save {
 				if err := saveNewToConfig(name, dir, layout, group); err != nil {
 					return fmt.Errorf("save to config: %w", err)
 				}
-				fmt.Fprintln(c.OutOrStdout(), "saved to", resolveConfigPath())
+				fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.saved_to", map[string]any{"path": resolveConfigPath()}))
 			}
 			if attach {
 				return actions.Attach(context.Background(), r, name)
@@ -103,39 +103,39 @@ func runNewWizard(defaults wizardDefaults) (*wizardResult, error) {
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("имя сессии").
-				Description("уникальное имя, без пробелов и слэшей").
+				Title(i18n.T("wizard.new.name.title")).
+				Description(i18n.T("wizard.new.name.desc")).
 				Value(&out.Name).
 				Validate(validateSessionName),
 			huh.NewInput().
-				Title("рабочий каталог").
-				Description("абсолютный путь; ~/ автоматически раскроется").
+				Title(i18n.T("wizard.new.dir.title")).
+				Description(i18n.T("wizard.new.dir.desc")).
 				Value(&out.Dir).
 				Validate(validateDir),
 			huh.NewSelect[string]().
-				Title("layout").
+				Title(i18n.T("wizard.new.layout.title")).
 				Options(
-					huh.NewOption("3-pane  (main + 2 side)", "3-pane"),
-					huh.NewOption("2-pane  (half / half)", "2-pane"),
-					huh.NewOption("1-pane  (single pane)", "1-pane"),
+					huh.NewOption(i18n.T("wizard.layout.3pane"), "3-pane"),
+					huh.NewOption(i18n.T("wizard.layout.2pane"), "2-pane"),
+					huh.NewOption(i18n.T("wizard.layout.1pane"), "1-pane"),
 				).
 				Value(&out.Layout),
 		),
 		huh.NewGroup(
 			huh.NewSelect[string]().
-				Title("group").
-				Description("тег для tmh init --group; (none) — не группировать").
+				Title(i18n.T("wizard.new.group.title")).
+				Description(i18n.T("wizard.new.group.desc")).
 				Options(groupOrEmpty(groupOptions)...).
 				Value(&out.Group),
 			huh.NewConfirm().
-				Title("сохранить в config.yml?").
-				Affirmative("yes").
-				Negative("no").
+				Title(i18n.T("wizard.new.save.title")).
+				Affirmative(i18n.T("wizard.confirm.yes")).
+				Negative(i18n.T("wizard.confirm.no")).
 				Value(&out.Save),
 			huh.NewConfirm().
-				Title("attach после создания?").
-				Affirmative("yes").
-				Negative("no").
+				Title(i18n.T("wizard.new.attach.title")).
+				Affirmative(i18n.T("wizard.confirm.yes")).
+				Negative(i18n.T("wizard.confirm.no")).
 				Value(&out.Attach),
 		),
 	)
@@ -155,10 +155,10 @@ func runNewWizard(defaults wizardDefaults) (*wizardResult, error) {
 func validateSessionName(s string) error {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return fmt.Errorf("required")
+		return fmt.Errorf("%s", i18n.T("wizard.new.error.required"))
 	}
 	if strings.ContainsAny(s, " /\t") {
-		return fmt.Errorf("no spaces or slashes")
+		return fmt.Errorf("%s", i18n.T("wizard.new.error.no_spaces"))
 	}
 	return nil
 }
@@ -166,17 +166,17 @@ func validateSessionName(s string) error {
 func validateDir(s string) error {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return fmt.Errorf("required")
+		return fmt.Errorf("%s", i18n.T("wizard.new.error.required"))
 	}
 	if strings.HasPrefix(s, "~/") {
 		s = filepath.Join(os.Getenv("HOME"), s[2:])
 	}
 	info, err := os.Stat(s)
 	if err != nil {
-		return fmt.Errorf("not found: %s", s)
+		return fmt.Errorf("%s", i18n.Tf("wizard.new.error.dir_missing", map[string]any{"path": s}))
 	}
 	if !info.IsDir() {
-		return fmt.Errorf("not a directory: %s", s)
+		return fmt.Errorf("%s", i18n.Tf("wizard.new.error.not_a_dir", map[string]any{"path": s}))
 	}
 	return nil
 }
@@ -202,7 +202,7 @@ func knownGroups() ([]string, error) {
 }
 
 func groupOrEmpty(groups []string) []huh.Option[string] {
-	opts := []huh.Option[string]{huh.NewOption("(none)", "")}
+	opts := []huh.Option[string]{huh.NewOption(i18n.T("wizard.option.none"), "")}
 	for _, g := range groups {
 		opts = append(opts, huh.NewOption(g, g))
 	}

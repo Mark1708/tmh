@@ -31,7 +31,7 @@ func newWindowCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(c.OutOrStdout(), "opened: %s:%d\n", win.Session, win.Index)
+			fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.opened_window", map[string]any{"session": win.Session, "window": win.Index}))
 			return nil
 		},
 	}

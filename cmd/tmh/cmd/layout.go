@@ -45,7 +45,7 @@ func newLayoutSaveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintln(c.OutOrStdout(), "saved layout", name, "→", hash)
+			fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.saved_layout", map[string]any{"name": name, "hash": hash}))
 			return config.Write(cfg, resolveConfigPath(), config.WriteOptions{
 				BackupDir:      xdg.BackupsDir(),
 				MaxBackups:     20,

@@ -43,7 +43,7 @@ func newReloadCmd() *cobra.Command {
 
 			db, err := state.Open(xdg.StateDBPath())
 			if err != nil {
-				fmt.Fprintln(c.OutOrStdout(), "warn: state.db unavailable —", err)
+				fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.state_db_warn", map[string]any{"err": err}))
 				db = nil
 			}
 			if db != nil {
@@ -59,19 +59,19 @@ func newReloadCmd() *cobra.Command {
 				return err
 			}
 			for _, p := range rep.ReloadedPanes {
-				fmt.Fprintln(c.OutOrStdout(), "reloaded:", p)
+				fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.reloaded", map[string]any{"path": p}))
 			}
 			for _, p := range rep.QueuedPanes {
-				fmt.Fprintln(c.OutOrStdout(), "queued: ", p)
+				fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.queued", map[string]any{"path": p}))
 			}
 			for _, p := range rep.SkippedBusy {
-				fmt.Fprintln(c.OutOrStdout(), "skipped:", p)
+				fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.skipped", map[string]any{"path": p}))
 			}
 			if rep.TmuxSourced {
-				fmt.Fprintln(c.OutOrStdout(), "tmux: source-file", tmuxConf)
+				fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.tmux_source_file", map[string]any{"path": tmuxConf}))
 			}
 			if respawn {
-				fmt.Fprintln(c.OutOrStdout(), "--respawn not yet implemented; use `tmux kill-server && tmh init`")
+				fmt.Fprintln(c.OutOrStdout(), i18n.T("cli.print.respawn_nyi"))
 			}
 			return nil
 		},
@@ -98,7 +98,7 @@ func printReloadStatus(c *cobra.Command) error {
 		return err
 	}
 	if len(pending) == 0 {
-		fmt.Fprintln(c.OutOrStdout(), "no pending reloads")
+		fmt.Fprintln(c.OutOrStdout(), i18n.T("cli.print.no_pending_reloads"))
 		return nil
 	}
 	for _, e := range pending {

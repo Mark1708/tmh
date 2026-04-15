@@ -274,7 +274,13 @@ func (s *settingsModel) renderTmuxSection(w int) string {
 		}
 		badge := findingBadge(s.st, f.Level)
 		check := truncate(f.Check, checkW)
-		msg := truncate(f.Message, msgW)
+		msgText := f.Message
+		if f.MessageKey != "" {
+			if t := i18n.T(f.MessageKey); t != f.MessageKey {
+				msgText = t
+			}
+		}
+		msg := truncate(msgText, msgW)
 		line := mb.Render(marker) + badge + mb.Render(" "+padRight(check, checkW)+" "+padRight(msg, msgW))
 		if focused && i == s.tmuxIdx {
 			line = s.st.Selected.Render(padRight(line, w))

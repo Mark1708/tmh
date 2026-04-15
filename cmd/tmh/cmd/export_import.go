@@ -66,7 +66,7 @@ func newImportCmd() *cobra.Command {
 			}); err != nil {
 				return err
 			}
-			fmt.Fprintln(c.OutOrStdout(), "imported into", path)
+			fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.imported_into", map[string]any{"path": path}))
 			return nil
 		},
 	}

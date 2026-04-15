@@ -33,7 +33,7 @@ func newDoctorCmd() *cobra.Command {
 			// option-level findings distinctly from environment checks.
 			findings := actions.AuditTmuxConfig(context.Background(), tmux.NewCLIRunner())
 			if len(findings) > 0 {
-				fmt.Fprintln(c.OutOrStdout(), "\ntmux integration:")
+				fmt.Fprintln(c.OutOrStdout(), "\n"+i18n.T("doctor.tmux_integration_header"))
 				for _, f := range findings {
 					marker := "  "
 					switch f.Level {
@@ -45,14 +45,26 @@ func newDoctorCmd() *cobra.Command {
 						marker = "  ✗ "
 						hasError = true
 					}
-					fmt.Fprintf(c.OutOrStdout(), "%s%-38s %s\n", marker, f.Check, f.Message)
+					msg := f.Message
+					if f.MessageKey != "" {
+						if t := i18n.T(f.MessageKey); t != f.MessageKey {
+							msg = t
+						}
+					}
+					fmt.Fprintf(c.OutOrStdout(), "%s%-38s %s\n", marker, f.Check, msg)
 					if f.Level != actions.AuditOK && f.FixHint != "" {
-						fmt.Fprintf(c.OutOrStdout(), "      → %s\n", f.FixHint)
+						fix := f.FixHint
+						if f.FixKey != "" {
+							if t := i18n.T(f.FixKey); t != f.FixKey {
+								fix = t
+							}
+						}
+						fmt.Fprintf(c.OutOrStdout(), "      → %s\n", fix)
 					}
 				}
 			}
 			if hasError {
-				return cmdErr("one or more checks failed")
+				return cmdErr("%s", i18n.T("doctor.failed"))
 			}
 			return nil
 		},
@@ -69,35 +81,35 @@ func runDoctor() []doctorResult {
 
 	// tmux installed + version
 	if _, err := exec.LookPath("tmux"); err != nil {
-		out = append(out, doctorResult{"ERROR", "tmux not installed (apt/brew install tmux)"})
+		out = append(out, doctorResult{"ERROR", i18n.T("doctor.tmux.missing")})
 	} else {
 		if v, ok := tmuxVersionAtLeast(3, 2); ok {
-			out = append(out, doctorResult{"INFO", "tmux " + v})
+			out = append(out, doctorResult{"INFO", i18n.Tf("doctor.tmux.ok", map[string]any{"version": v})})
 		} else {
-			out = append(out, doctorResult{"ERROR", "tmux version < 3.2 (display-popup unavailable)"})
+			out = append(out, doctorResult{"ERROR", i18n.T("doctor.tmux.old_version")})
 		}
 	}
 
 	// shell
 	sh := os.Getenv("SHELL")
 	if sh == "" {
-		out = append(out, doctorResult{"WARN", "$SHELL not set"})
+		out = append(out, doctorResult{"WARN", i18n.T("doctor.shell.missing")})
 	} else {
-		out = append(out, doctorResult{"INFO", "shell: " + sh})
+		out = append(out, doctorResult{"INFO", i18n.Tf("doctor.shell.present", map[string]any{"shell": sh})})
 	}
 
 	// config.yml
 	cfg, err := config.Load(resolveConfigPath())
 	switch {
 	case err != nil && strings.Contains(err.Error(), "not found"):
-		out = append(out, doctorResult{"WARN", "config.yml not found at " + resolveConfigPath()})
+		out = append(out, doctorResult{"WARN", i18n.Tf("doctor.config.missing", map[string]any{"path": resolveConfigPath()})})
 	case err != nil:
-		out = append(out, doctorResult{"ERROR", "config.yml invalid: " + err.Error()})
+		out = append(out, doctorResult{"ERROR", i18n.Tf("doctor.config.invalid", map[string]any{"err": err.Error()})})
 	default:
 		if verr := config.Validate(cfg); verr != nil {
-			out = append(out, doctorResult{"ERROR", "config.yml schema: " + verr.Error()})
+			out = append(out, doctorResult{"ERROR", i18n.Tf("doctor.config.schema", map[string]any{"err": verr.Error()})})
 		} else {
-			out = append(out, doctorResult{"INFO", "config.yml valid"})
+			out = append(out, doctorResult{"INFO", i18n.T("doctor.config.ok")})
 		}
 	}
 
@@ -105,24 +117,24 @@ func runDoctor() []doctorResult {
 	r := tmux.NewCLIRunner()
 	ok, _ := r.ServerRunning(context.Background())
 	if ok {
-		out = append(out, doctorResult{"INFO", "tmux server running"})
+		out = append(out, doctorResult{"INFO", i18n.T("doctor.server.running")})
 	} else {
-		out = append(out, doctorResult{"INFO", "tmux server not running (will start on first action)"})
+		out = append(out, doctorResult{"INFO", i18n.T("doctor.server.stopped")})
 	}
 
 	// fd
 	if _, err := exec.LookPath("fd"); err != nil {
-		out = append(out, doctorResult{"INFO", "fd not installed (optional, used for file-picker)"})
+		out = append(out, doctorResult{"INFO", i18n.T("doctor.fd.missing")})
 	}
 	// terminal-notifier
 	if _, err := exec.LookPath("terminal-notifier"); err != nil {
-		out = append(out, doctorResult{"INFO", "terminal-notifier not installed (optional, used for tmh watch)"})
+		out = append(out, doctorResult{"INFO", i18n.T("doctor.notifier.missing")})
 	}
 	// GOPRIVATE
 	if v := os.Getenv("GOPRIVATE"); strings.Contains(v, "git.mark1708.ru") {
-		out = append(out, doctorResult{"INFO", "GOPRIVATE includes git.mark1708.ru"})
+		out = append(out, doctorResult{"INFO", i18n.T("doctor.goprivate.set")})
 	} else {
-		out = append(out, doctorResult{"INFO", "GOPRIVATE does not include git.mark1708.ru (needed only for `go install` from self-hosted source)"})
+		out = append(out, doctorResult{"INFO", i18n.T("doctor.goprivate.unset")})
 	}
 
 	return out

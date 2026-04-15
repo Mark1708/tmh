@@ -61,10 +61,10 @@ func newTmuxSetupCmd() *cobra.Command {
 				return err
 			}
 			if n == 0 {
-				fmt.Fprintln(c.OutOrStdout(), "nothing to append — all lines already present or block exists")
+				fmt.Fprintln(c.OutOrStdout(), i18n.T("cli.print.nothing_to_append"))
 				return nil
 			}
-			fmt.Fprintf(c.OutOrStdout(), "appended %d line(s) to %s\n", n, path)
+			fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.appended_lines", map[string]any{"count": n, "path": path}))
 			return nil
 		},
 	}
@@ -85,10 +85,10 @@ func renderAudit(c *cobra.Command, findings []actions.AuditFinding) {
 		}
 		fmt.Fprintf(c.OutOrStdout(), "%s%-38s %s\n", marker, f.Check, f.Message)
 		if f.Current != "" || f.Expected != "" {
-			fmt.Fprintf(c.OutOrStdout(), "    current: %q  expected: %q\n", f.Current, f.Expected)
+			fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.current_expected", map[string]any{"current": f.Current, "expected": f.Expected}))
 		}
 		if f.Level != actions.AuditOK && f.FixHint != "" {
-			fmt.Fprintf(c.OutOrStdout(), "    → %s\n", f.FixHint)
+			fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.fix_hint", map[string]any{"hint": f.FixHint}))
 		}
 	}
 }

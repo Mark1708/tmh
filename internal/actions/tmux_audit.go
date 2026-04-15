@@ -27,14 +27,20 @@ const (
 )
 
 // AuditFinding is one row in the audit report.
+//
+// MessageKey and FixKey are stable i18n keys the UI layer resolves at render
+// time into the user's language. Message and FixHint hold the English text
+// and ship in JSON for script consumers.
 type AuditFinding struct {
-	Level    AuditLevel    `json:"level"`
-	Category AuditCategory `json:"category"`
-	Check    string        `json:"check"`
-	Current  string        `json:"current,omitempty"`
-	Expected string        `json:"expected,omitempty"`
-	Message  string        `json:"message"`
-	FixHint  string        `json:"fix_hint,omitempty"`
+	Level      AuditLevel    `json:"level"`
+	Category   AuditCategory `json:"category"`
+	Check      string        `json:"check"`
+	Current    string        `json:"current,omitempty"`
+	Expected   string        `json:"expected,omitempty"`
+	Message    string        `json:"message"`
+	MessageKey string        `json:"message_key,omitempty"`
+	FixHint    string        `json:"fix_hint,omitempty"`
+	FixKey     string        `json:"fix_key,omitempty"`
 
 	// Apply, when non-nil, performs the remediation in-process against the
 	// supplied Runner (e.g. SetOption). UI layer wires this to an "apply"
@@ -106,13 +112,15 @@ func auditConflicts(ctx context.Context, r tmux.Runner) []AuditFinding {
 
 	if hook, _ := r.ShowHook(ctx, "after-new-window"); hook != "" {
 		f := AuditFinding{
-			Level:    AuditWarn,
-			Category: CatConflict,
-			Check:    "after-new-window hook",
-			Current:  hook,
-			Expected: "(unset)",
-			Message:  "hook races with tmh window creation and can overwrite the chosen name",
-			FixHint:  "tmux set-hook -gu after-new-window",
+			Level:      AuditWarn,
+			Category:   CatConflict,
+			Check:      "after-new-window hook",
+			Current:    hook,
+			Expected:   "(unset)",
+			Message:    "hook races with tmh window creation and can overwrite the chosen name",
+			MessageKey: "audit.msg.after-new-window-hook",
+			FixHint:    "tmux set-hook -gu after-new-window",
+			FixKey:     "audit.fix.after-new-window-hook",
 			Apply: func(ctx context.Context, r tmux.Runner) error {
 				return r.UnsetHook(ctx, "after-new-window")
 			},
@@ -122,14 +130,16 @@ func auditConflicts(ctx context.Context, r tmux.Runner) []AuditFinding {
 
 	if autoRename, _ := r.ShowOption(ctx, "automatic-rename"); strings.EqualFold(strings.TrimSpace(autoRename), "on") {
 		out = append(out, AuditFinding{
-			Level:    AuditWarn,
-			Category: CatConflict,
-			Check:    "automatic-rename",
-			Current:  autoRename,
-			Expected: "off",
-			Message:  "shell commands would overwrite tmh window names when on",
-			FixHint:  "set -g automatic-rename off",
-			Apply:    applySetOption("automatic-rename", "off", false),
+			Level:      AuditWarn,
+			Category:   CatConflict,
+			Check:      "automatic-rename",
+			Current:    autoRename,
+			Expected:   "off",
+			Message:    "shell commands would overwrite tmh window names when on",
+			MessageKey: "audit.msg.automatic-rename",
+			FixHint:    "set -g automatic-rename off",
+			FixKey:     "audit.fix.automatic-rename",
+			Apply:      applySetOption("automatic-rename", "off", false),
 		})
 	}
 
@@ -144,20 +154,24 @@ func auditIntegration(ctx context.Context, r tmux.Runner) []AuditFinding {
 	statusRight, _ := r.ShowOption(ctx, "status-right")
 	if !strings.Contains(statusRight, "tmh status") {
 		out = append(out, AuditFinding{
-			Level:    AuditWarn,
-			Category: CatIntegration,
-			Check:    "status-right includes tmh status",
-			Current:  truncateStr(statusRight, 40),
-			Expected: `contains "#(tmh status)"`,
-			Message:  "drift / reload / zshrc badges stay hidden without the status segment",
-			FixHint:  `set -ag status-right ' #(tmh status)'`,
+			Level:      AuditWarn,
+			Category:   CatIntegration,
+			Check:      "status-right includes tmh status",
+			Current:    truncateStr(statusRight, 40),
+			Expected:   `contains "#(tmh status)"`,
+			Message:    "drift / reload / zshrc badges stay hidden without the status segment",
+			MessageKey: "audit.msg.status-right-tmh-missing",
+			FixHint:    `set -ag status-right ' #(tmh status)'`,
+			FixKey:     "audit.fix.status-right-tmh-missing",
 		})
 	} else {
 		out = append(out, AuditFinding{
-			Level: AuditOK, Category: CatIntegration,
-			Check:   "status-right includes tmh status",
-			Current: "present",
-			Message: "tmh status segment visible in status bar",
+			Level:      AuditOK,
+			Category:   CatIntegration,
+			Check:      "status-right includes tmh status",
+			Current:    "present",
+			Message:    "tmh status segment visible in status bar",
+			MessageKey: "audit.msg.status-right-tmh",
 		})
 	}
 
@@ -172,6 +186,11 @@ func auditOption(ctx context.Context, r tmux.Runner, failLevel AuditLevel, cat A
 	f := AuditFinding{
 		Category: cat, Check: opt, Expected: expected, Current: cur,
 		Message: message, FixHint: fix,
+		// Convention: `audit.msg.<opt>` / `audit.fix.<opt>` where <opt> is the
+		// option name verbatim so adding a new check = one auditOption call
+		// plus two locale entries.
+		MessageKey: "audit.msg." + opt,
+		FixKey:     "audit.fix." + opt,
 	}
 	if match(cur) {
 		f.Level = AuditOK

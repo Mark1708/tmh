@@ -41,7 +41,7 @@ func newScratchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintln(c.OutOrStdout(), "created:", name)
+			fmt.Fprintln(c.OutOrStdout(), i18n.Tf("cli.print.created", map[string]any{"name": name}))
 			return actions.Attach(context.Background(), r, name)
 		},
 	}

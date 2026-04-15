@@ -42,7 +42,7 @@ func newLsCmd() *cobra.Command {
 
 func renderListing(c *cobra.Command, l *actions.Listing) error {
 	if len(l.Sessions) == 0 {
-		fmt.Fprintln(c.OutOrStdout(), "(no sessions)")
+		fmt.Fprintln(c.OutOrStdout(), i18n.T("cli.print.no_sessions"))
 		return nil
 	}
 	for _, s := range l.Sessions {
