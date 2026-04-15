@@ -7,6 +7,7 @@ package ui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -20,6 +21,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
 
 // Deps wires the side-effect surface the UI needs. Tests pass a MockRunner
 // here; production passes CLIRunner + the real config path.
@@ -46,6 +49,9 @@ type Model struct {
 	current     Screen
 	prev        Screen
 	dashboard   *dashboardModel
+	palette     *paletteModel
+	confirm     *confirmModel
+	diff        *diffModel
 	helpVisible bool
 	errMsg      string
 
@@ -81,6 +87,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		if m.dashboard != nil {
 			m.dashboard.Resize(msg.Width, msg.Height-2) // header+footer
+		}
+		if m.palette != nil {
+			m.palette.Resize(msg.Width, msg.Height)
+		}
+		if m.confirm != nil {
+			m.confirm.Resize(msg.Width, msg.Height)
+		}
+		if m.diff != nil {
+			m.diff.Resize(msg.Width, msg.Height-2)
 		}
 		return m, nil
 
@@ -170,6 +185,18 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.current {
 	case ScreenDashboard:
 		return m.handleDashboardKey(msg)
+	case ScreenPalette:
+		var cmd tea.Cmd
+		m.palette, cmd = m.palette.Update(msg)
+		return m, cmd
+	case ScreenConfirm:
+		var cmd tea.Cmd
+		m.confirm, cmd = m.confirm.Update(msg)
+		return m, cmd
+	case ScreenDiff:
+		var cmd tea.Cmd
+		m.diff, cmd = m.diff.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
@@ -182,6 +209,31 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.reloadAllCmd()
 	case keyMatches(msg, m.keys.Sync):
 		return m, m.syncPushCmd()
+	case keyMatches(msg, m.keys.Palette):
+		m.palette = newPalette(m.keys, m.st, m.paletteActions())
+		m.palette.Resize(m.width, m.height)
+		m.current = ScreenPalette
+		return m, nil
+	case keyMatches(msg, m.keys.Diff):
+		m.diff = newDiffScreen(m.keys, m.st, m.drift)
+		m.diff.Resize(m.width, m.height-2)
+		m.current = ScreenDiff
+		return m, nil
+	case keyMatches(msg, m.keys.Kill):
+		target := m.dashboard.SelectedTarget()
+		if target == "" {
+			return m, nil
+		}
+		m.confirm = newConfirm(m.keys, m.st,
+			"kill "+target+"?",
+			"this cannot be undone unless tmh undo recreates from a saved snapshot.",
+			func() tea.Cmd { return m.killTargetCmd(target) },
+		)
+		m.confirm.Resize(m.width, m.height)
+		m.current = ScreenConfirm
+		return m, nil
+	case keyMatches(msg, m.keys.Undo):
+		return m, m.undoCmd()
 	case keyMatches(msg, m.keys.Attach):
 		target := m.dashboard.SelectedTarget()
 		if target == "" {
@@ -223,6 +275,19 @@ func (m *Model) View() string {
 		body = m.renderErrorScreen()
 	case ScreenEmpty:
 		body = m.renderEmptyScreen()
+	case ScreenPalette:
+		if m.palette != nil {
+			body = m.palette.View()
+		}
+	case ScreenConfirm:
+		if m.confirm != nil {
+			body = m.confirm.View()
+		}
+	case ScreenDiff:
+		if m.diff != nil {
+			body = lipgloss.JoinVertical(lipgloss.Left,
+				m.renderHeader(), m.diff.View(), m.renderFooter())
+		}
 	default:
 		body = m.dashboard.View()
 	}
@@ -378,4 +443,83 @@ func attachCmd(r tmux.Runner, target string) tea.Cmd {
 		_ = actions.Attach(context.Background(), r, target)
 		return nil
 	}
+}
+
+func (m *Model) killTargetCmd(target string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		// Snapshot before kill so undo can restore.
+		if m.deps.State != nil {
+			if live, err := actions.CaptureLive(ctx, m.deps.Runner); err == nil {
+				for _, s := range live {
+					if s.Name == target {
+						payload, _ := jsonMarshal(s)
+						_, _ = m.deps.State.InsertEvent(ctx, "kill_session", target, string(payload))
+						break
+					}
+				}
+			}
+		}
+		if err := m.deps.Runner.KillSession(ctx, target); err != nil {
+			return errorMsg{Err: err}
+		}
+		return tea.Batch(
+			func() tea.Msg { return actionDoneMsg{Text: "killed " + target} },
+			m.loadDataCmd(),
+			func() tea.Msg { return switchScreenMsg{Screen: ScreenDashboard} },
+		)()
+	}
+}
+
+func (m *Model) undoCmd() tea.Cmd {
+	return func() tea.Msg {
+		if m.deps.State == nil {
+			return errorMsg{Err: fmt.Errorf("undo: state.db unavailable")}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		target, err := actions.UndoLast(ctx, m.deps.Runner, m.deps.State)
+		if err != nil {
+			return errorMsg{Err: err}
+		}
+		return tea.Batch(
+			func() tea.Msg { return actionDoneMsg{Text: "restored " + target} },
+			m.loadDataCmd(),
+		)()
+	}
+}
+
+// paletteActions builds the command list that the `:` palette filters.
+func (m *Model) paletteActions() []PaletteAction {
+	out := []PaletteAction{
+		{Title: "refresh", Subtitle: "reload listings now", Run: func() tea.Cmd { return m.loadDataCmd() }},
+		{Title: "reload --all", Subtitle: "source ~/.zshrc + ~/.tmux.conf", Run: func() tea.Cmd { return m.reloadAllCmd() }},
+		{Title: "sync --push", Subtitle: "create missing sessions/windows", Run: func() tea.Cmd { return m.syncPushCmd() }},
+		{Title: "diff", Subtitle: "show drift list", Run: func() tea.Cmd {
+			m.diff = newDiffScreen(m.keys, m.st, m.drift)
+			m.diff.Resize(m.width, m.height-2)
+			return func() tea.Msg { return switchScreenMsg{Screen: ScreenDiff} }
+		}},
+		{Title: "undo", Subtitle: "restore last destructive action", Run: func() tea.Cmd { return m.undoCmd() }},
+		{Title: "theme: cycle", Subtitle: "next catppuccin flavour", Run: func() tea.Cmd {
+			m.st = theme.New(theme.Cycle(m.st.Palette))
+			if m.dashboard != nil {
+				m.dashboard.SetStyles(m.st)
+			}
+			return nil
+		}},
+		{Title: "quit", Subtitle: "exit the TUI", Run: func() tea.Cmd { return tea.Quit }},
+	}
+	if m.listing != nil {
+		for _, s := range m.listing.Sessions {
+			s := s
+			out = append(out, PaletteAction{
+				Title:    "attach " + s.Name,
+				Subtitle: fmt.Sprintf("%d windows", len(s.Windows)),
+				Run:      func() tea.Cmd { return tea.Sequence(tea.ExitAltScreen, attachCmd(m.deps.Runner, s.Name), tea.EnterAltScreen, m.loadDataCmd()) },
+			})
+		}
+	}
+	return out
 }
