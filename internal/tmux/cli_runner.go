@@ -402,6 +402,75 @@ func (r *CLIRunner) DisplayPopup(ctx context.Context, opts PopupOpts) error {
 	return err
 }
 
+// --- options + hooks ---
+
+// ShowOption returns the value of a global option via `tmux show-options -gv`.
+// Empty string when the option is at its compiled default (tmux exits 1
+// with "unknown option" — we treat that as "not set" rather than an error).
+func (r *CLIRunner) ShowOption(ctx context.Context, name string) (string, error) {
+	out, err := r.run(ctx, "show-options", "-gv", name)
+	if err != nil {
+		// tmux returns non-zero when the option is not explicitly set.
+		// Distinguish from a real error by checking stderr text.
+		msg := strings.ToLower(err.Error())
+		if strings.Contains(msg, "unknown option") || strings.Contains(msg, "not set") || strings.Contains(msg, "not found") {
+			return "", nil
+		}
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// SetOption sets a global option. When window is true uses set-window-option.
+func (r *CLIRunner) SetOption(ctx context.Context, name, value string, window bool) error {
+	cmd := "set-option"
+	if window {
+		cmd = "set-window-option"
+	}
+	_, err := r.run(ctx, cmd, "-g", name, value)
+	return err
+}
+
+// ShowHook returns the command bound to a hook, empty if unset.
+//
+// `tmux show-hooks -g` prints one line per hook; bound hooks have
+//
+//	after-new-window[0] rename-window "…"
+//
+// while unbound ones print just the name. We match by prefix and strip the
+// `[idx]` position index to return the bound command.
+func (r *CLIRunner) ShowHook(ctx context.Context, name string) (string, error) {
+	out, err := r.run(ctx, "show-hooks", "-g")
+	if err != nil {
+		return "", err
+	}
+	for _, line := range splitLines(out) {
+		l := strings.TrimSpace(line)
+		if !strings.HasPrefix(l, name) {
+			continue
+		}
+		rest := strings.TrimPrefix(l, name)
+		if rest == "" {
+			return "", nil // unbound
+		}
+		if !strings.HasPrefix(rest, "[") {
+			continue // same prefix but different hook (e.g. after-new-window-foo)
+		}
+		closeIdx := strings.IndexByte(rest, ']')
+		if closeIdx < 0 {
+			continue
+		}
+		return strings.TrimSpace(rest[closeIdx+1:]), nil
+	}
+	return "", nil
+}
+
+// UnsetHook removes a global hook binding (`tmux set-hook -gu NAME`).
+func (r *CLIRunner) UnsetHook(ctx context.Context, name string) error {
+	_, err := r.run(ctx, "set-hook", "-gu", name)
+	return err
+}
+
 // --- helpers ---
 
 func splitLines(b []byte) []string {

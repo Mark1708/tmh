@@ -58,6 +58,7 @@ func NewRoot(version string) *cobra.Command {
 		newUndoCmd(),
 		newExportCmd(),
 		newImportCmd(),
+		newTmuxCmd(),
 		newVersionCmd(version),
 		newDoctorCmd(),
 	)

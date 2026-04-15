@@ -352,12 +352,12 @@ func (m *Model) renderFooter() string {
 
 func (m *Model) renderErrorScreen() string {
 	body := padBlock(m.st.StatusGone.Render("⚠ error") + "\n\n" + m.errMsg + "\n\nesc / q to dismiss")
-	return placeMiddle(m.width, m.height, m.st.Modal.Render(body))
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(body), m.st.Palette)
 }
 
 func (m *Model) renderEmptyScreen() string {
 	body := padBlock("no sessions configured\n\npress n to create your first one")
-	return placeMiddle(m.width, m.height, m.st.Modal.Render(body))
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(body), m.st.Palette)
 }
 
 func (m *Model) overlayToast(body string) string {
@@ -369,7 +369,7 @@ func (m *Model) overlayHelp(body string) string {
 	// Pad every line to the widest so the modal's Background fills the
 	// whole block — otherwise shorter rows leak through whatever is behind.
 	help := padBlock(m.helpText())
-	return placeMiddle(m.width, m.height, m.st.Modal.Render(help))
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(help), m.st.Palette)
 }
 
 func (m *Model) helpText() string {

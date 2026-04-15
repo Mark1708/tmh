@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
 	"git.mark1708.ru/me/tmh/internal/tmux"
 
@@ -25,6 +26,28 @@ func newDoctorCmd() *cobra.Command {
 				fmt.Fprintf(c.OutOrStdout(), "%-8s %s\n", r.level, r.msg)
 				if r.level == "ERROR" {
 					hasError = true
+				}
+			}
+			// tmux integration audit — separate block so the user can see
+			// option-level findings distinctly from environment checks.
+			findings := actions.AuditTmuxConfig(context.Background(), tmux.NewCLIRunner())
+			if len(findings) > 0 {
+				fmt.Fprintln(c.OutOrStdout(), "\ntmux integration:")
+				for _, f := range findings {
+					marker := "  "
+					switch f.Level {
+					case actions.AuditOK:
+						marker = "  ✓ "
+					case actions.AuditWarn:
+						marker = "  ⚠ "
+					case actions.AuditError:
+						marker = "  ✗ "
+						hasError = true
+					}
+					fmt.Fprintf(c.OutOrStdout(), "%s%-38s %s\n", marker, f.Check, f.Message)
+					if f.Level != actions.AuditOK && f.FixHint != "" {
+						fmt.Fprintf(c.OutOrStdout(), "      → %s\n", f.FixHint)
+					}
 				}
 			}
 			if hasError {

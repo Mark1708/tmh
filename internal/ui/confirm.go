@@ -6,7 +6,6 @@ import (
 	"git.mark1708.ru/me/tmh/internal/ui/theme"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // confirmModel is a yes/no modal. OnConfirm is fired when the user accepts.
@@ -47,5 +46,5 @@ func (c *confirmModel) View() string {
 	body := c.st.Title.Render(c.title) + "\n\n" + c.body + "\n\n" +
 		c.st.KeyBinding.Render("y") + "/enter confirm   " +
 		c.st.KeyBinding.Render("n") + "/esc cancel"
-	return lipgloss.Place(c.width, c.height, lipgloss.Center, lipgloss.Center, c.st.Modal.Render(body))
+	return placeMiddle(c.width, c.height, c.st.Modal.Render(padBlock(body)), c.st.Palette)
 }

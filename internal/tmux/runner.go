@@ -38,4 +38,17 @@ type Runner interface {
 	// misc
 	SourceFile(ctx context.Context, path string) error
 	DisplayPopup(ctx context.Context, opts PopupOpts) error
+
+	// server-level introspection (used by tmh tmux audit and settings UI).
+	// ShowOption returns the raw value for a global option, empty string
+	// when the option is at its compiled default.
+	ShowOption(ctx context.Context, name string) (string, error)
+	// SetOption sets a global option (equivalent of `tmux set -g NAME VALUE`
+	// or `tmux setw -g ...` when window is true).
+	SetOption(ctx context.Context, name, value string, window bool) error
+	// ShowHook returns the command bound to a hook (`after-new-window` etc.)
+	// or empty string when nothing is set.
+	ShowHook(ctx context.Context, name string) (string, error)
+	// UnsetHook removes a global hook binding.
+	UnsetHook(ctx context.Context, name string) error
 }

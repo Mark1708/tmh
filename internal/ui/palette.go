@@ -8,7 +8,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -126,6 +125,6 @@ func (p *paletteModel) View() string {
 	if len(p.matches) == 0 {
 		b.WriteString(p.st.Hint.Render("(no matches)\n"))
 	}
-	body := p.st.Modal.Render(b.String())
-	return lipgloss.Place(p.width, p.height, lipgloss.Center, lipgloss.Center, body)
+	body := p.st.Modal.Render(padBlock(b.String()))
+	return placeMiddle(p.width, p.height, body, p.st.Palette)
 }

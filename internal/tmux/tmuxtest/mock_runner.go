@@ -32,6 +32,8 @@ type MockRunner struct {
 	sessions   map[string]*mockSession
 	order      []string // session creation order, for stable listing
 	paneSerial int
+	options    map[string]string // server option table used by ShowOption/SetOption
+	hooks      map[string]string // hook name → bound command
 }
 
 type mockSession struct {
@@ -452,6 +454,70 @@ func (m *MockRunner) DisplayPopup(_ context.Context, opts tmux.PopupOpts) error 
 	m.record("DisplayPopup", map[string]any{
 		"command": opts.Command, "dir": opts.Dir, "width": opts.Width, "height": opts.Height,
 	})
+	return nil
+}
+
+// --- options + hooks ---
+
+// Options lets tests pre-populate the mock option table so AuditTmuxConfig
+// sees a predictable server state.
+func (m *MockRunner) Options() map[string]string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.options == nil {
+		m.options = map[string]string{}
+	}
+	return m.options
+}
+
+// Hooks lets tests pre-populate the mock hook table.
+func (m *MockRunner) Hooks() map[string]string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.hooks == nil {
+		m.hooks = map[string]string{}
+	}
+	return m.hooks
+}
+
+func (m *MockRunner) ShowOption(_ context.Context, name string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("ShowOption", map[string]any{"name": name})
+	if m.options == nil {
+		return "", nil
+	}
+	return m.options[name], nil
+}
+
+func (m *MockRunner) SetOption(_ context.Context, name, value string, window bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("SetOption", map[string]any{"name": name, "value": value, "window": window})
+	if m.options == nil {
+		m.options = map[string]string{}
+	}
+	m.options[name] = value
+	return nil
+}
+
+func (m *MockRunner) ShowHook(_ context.Context, name string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("ShowHook", map[string]any{"name": name})
+	if m.hooks == nil {
+		return "", nil
+	}
+	return m.hooks[name], nil
+}
+
+func (m *MockRunner) UnsetHook(_ context.Context, name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("UnsetHook", map[string]any{"name": name})
+	if m.hooks != nil {
+		delete(m.hooks, name)
+	}
 	return nil
 }
 

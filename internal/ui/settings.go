@@ -89,7 +89,7 @@ func (s *settingsModel) View() string {
 	b.WriteString("\n" + s.st.Hint.Render("↑↓ выбор темы · esc назад (применяется сразу)"))
 
 	body := padBlock(b.String())
-	return lipgloss.Place(s.width, s.height, lipgloss.Center, lipgloss.Center, s.st.Modal.Render(body))
+	return placeMiddle(s.width, s.height, s.st.Modal.Render(body), s.st.Palette)
 }
 
 // themeSwatch renders 4 coloured blocks demonstrating bg/fg/accent/status.

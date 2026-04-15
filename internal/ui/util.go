@@ -6,6 +6,7 @@ import (
 
 	"git.mark1708.ru/me/tmh/internal/config"
 	"git.mark1708.ru/me/tmh/internal/tmux"
+	"git.mark1708.ru/me/tmh/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -50,8 +51,16 @@ func padRight(s string, w int) string {
 	return s + strings.Repeat(" ", w-lipgloss.Width(s))
 }
 
-func placeMiddle(width, height int, content string) string {
-	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content)
+// placeMiddle centres content inside a width×height canvas. The whitespace
+// around the content is painted with the palette's base background so the
+// modal does not bleed through to whatever was behind (dashboard tree,
+// etc.). Without WithWhitespaceBackground the gaps around a Modal.Render
+// show the dashboard underneath — which reads like unfilled strings.
+func placeMiddle(width, height int, content string, p theme.Palette) string {
+	return lipgloss.Place(width, height,
+		lipgloss.Center, lipgloss.Center, content,
+		lipgloss.WithWhitespaceBackground(p.Bg),
+	)
 }
 
 // padBlock right-pads every line in a multi-line string to the block's
