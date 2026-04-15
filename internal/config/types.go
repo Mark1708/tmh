@@ -28,6 +28,7 @@ type Config struct {
 type Defaults struct {
 	Layout string            `yaml:"layout,omitempty"`
 	Shell  string            `yaml:"shell,omitempty"`
+	Lang   string            `yaml:"lang,omitempty"` // en | ru; empty → auto-detect (see i18n.DetectLang)
 	Popup  Popup             `yaml:"popup,omitempty"`
 	Env    map[string]string `yaml:"env,omitempty"`
 	Reload ReloadDefaults    `yaml:"reload,omitempty"`
