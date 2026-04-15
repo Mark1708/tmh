@@ -3,12 +3,15 @@ package cmd
 
 import (
 	"context"
-	"fmt"
+	"os"
 
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/tmux"
+	"git.mark1708.ru/me/tmh/internal/ui"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -29,8 +32,7 @@ func NewRoot(version string) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: false,
 		RunE: func(c *cobra.Command, args []string) error {
-			// Default action: will launch TUI dashboard once implemented.
-			return fmt.Errorf("tui not implemented yet (use `tmh --help` for available commands)")
+			return launchTUI()
 		},
 	}
 
@@ -92,3 +94,24 @@ func newRunner() tmux.Runner { return tmux.NewCLIRunner() }
 
 // ctxFromCmd returns the cobra command's context (unused placeholder today).
 func ctxFromCmd(c *cobra.Command) context.Context { return c.Context() }
+
+// launchTUI runs the bubbletea dashboard. Reads config lazily via deps so a
+// missing or invalid config still lets the user reach the empty/error state
+// inside the TUI rather than failing at startup.
+func launchTUI() error {
+	db, _ := state.Open(xdg.StateDBPath())
+	if db != nil {
+		defer db.Close()
+	}
+	deps := ui.Deps{
+		Runner:     newRunner(),
+		State:      db,
+		ConfigPath: resolveConfigPath(),
+		Profile:    flags.Profile,
+		LoadConfig: func() (*config.Config, error) { return loadConfig(true) },
+	}
+	model := ui.New(deps)
+	prog := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(os.Stderr))
+	_, err := prog.Run()
+	return err
+}
