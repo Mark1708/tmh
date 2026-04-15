@@ -119,6 +119,7 @@
   "tui.settings.theme": "theme",
   "tui.settings.tmux": "tmux integration",
   "tui.settings.hint": "↑↓ change · esc back (applied instantly)",
+  "tui.settings.tmux.empty": "no findings",
 
   "tui.diff.title.empty": "no drift",
   "tui.diff.title.count": "drift · {{.count}} entries",

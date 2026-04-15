@@ -119,6 +119,7 @@
   "tui.settings.theme": "тема",
   "tui.settings.tmux": "tmux-интеграция",
   "tui.settings.hint": "↑↓ изменить · esc назад (применяется сразу)",
+  "tui.settings.tmux.empty": "нет замечаний",
 
   "tui.diff.title.empty": "drift не обнаружен",
   "tui.diff.title.count": "drift · {{.count}} записей",

@@ -249,16 +249,20 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case keyMatches(msg, m.keys.Undo):
 		return m, m.undoCmd()
 	case keyMatches(msg, m.keys.Settings):
-		m.settings = newSettings(m.keys, m.st, m.str, func(p theme.Palette) tea.Cmd {
-			m.st = theme.New(p)
-			if m.dashboard != nil {
-				m.dashboard.SetStyles(m.st)
-			}
-			if m.settings != nil {
-				m.settings.SetStyles(m.st)
-			}
-			return nil
-		})
+		m.settings = newSettings(m.keys, m.st, m.str,
+			func(p theme.Palette) tea.Cmd {
+				m.st = theme.New(p)
+				if m.dashboard != nil {
+					m.dashboard.SetStyles(m.st)
+				}
+				if m.settings != nil {
+					m.settings.SetStyles(m.st)
+				}
+				return nil
+			},
+			m.applyLanguage,
+			m.deps.Runner,
+		)
 		m.settings.Resize(m.width, m.height)
 		m.current = ScreenSettings
 		return m, nil
@@ -561,6 +565,35 @@ func (m *Model) undoCmd() tea.Cmd {
 			m.loadDataCmd(),
 		)()
 	}
+}
+
+// applyLanguage switches the localizer to lang, rebuilds the in-memory
+// UIStrings bundle, propagates it to long-lived sub-models, and persists the
+// choice to config.yml so subsequent launches inherit it. Called from the
+// settings screen language selector.
+func (m *Model) applyLanguage(lang string) tea.Cmd {
+	if err := i18n.Init(lang); err != nil {
+		return func() tea.Msg { return errorMsg{Err: err} }
+	}
+	m.str = LoadStrings()
+	if m.dashboard != nil {
+		m.dashboard.SetStrings(m.str)
+	}
+	if m.settings != nil {
+		m.settings.SetStrings(m.str)
+	}
+	// Persist defaults.lang; non-fatal if the config file is missing.
+	cfg, err := config.Load(m.deps.ConfigPath)
+	if err != nil {
+		return nil
+	}
+	if err := config.PathSet(cfg.Node, "defaults.lang", lang); err != nil {
+		return func() tea.Msg { return errorMsg{Err: err} }
+	}
+	if err := config.Write(cfg, m.deps.ConfigPath, config.WriteOptions{PreserveBlanks: true}); err != nil {
+		return func() tea.Msg { return errorMsg{Err: err} }
+	}
+	return nil
 }
 
 // paletteActions builds the command list that the `:` palette filters.
