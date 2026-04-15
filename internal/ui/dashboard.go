@@ -6,6 +6,7 @@ import (
 
 	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/ui/theme"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -18,6 +19,7 @@ import (
 type dashboardModel struct {
 	keys Keys
 	st   theme.Styles
+	str  UIStrings
 
 	width, height int
 
@@ -40,8 +42,8 @@ type dashboardRow struct {
 	WindowCnt int
 }
 
-func newDashboard(keys Keys, st theme.Styles) *dashboardModel {
-	return &dashboardModel{keys: keys, st: st, collapsed: map[string]bool{}}
+func newDashboard(keys Keys, st theme.Styles, str UIStrings) *dashboardModel {
+	return &dashboardModel{keys: keys, st: st, str: str, collapsed: map[string]bool{}}
 }
 
 // Resize sets viewport dimensions.
@@ -49,6 +51,9 @@ func (d *dashboardModel) Resize(w, h int) { d.width, d.height = w, h }
 
 // SetStyles updates the theme.
 func (d *dashboardModel) SetStyles(st theme.Styles) { d.st = st }
+
+// SetStrings swaps the translated string bundle (used after a language change).
+func (d *dashboardModel) SetStrings(str UIStrings) { d.str = str }
 
 // SetData replaces the rendered tree with fresh data.
 func (d *dashboardModel) SetData(l *actions.Listing, drift []config.Drift) {
@@ -152,10 +157,10 @@ func (d *dashboardModel) SelectedTarget() string {
 
 func (d *dashboardModel) View() string {
 	if d.listing == nil {
-		return d.st.Hint.Render("loading…")
+		return d.st.Hint.Render(d.str.Loading)
 	}
 	if len(d.rows) == 0 {
-		return d.st.Hint.Render("no sessions yet — press n to create one")
+		return d.st.Hint.Render(d.str.NoSessions)
 	}
 
 	// Side-by-side: tree (45%) | detail (rest). Each panel adds a 1-cell
@@ -246,25 +251,27 @@ func (d *dashboardModel) statusLabel(s config.DriftStatus) string {
 func (d *dashboardModel) renderDetail(width int) string {
 	r := d.currentRow()
 	if r == nil {
-		return d.st.Hint.Render("nothing selected")
+		return d.st.Hint.Render(d.str.NothingSelected)
 	}
 	var b strings.Builder
 	if r.IsSession {
-		b.WriteString(d.st.Title.Render("session: "+r.Session) + "\n\n")
-		fmt.Fprintf(&b, "live      %v\n", r.Live)
-		fmt.Fprintf(&b, "attached  %v\n", r.Attached)
-		fmt.Fprintf(&b, "windows   %d\n", r.WindowCnt)
-		fmt.Fprintf(&b, "status    %s\n", d.statusLabel(r.Status))
+		title := i18n.Tf("tui.dashboard.session_label", map[string]any{"name": r.Session})
+		b.WriteString(d.st.Title.Render(title) + "\n\n")
+		fmt.Fprintf(&b, "%-10s%v\n", i18n.T("tui.dashboard.field.live"), r.Live)
+		fmt.Fprintf(&b, "%-10s%v\n", i18n.T("tui.dashboard.field.attached"), r.Attached)
+		fmt.Fprintf(&b, "%-10s%d\n", i18n.T("tui.dashboard.field.windows"), r.WindowCnt)
+		fmt.Fprintf(&b, "%-10s%s\n", i18n.T("tui.dashboard.field.status"), d.statusLabel(r.Status))
 	} else {
-		b.WriteString(d.st.Title.Render(fmt.Sprintf("window: %s/%s", r.Session, r.Window)) + "\n\n")
-		fmt.Fprintf(&b, "live    %v\n", r.Live)
+		title := i18n.Tf("tui.dashboard.window_label", map[string]any{"session": r.Session, "window": r.Window})
+		b.WriteString(d.st.Title.Render(title) + "\n\n")
+		fmt.Fprintf(&b, "%-8s%v\n", i18n.T("tui.dashboard.field.live"), r.Live)
 		if r.Layout != "" {
-			fmt.Fprintf(&b, "layout  %s\n", r.Layout)
+			fmt.Fprintf(&b, "%-8s%s\n", i18n.T("tui.dashboard.field.layout"), r.Layout)
 		}
-		fmt.Fprintf(&b, "panes   %d\n", r.WindowCnt)
-		fmt.Fprintf(&b, "status  %s\n", d.statusLabel(r.Status))
+		fmt.Fprintf(&b, "%-8s%d\n", i18n.T("tui.dashboard.field.panes"), r.WindowCnt)
+		fmt.Fprintf(&b, "%-8s%s\n", i18n.T("tui.dashboard.field.status"), d.statusLabel(r.Status))
 		b.WriteString("\n")
-		b.WriteString(d.st.Hint.Render("press a / enter to attach this window"))
+		b.WriteString(d.st.Hint.Render(d.str.AttachHint))
 	}
 	_ = width
 	return b.String()

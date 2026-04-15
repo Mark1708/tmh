@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/ui/theme"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,14 +15,15 @@ import (
 type diffModel struct {
 	keys   Keys
 	st     theme.Styles
+	str    UIStrings
 	width  int
 	height int
 	items  []config.Drift
 	cursor int
 }
 
-func newDiffScreen(keys Keys, st theme.Styles, items []config.Drift) *diffModel {
-	return &diffModel{keys: keys, st: st, items: items}
+func newDiffScreen(keys Keys, st theme.Styles, str UIStrings, items []config.Drift) *diffModel {
+	return &diffModel{keys: keys, st: st, str: str, items: items}
 }
 
 func (d *diffModel) Resize(w, h int) { d.width, d.height = w, h }
@@ -44,10 +46,11 @@ func (d *diffModel) Update(msg tea.Msg) (*diffModel, tea.Cmd) {
 
 func (d *diffModel) View() string {
 	if len(d.items) == 0 {
-		return d.st.Title.Render("no drift") + "\n\n" + d.st.Hint.Render("press esc to return")
+		return d.st.Title.Render(d.str.Diff.TitleEmpty) + "\n\n" + d.st.Hint.Render(d.str.Diff.EscReturn)
 	}
 	var b strings.Builder
-	b.WriteString(d.st.Title.Render(fmt.Sprintf("drift · %d entries", len(d.items))) + "\n\n")
+	title := i18n.Tf("tui.diff.title.count", map[string]any{"count": len(d.items)})
+	b.WriteString(d.st.Title.Render(title) + "\n\n")
 	maxRows := d.height - 6
 	if maxRows < 5 {
 		maxRows = 5
@@ -69,13 +72,13 @@ func (d *diffModel) View() string {
 	if it := d.items[d.cursor]; it.ConfigDir != "" || it.LiveDir != "" {
 		b.WriteString("\n")
 		if it.ConfigDir != "" {
-			b.WriteString(d.st.Hint.Render("config: ") + it.ConfigDir + "\n")
+			b.WriteString(d.st.Hint.Render(d.str.Diff.ConfigLabel+" ") + it.ConfigDir + "\n")
 		}
 		if it.LiveDir != "" {
-			b.WriteString(d.st.Hint.Render("live:   ") + it.LiveDir + "\n")
+			b.WriteString(d.st.Hint.Render(d.str.Diff.LiveLabel+"  ") + it.LiveDir + "\n")
 		}
 	}
-	b.WriteString("\n" + d.st.Hint.Render("esc back · ↑/↓ navigate · s sync push (use CLI for now)"))
+	b.WriteString("\n" + d.st.Hint.Render(d.str.Diff.BackHint))
 	return b.String()
 }
 

@@ -21,23 +21,24 @@ type PaletteAction struct {
 
 // paletteModel is the fuzzy-search command palette overlay (`:` or ^P).
 type paletteModel struct {
-	keys      Keys
-	st        theme.Styles
-	width     int
-	height    int
-	input     textinput.Model
-	actions   []PaletteAction
-	matches   []int // indexes into actions, fuzzy-ranked
-	cursor    int
+	keys    Keys
+	st      theme.Styles
+	str     UIStrings
+	width   int
+	height  int
+	input   textinput.Model
+	actions []PaletteAction
+	matches []int // indexes into actions, fuzzy-ranked
+	cursor  int
 }
 
-func newPalette(keys Keys, st theme.Styles, actions []PaletteAction) *paletteModel {
+func newPalette(keys Keys, st theme.Styles, str UIStrings, actions []PaletteAction) *paletteModel {
 	in := textinput.New()
-	in.Placeholder = "type to filter…"
+	in.Placeholder = str.Palette.Placeholder
 	in.Focus()
 	in.Prompt = "» "
 	in.CharLimit = 80
-	p := &paletteModel{keys: keys, st: st, input: in, actions: actions}
+	p := &paletteModel{keys: keys, st: st, str: str, input: in, actions: actions}
 	p.refresh()
 	return p
 }
@@ -123,7 +124,7 @@ func (p *paletteModel) View() string {
 		b.WriteString(line + "\n")
 	}
 	if len(p.matches) == 0 {
-		b.WriteString(p.st.Hint.Render("(no matches)\n"))
+		b.WriteString(p.st.Hint.Render(p.str.Palette.NoMatches + "\n"))
 	}
 	body := p.st.Modal.Render(padBlock(b.String()))
 	return placeMiddle(p.width, p.height, body, p.st.Palette)

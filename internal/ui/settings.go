@@ -15,6 +15,7 @@ import (
 type settingsModel struct {
 	keys          Keys
 	st            theme.Styles
+	str           UIStrings
 	width, height int
 
 	themes     []theme.Palette
@@ -25,10 +26,11 @@ type settingsModel struct {
 	onThemeApply func(theme.Palette) tea.Cmd
 }
 
-func newSettings(keys Keys, st theme.Styles, onThemeApply func(theme.Palette) tea.Cmd) *settingsModel {
+func newSettings(keys Keys, st theme.Styles, str UIStrings, onThemeApply func(theme.Palette) tea.Cmd) *settingsModel {
 	s := &settingsModel{
 		keys:         keys,
 		st:           st,
+		str:          str,
 		themes:       theme.Available,
 		onThemeApply: onThemeApply,
 	}
@@ -70,9 +72,9 @@ func (s *settingsModel) apply() tea.Cmd {
 // palette with a live colour preview (bg + fg + accent badge).
 func (s *settingsModel) View() string {
 	var b strings.Builder
-	b.WriteString(s.st.Title.Render("настройки") + "\n\n")
+	b.WriteString(s.st.Title.Render(s.str.Settings.Title) + "\n\n")
 
-	b.WriteString(s.st.Subtitle.Render("тема") + "\n")
+	b.WriteString(s.st.Subtitle.Render(s.str.Settings.Theme) + "\n")
 	for i, p := range s.themes {
 		marker := "  "
 		if i == s.themeIndex {
@@ -86,7 +88,7 @@ func (s *settingsModel) View() string {
 		}
 		b.WriteString(line + "\n")
 	}
-	b.WriteString("\n" + s.st.Hint.Render("↑↓ выбор темы · esc назад (применяется сразу)"))
+	b.WriteString("\n" + s.st.Hint.Render(s.str.Settings.Hint))
 
 	body := padBlock(b.String())
 	return placeMiddle(s.width, s.height, s.st.Modal.Render(body), s.st.Palette)

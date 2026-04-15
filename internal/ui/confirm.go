@@ -12,6 +12,7 @@ import (
 type confirmModel struct {
 	keys      Keys
 	st        theme.Styles
+	str       UIStrings
 	width     int
 	height    int
 	title     string
@@ -19,9 +20,9 @@ type confirmModel struct {
 	OnConfirm func() tea.Cmd
 }
 
-func newConfirm(keys Keys, st theme.Styles, title, body string, onConfirm func() tea.Cmd) *confirmModel {
+func newConfirm(keys Keys, st theme.Styles, str UIStrings, title, body string, onConfirm func() tea.Cmd) *confirmModel {
 	return &confirmModel{
-		keys: keys, st: st, title: title, body: body, OnConfirm: onConfirm,
+		keys: keys, st: st, str: str, title: title, body: body, OnConfirm: onConfirm,
 	}
 }
 
@@ -44,7 +45,6 @@ func (c *confirmModel) Update(msg tea.Msg) (*confirmModel, tea.Cmd) {
 
 func (c *confirmModel) View() string {
 	body := c.st.Title.Render(c.title) + "\n\n" + c.body + "\n\n" +
-		c.st.KeyBinding.Render("y") + "/enter confirm   " +
-		c.st.KeyBinding.Render("n") + "/esc cancel"
+		c.str.Modal.ConfirmYes + "   " + c.str.Modal.ConfirmNo
 	return placeMiddle(c.width, c.height, c.st.Modal.Render(padBlock(body)), c.st.Palette)
 }

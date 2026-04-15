@@ -68,7 +68,7 @@ func TestDashboard_NavigationAndAttachTarget(t *testing.T) {
 			Windows: []actions.ListedWindow{{Name: "w", Live: true, Configured: true}},
 		}},
 	}
-	d := newDashboard(DefaultKeys(), theme.New(theme.Mocha))
+	d := newDashboard(DefaultKeys(), theme.New(theme.Mocha), LoadStrings())
 	d.Resize(80, 20)
 	d.SetData(listing, nil)
 

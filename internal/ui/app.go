@@ -15,6 +15,7 @@ import (
 
 	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/i18n"
 	"git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/tmux"
 	"git.mark1708.ru/me/tmh/internal/ui/theme"
@@ -40,6 +41,7 @@ type Model struct {
 	deps Deps
 	keys Keys
 	st   theme.Styles
+	str  UIStrings
 
 	width, height int
 
@@ -67,12 +69,14 @@ type Model struct {
 func New(deps Deps) *Model {
 	keys := DefaultKeys()
 	st := theme.New(theme.Mocha)
+	str := LoadStrings()
 	return &Model{
 		deps:      deps,
 		keys:      keys,
 		st:        st,
+		str:       str,
 		current:   ScreenDashboard,
-		dashboard: newDashboard(keys, st),
+		dashboard: newDashboard(keys, st, str),
 		pollEvery: 2 * time.Second,
 	}
 }
@@ -136,7 +140,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case errorMsg:
-		m.toast = "error: " + msg.Err.Error()
+		m.toast = i18n.Tf("tui.toast.error_prefix", map[string]any{"msg": msg.Err.Error()})
 		m.toastEnd = time.Now().Add(3 * time.Second)
 		return m, tea.Tick(3*time.Second, func(time.Time) tea.Msg { return toastExpiredMsg{} })
 
@@ -219,12 +223,12 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case keyMatches(msg, m.keys.Sync):
 		return m, m.syncPushCmd()
 	case keyMatches(msg, m.keys.Palette):
-		m.palette = newPalette(m.keys, m.st, m.paletteActions())
+		m.palette = newPalette(m.keys, m.st, m.str, m.paletteActions())
 		m.palette.Resize(m.width, m.height)
 		m.current = ScreenPalette
 		return m, nil
 	case keyMatches(msg, m.keys.Diff):
-		m.diff = newDiffScreen(m.keys, m.st, m.drift)
+		m.diff = newDiffScreen(m.keys, m.st, m.str, m.drift)
 		m.diff.Resize(m.width, m.height-2)
 		m.current = ScreenDiff
 		return m, nil
@@ -233,9 +237,9 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if target == "" {
 			return m, nil
 		}
-		m.confirm = newConfirm(m.keys, m.st,
-			"kill "+target+"?",
-			"this cannot be undone unless tmh undo recreates from a saved snapshot.",
+		m.confirm = newConfirm(m.keys, m.st, m.str,
+			i18n.Tf("tui.modal.kill.title_fmt", map[string]any{"target": target}),
+			m.str.Modal.KillBody,
 			func() tea.Cmd { return m.killTargetCmd(target) },
 		)
 		m.confirm.Resize(m.width, m.height)
@@ -244,7 +248,7 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case keyMatches(msg, m.keys.Undo):
 		return m, m.undoCmd()
 	case keyMatches(msg, m.keys.Settings):
-		m.settings = newSettings(m.keys, m.st, func(p theme.Palette) tea.Cmd {
+		m.settings = newSettings(m.keys, m.st, m.str, func(p theme.Palette) tea.Cmd {
 			m.st = theme.New(p)
 			if m.dashboard != nil {
 				m.dashboard.SetStyles(m.st)
@@ -331,7 +335,7 @@ func (m *Model) renderHeader() string {
 	}
 	right := ""
 	if driftCount > 0 {
-		right = m.st.StatusDrift.Render(fmt.Sprintf("⚠ drift:%d", driftCount))
+		right = m.st.StatusDrift.Render(i18n.Tf("tui.header.drift_badge", map[string]any{"count": driftCount}))
 	}
 	gap := strings.Repeat(" ", maxInt(1, m.width-lipgloss.Width(left)-lipgloss.Width(right)))
 	return left + gap + right
@@ -339,24 +343,24 @@ func (m *Model) renderHeader() string {
 
 func (m *Model) renderFooter() string {
 	hints := []string{
-		m.st.KeyBinding.Render("a") + " attach",
-		m.st.KeyBinding.Render("R") + " dotfiles",
-		m.st.KeyBinding.Render("s") + " sync",
-		m.st.KeyBinding.Render("S") + " settings",
-		m.st.KeyBinding.Render(":") + " palette",
-		m.st.KeyBinding.Render("?") + " help",
-		m.st.KeyBinding.Render("q") + " quit",
+		m.st.KeyBinding.Render("a") + " " + m.str.Footer.Attach,
+		m.st.KeyBinding.Render("R") + " " + m.str.Footer.Dotfiles,
+		m.st.KeyBinding.Render("s") + " " + m.str.Footer.Sync,
+		m.st.KeyBinding.Render("S") + " " + m.str.Footer.Settings,
+		m.st.KeyBinding.Render(":") + " " + m.str.Footer.Palette,
+		m.st.KeyBinding.Render("?") + " " + m.str.Footer.Help,
+		m.st.KeyBinding.Render("q") + " " + m.str.Footer.Quit,
 	}
 	return m.st.Footer.Render(strings.Join(hints, " · "))
 }
 
 func (m *Model) renderErrorScreen() string {
-	body := padBlock(m.st.StatusGone.Render("⚠ error") + "\n\n" + m.errMsg + "\n\nesc / q to dismiss")
+	body := padBlock(m.st.StatusGone.Render(m.str.Modal.ErrorTitle) + "\n\n" + m.errMsg + "\n\n" + m.str.Modal.ErrorDismiss)
 	return placeMiddle(m.width, m.height, m.st.Modal.Render(body), m.st.Palette)
 }
 
 func (m *Model) renderEmptyScreen() string {
-	body := padBlock("no sessions configured\n\npress n to create your first one")
+	body := padBlock(m.str.Modal.EmptyTitle + "\n\n" + m.str.Modal.EmptyHint)
 	return placeMiddle(m.width, m.height, m.st.Modal.Render(body), m.st.Palette)
 }
 
@@ -373,37 +377,38 @@ func (m *Model) overlayHelp(body string) string {
 }
 
 func (m *Model) helpText() string {
+	km := m.str.Keymap
 	sections := []struct {
 		title string
 		rows  [][2]string
 	}{
-		{"навигация", [][2]string{
-			{"j / k / ↑↓", "вверх / вниз"},
-			{"h / l", "свернуть / развернуть сессию"},
-			{"g / G", "к началу / в конец"},
-			{"PgUp / PgDn", "постранично"},
+		{km.SectionNav, [][2]string{
+			{"j / k / ↑↓", km.NavUpdown},
+			{"h / l", km.NavCollapse},
+			{"g / G", km.NavTopBottom},
+			{"PgUp / PgDn", km.NavPage},
 		}},
-		{"действия с сессиями", [][2]string{
-			{"enter / a", "attach (tmux забирает терминал)"},
-			{"n", "новая сессия (мастер)"},
-			{"d", "kill (с подтверждением)"},
-			{"u", "undo последнего kill"},
+		{km.SectionActions, [][2]string{
+			{"enter / a", km.ActionAttach},
+			{"n", km.ActionNew},
+			{"d", km.ActionKill},
+			{"u", km.ActionUndo},
 		}},
-		{"sync и reload", [][2]string{
-			{"r", "обновить данные TUI из tmux"},
-			{"R", "source ~/.zshrc и ~/.tmux.conf в панелях"},
-			{"s", "sync push (создать недостающие окна)"},
-			{"D", "экран drift"},
+		{km.SectionSync, [][2]string{
+			{"r", km.SyncRefresh},
+			{"R", km.SyncReload},
+			{"s", km.SyncPush},
+			{"D", km.SyncDiff},
 		}},
-		{"прочее", [][2]string{
-			{": / Ctrl+P", "палитра команд (fuzzy)"},
-			{"S", "настройки (тема и т.д.)"},
-			{"? / esc", "help on / off"},
-			{"q / Ctrl+C", "выход"},
+		{km.SectionOther, [][2]string{
+			{": / Ctrl+P", km.OtherPalette},
+			{"S", km.OtherSettings},
+			{"? / esc", km.OtherHelp},
+			{"q / Ctrl+C", km.OtherQuit},
 		}},
 	}
 	var b strings.Builder
-	b.WriteString(m.st.Title.Render("keymap"))
+	b.WriteString(m.st.Title.Render(km.Title))
 	b.WriteString("\n\n")
 	for si, sec := range sections {
 		b.WriteString(m.st.Subtitle.Render(sec.title))
@@ -460,7 +465,7 @@ func (m *Model) reloadAllCmd() tea.Cmd {
 		if err != nil {
 			return errorMsg{Err: err}
 		}
-		return actionDoneMsg{Text: "reload triggered"}
+		return actionDoneMsg{Text: m.str.Toast.ReloadTriggered}
 	}
 }
 
@@ -476,7 +481,10 @@ func (m *Model) syncPushCmd() tea.Cmd {
 		if err != nil {
 			return errorMsg{Err: err}
 		}
-		text := fmt.Sprintf("sync: %d created, %d updated", len(rep.Created), len(rep.Updated))
+		text := i18n.Tf("tui.toast.sync_report", map[string]any{
+			"created": len(rep.Created),
+			"updated": len(rep.Updated),
+		})
 		return actionDoneMsg{Text: text}
 	}
 }
@@ -526,8 +534,9 @@ func (m *Model) killTargetCmd(target string) tea.Cmd {
 		if err := m.deps.Runner.KillSession(ctx, target); err != nil {
 			return errorMsg{Err: err}
 		}
+		killed := i18n.Tf("tui.toast.session_killed", map[string]any{"name": target})
 		return tea.Batch(
-			func() tea.Msg { return actionDoneMsg{Text: "killed " + target} },
+			func() tea.Msg { return actionDoneMsg{Text: killed} },
 			m.loadDataCmd(),
 			func() tea.Msg { return switchScreenMsg{Screen: ScreenDashboard} },
 		)()
@@ -537,7 +546,7 @@ func (m *Model) killTargetCmd(target string) tea.Cmd {
 func (m *Model) undoCmd() tea.Cmd {
 	return func() tea.Msg {
 		if m.deps.State == nil {
-			return errorMsg{Err: fmt.Errorf("undo: state.db unavailable")}
+			return errorMsg{Err: fmt.Errorf("%s", m.str.Toast.UndoUnavailable)}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -545,8 +554,9 @@ func (m *Model) undoCmd() tea.Cmd {
 		if err != nil {
 			return errorMsg{Err: err}
 		}
+		restored := i18n.Tf("tui.toast.session_restored", map[string]any{"name": target})
 		return tea.Batch(
-			func() tea.Msg { return actionDoneMsg{Text: "restored " + target} },
+			func() tea.Msg { return actionDoneMsg{Text: restored} },
 			m.loadDataCmd(),
 		)()
 	}
@@ -555,30 +565,30 @@ func (m *Model) undoCmd() tea.Cmd {
 // paletteActions builds the command list that the `:` palette filters.
 func (m *Model) paletteActions() []PaletteAction {
 	out := []PaletteAction{
-		{Title: "data refresh", Subtitle: "перечитать listing из tmux (то же что 'r')", Run: func() tea.Cmd { return m.loadDataCmd() }},
-		{Title: "dotfile reload", Subtitle: "source ~/.zshrc + ~/.tmux.conf (то же что 'R')", Run: func() tea.Cmd { return m.reloadAllCmd() }},
-		{Title: "sync --push", Subtitle: "create missing sessions/windows", Run: func() tea.Cmd { return m.syncPushCmd() }},
-		{Title: "diff", Subtitle: "show drift list", Run: func() tea.Cmd {
-			m.diff = newDiffScreen(m.keys, m.st, m.drift)
+		{Title: i18n.T("tui.palette.action.refresh.title"), Subtitle: i18n.T("tui.palette.action.refresh.subtitle"), Run: func() tea.Cmd { return m.loadDataCmd() }},
+		{Title: i18n.T("tui.palette.action.reload.title"), Subtitle: i18n.T("tui.palette.action.reload.subtitle"), Run: func() tea.Cmd { return m.reloadAllCmd() }},
+		{Title: i18n.T("tui.palette.action.sync.title"), Subtitle: i18n.T("tui.palette.action.sync.subtitle"), Run: func() tea.Cmd { return m.syncPushCmd() }},
+		{Title: i18n.T("tui.palette.action.diff.title"), Subtitle: i18n.T("tui.palette.action.diff.subtitle"), Run: func() tea.Cmd {
+			m.diff = newDiffScreen(m.keys, m.st, m.str, m.drift)
 			m.diff.Resize(m.width, m.height-2)
 			return func() tea.Msg { return switchScreenMsg{Screen: ScreenDiff} }
 		}},
-		{Title: "undo", Subtitle: "restore last destructive action", Run: func() tea.Cmd { return m.undoCmd() }},
-		{Title: "theme: cycle", Subtitle: "next catppuccin flavour", Run: func() tea.Cmd {
+		{Title: i18n.T("tui.palette.action.undo.title"), Subtitle: i18n.T("tui.palette.action.undo.subtitle"), Run: func() tea.Cmd { return m.undoCmd() }},
+		{Title: i18n.T("tui.palette.action.theme.title"), Subtitle: i18n.T("tui.palette.action.theme.subtitle"), Run: func() tea.Cmd {
 			m.st = theme.New(theme.Cycle(m.st.Palette))
 			if m.dashboard != nil {
 				m.dashboard.SetStyles(m.st)
 			}
 			return nil
 		}},
-		{Title: "quit", Subtitle: "exit the TUI", Run: func() tea.Cmd { return tea.Quit }},
+		{Title: i18n.T("tui.palette.action.quit.title"), Subtitle: i18n.T("tui.palette.action.quit.subtitle"), Run: func() tea.Cmd { return tea.Quit }},
 	}
 	if m.listing != nil {
 		for _, s := range m.listing.Sessions {
 			s := s
 			out = append(out, PaletteAction{
-				Title:    "attach " + s.Name,
-				Subtitle: fmt.Sprintf("%d windows", len(s.Windows)),
+				Title:    i18n.Tf("tui.palette.action.attach.title", map[string]any{"name": s.Name}),
+				Subtitle: i18n.Tf("tui.palette.action.attach.subtitle", map[string]any{"count": len(s.Windows)}),
 				Run:      func() tea.Cmd { return tea.Sequence(attachCmd(m.deps.Runner, m.deps.Runner.InTmux(), s.Name), m.loadDataCmd()) },
 			})
 		}
