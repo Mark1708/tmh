@@ -16,7 +16,7 @@ type Keys struct {
 	Attach, NewSession, Kill, Sync, Reload key.Binding
 	ConfigEditor, Diff, Snapshot, Undo     key.Binding
 	Palette, Help, Theme, Search           key.Binding
-	Refresh                                key.Binding
+	Refresh, Settings                      key.Binding
 }
 
 // DefaultKeys returns the default key bindings.
@@ -43,12 +43,13 @@ func DefaultKeys() Keys {
 		Reload:       key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "reload")),
 		ConfigEditor: key.NewBinding(key.WithKeys("C"), key.WithHelp("C", "config")),
 		Diff:         key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "diff")),
-		Snapshot:     key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "snapshot")),
+		Snapshot:     key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("^S", "snapshot")),
 		Undo:         key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "undo")),
 		Palette:      key.NewBinding(key.WithKeys(":", "ctrl+p"), key.WithHelp(":", "palette")),
 		Help:         key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
 		Theme:        key.NewBinding(key.WithKeys("ctrl+t"), key.WithHelp("^T", "theme")),
 		Search:       key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 		Refresh:      key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
+		Settings:     key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "settings")),
 	}
 }

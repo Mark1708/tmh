@@ -54,6 +54,24 @@ func placeMiddle(width, height int, content string) string {
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content)
 }
 
+// padBlock right-pads every line in a multi-line string to the block's
+// widest visible width so lipgloss.Background fills the whole rectangle.
+// Without this, a Modal style with Background leaves unfilled gaps on any
+// line shorter than the longest one.
+func padBlock(s string) string {
+	lines := strings.Split(s, "\n")
+	max := 0
+	for _, l := range lines {
+		if w := lipgloss.Width(l); w > max {
+			max = w
+		}
+	}
+	for i, l := range lines {
+		lines[i] = padRight(l, max)
+	}
+	return strings.Join(lines, "\n")
+}
+
 func overlayBottomRight(base, overlay string, w, h int) string {
 	// Simple approach: position overlay using lipgloss.Place's right/bottom
 	// alignment over a transparent layer.

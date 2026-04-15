@@ -11,4 +11,5 @@ const (
 	ScreenError
 	ScreenEmpty
 	ScreenConfirm
+	ScreenSettings
 )

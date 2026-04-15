@@ -53,6 +53,7 @@ type Model struct {
 	palette     *paletteModel
 	confirm     *confirmModel
 	diff        *diffModel
+	settings    *settingsModel
 	helpVisible bool
 	errMsg      string
 
@@ -97,6 +98,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.diff != nil {
 			m.diff.Resize(msg.Width, msg.Height-2)
+		}
+		if m.settings != nil {
+			m.settings.Resize(msg.Width, msg.Height)
 		}
 		return m, nil
 
@@ -198,6 +202,10 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.diff, cmd = m.diff.Update(msg)
 		return m, cmd
+	case ScreenSettings:
+		var cmd tea.Cmd
+		m.settings, cmd = m.settings.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
@@ -235,6 +243,20 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case keyMatches(msg, m.keys.Undo):
 		return m, m.undoCmd()
+	case keyMatches(msg, m.keys.Settings):
+		m.settings = newSettings(m.keys, m.st, func(p theme.Palette) tea.Cmd {
+			m.st = theme.New(p)
+			if m.dashboard != nil {
+				m.dashboard.SetStyles(m.st)
+			}
+			if m.settings != nil {
+				m.settings.SetStyles(m.st)
+			}
+			return nil
+		})
+		m.settings.Resize(m.width, m.height)
+		m.current = ScreenSettings
+		return m, nil
 	case keyMatches(msg, m.keys.Attach), keyMatches(msg, m.keys.Enter):
 		target := m.dashboard.SelectedTarget()
 		if target == "" {
@@ -275,6 +297,10 @@ func (m *Model) View() string {
 			body = lipgloss.JoinVertical(lipgloss.Left,
 				m.renderHeader(), m.diff.View(), m.renderFooter())
 		}
+	case ScreenSettings:
+		if m.settings != nil {
+			body = m.settings.View()
+		}
 	default:
 		body = m.dashboard.View()
 	}
@@ -314,28 +340,24 @@ func (m *Model) renderHeader() string {
 func (m *Model) renderFooter() string {
 	hints := []string{
 		m.st.KeyBinding.Render("a") + " attach",
-		m.st.KeyBinding.Render("R") + " reload",
+		m.st.KeyBinding.Render("R") + " dotfiles",
 		m.st.KeyBinding.Render("s") + " sync",
-		m.st.KeyBinding.Render("r") + " refresh",
+		m.st.KeyBinding.Render("S") + " settings",
+		m.st.KeyBinding.Render(":") + " palette",
 		m.st.KeyBinding.Render("?") + " help",
-		m.st.KeyBinding.Render("^T") + " theme",
 		m.st.KeyBinding.Render("q") + " quit",
 	}
 	return m.st.Footer.Render(strings.Join(hints, " · "))
 }
 
 func (m *Model) renderErrorScreen() string {
-	box := m.st.Modal.Render(
-		m.st.StatusGone.Render("⚠ error\n\n") + m.errMsg + "\n\nesc / q to dismiss",
-	)
-	return placeMiddle(m.width, m.height, box)
+	body := padBlock(m.st.StatusGone.Render("⚠ error") + "\n\n" + m.errMsg + "\n\nesc / q to dismiss")
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(body))
 }
 
 func (m *Model) renderEmptyScreen() string {
-	box := m.st.Modal.Render(
-		"no sessions configured\n\npress n to create your first one",
-	)
-	return placeMiddle(m.width, m.height, box)
+	body := padBlock("no sessions configured\n\npress n to create your first one")
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(body))
 }
 
 func (m *Model) overlayToast(body string) string {
@@ -344,23 +366,57 @@ func (m *Model) overlayToast(body string) string {
 }
 
 func (m *Model) overlayHelp(body string) string {
-	help := m.st.Modal.Render(m.helpText())
-	return placeMiddle(m.width, m.height, help)
+	// Pad every line to the widest so the modal's Background fills the
+	// whole block — otherwise shorter rows leak through whatever is behind.
+	help := padBlock(m.helpText())
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(help))
 }
 
 func (m *Model) helpText() string {
-	keys := []string{
-		m.st.KeyBinding.Render("j/k") + "  navigate",
-		m.st.KeyBinding.Render("h/l") + "  collapse / expand",
-		m.st.KeyBinding.Render("enter / a") + "  attach",
-		m.st.KeyBinding.Render("r") + "  refresh",
-		m.st.KeyBinding.Render("R") + "  reload dotfiles",
-		m.st.KeyBinding.Render("s") + "  sync push",
-		m.st.KeyBinding.Render("^T") + "  cycle theme",
-		m.st.KeyBinding.Render("?") + "  toggle this help",
-		m.st.KeyBinding.Render("q") + "  quit",
+	sections := []struct {
+		title string
+		rows  [][2]string
+	}{
+		{"навигация", [][2]string{
+			{"j / k / ↑↓", "вверх / вниз"},
+			{"h / l", "свернуть / развернуть сессию"},
+			{"g / G", "к началу / в конец"},
+			{"PgUp / PgDn", "постранично"},
+		}},
+		{"действия с сессиями", [][2]string{
+			{"enter / a", "attach (tmux забирает терминал)"},
+			{"n", "новая сессия (мастер)"},
+			{"d", "kill (с подтверждением)"},
+			{"u", "undo последнего kill"},
+		}},
+		{"sync и reload", [][2]string{
+			{"r", "обновить данные TUI из tmux"},
+			{"R", "source ~/.zshrc и ~/.tmux.conf в панелях"},
+			{"s", "sync push (создать недостающие окна)"},
+			{"D", "экран drift"},
+		}},
+		{"прочее", [][2]string{
+			{": / Ctrl+P", "палитра команд (fuzzy)"},
+			{"S", "настройки (тема и т.д.)"},
+			{"? / esc", "help on / off"},
+			{"q / Ctrl+C", "выход"},
+		}},
 	}
-	return m.st.Title.Render("keymap") + "\n\n" + strings.Join(keys, "\n")
+	var b strings.Builder
+	b.WriteString(m.st.Title.Render("keymap"))
+	b.WriteString("\n\n")
+	for si, sec := range sections {
+		b.WriteString(m.st.Subtitle.Render(sec.title))
+		b.WriteString("\n")
+		for _, row := range sec.rows {
+			b.WriteString("  " + m.st.KeyBinding.Render(row[0]))
+			b.WriteString("   " + row[1] + "\n")
+		}
+		if si < len(sections)-1 {
+			b.WriteString("\n")
+		}
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // --- commands ---
@@ -499,8 +555,8 @@ func (m *Model) undoCmd() tea.Cmd {
 // paletteActions builds the command list that the `:` palette filters.
 func (m *Model) paletteActions() []PaletteAction {
 	out := []PaletteAction{
-		{Title: "refresh", Subtitle: "reload listings now", Run: func() tea.Cmd { return m.loadDataCmd() }},
-		{Title: "reload --all", Subtitle: "source ~/.zshrc + ~/.tmux.conf", Run: func() tea.Cmd { return m.reloadAllCmd() }},
+		{Title: "data refresh", Subtitle: "перечитать listing из tmux (то же что 'r')", Run: func() tea.Cmd { return m.loadDataCmd() }},
+		{Title: "dotfile reload", Subtitle: "source ~/.zshrc + ~/.tmux.conf (то же что 'R')", Run: func() tea.Cmd { return m.reloadAllCmd() }},
 		{Title: "sync --push", Subtitle: "create missing sessions/windows", Run: func() tea.Cmd { return m.syncPushCmd() }},
 		{Title: "diff", Subtitle: "show drift list", Run: func() tea.Cmd {
 			m.diff = newDiffScreen(m.keys, m.st, m.drift)
