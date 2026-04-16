@@ -90,6 +90,30 @@ func (p *Provider) Invalidate() {
 	p.mu.Unlock()
 }
 
+// CommandsForSession returns deduplicated non-idle-shell commands for all panes
+// in the named session. Keys are "session:windowIdx.paneIdx" so the session
+// prefix "session:" is used for filtering.
+func (p *Provider) CommandsForSession(session string) []string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	prefix := session + ":"
+	seen := make(map[string]bool)
+	var result []string
+	for key, e := range p.entries {
+		if len(key) <= len(prefix) || key[:len(prefix)] != prefix {
+			continue
+		}
+		if e.info.Command == "" || IsIdleShell(e.info.Command) {
+			continue
+		}
+		if !seen[e.info.Command] {
+			seen[e.info.Command] = true
+			result = append(result, e.info.Command)
+		}
+	}
+	return result
+}
+
 // CommandsForWindow returns all non-idle-shell commands running in the
 // given window (identified as "session:windowIndex"). Duplicate commands
 // are deduplicated. The slice is empty when no active processes are found.

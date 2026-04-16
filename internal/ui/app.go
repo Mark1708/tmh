@@ -149,7 +149,7 @@ func New(deps Deps) *Model {
 	pr := refresh.New(refresh.DefaultInterval)
 	pp := pane.New(2 * time.Second) // 2s TTL matches DefaultInterval
 
-	return &Model{
+	m := &Model{
 		deps:          deps,
 		keys:          keys,
 		st:            st,
@@ -162,6 +162,8 @@ func New(deps Deps) *Model {
 		paneRefresher: pr,
 		paneProvider:  pp,
 	}
+	m.dashboard.SetPaneProvider(pp)
+	return m
 }
 
 // pushHistory appends a message to the ring buffer and keeps the buffer
@@ -223,7 +225,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Always reschedule the tick to keep the loop alive.
 		cmd := m.paneRefresher.Tick()
 		// Skip the fetch while a text-input widget has focus (input-pause rule).
-		inputFocused := (m.palette != nil && m.current == ScreenPalette)
+		inputFocused := (m.palette != nil && m.current == ScreenPalette) ||
+			(m.dashboard != nil && m.dashboard.FilterActive())
 		if inputFocused {
 			return m, cmd
 		}
@@ -236,6 +239,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.paneProvider.SetAll(msg.Data)
+		if m.dashboard != nil {
+			m.dashboard.UpdateCommands()
+		}
 		return m, nil
 
 	case dataLoadedMsg:
