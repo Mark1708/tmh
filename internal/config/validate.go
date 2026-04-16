@@ -56,16 +56,6 @@ func Validate(c *Config) error {
 		}
 	}
 
-	for pname, p := range c.Profiles {
-		for _, g := range p.Groups {
-			_ = g // profiles may reference any group; no enforcement
-		}
-		for _, h := range [][]string{p.Hooks.OnCreate, p.Hooks.OnAttach, p.Hooks.OnDestroy} {
-			_ = h
-		}
-		_ = pname
-	}
-
 	if len(violations) == 0 {
 		return nil
 	}
@@ -73,16 +63,16 @@ func Validate(c *Config) error {
 }
 
 func validateWindow(c *Config, sname, wname string, w Window) []error {
-	var errs_ []error
+	var violations []error
 	if w.Root != "" {
 		if _, ok := c.Roots[w.Root]; !ok {
-			errs_ = append(errs_,
+			violations = append(violations,
 				fmt.Errorf("%w: session %q window %q references root %q", errs.ErrUnknownRoot, sname, wname, w.Root))
 		}
 	}
 	if w.Extends != "" {
 		if _, ok := c.Templates[w.Extends]; !ok {
-			errs_ = append(errs_,
+			violations = append(violations,
 				fmt.Errorf("%w: session %q window %q extends %q", errs.ErrUnknownTemplate, sname, wname, w.Extends))
 		}
 	}
@@ -91,25 +81,25 @@ func validateWindow(c *Config, sname, wname string, w Window) []error {
 		if n, ok := BuiltinLayouts[w.Layout]; ok {
 			expectedPanes = n
 		} else if _, ok := c.Layouts[w.Layout]; !ok {
-			errs_ = append(errs_,
+			violations = append(violations,
 				fmt.Errorf("%w: session %q window %q layout %q", errs.ErrUnknownLayout, sname, wname, w.Layout))
 		}
 	}
 	if len(w.Panes) > 0 && expectedPanes > 0 && len(w.Panes) != expectedPanes {
-		errs_ = append(errs_,
+		violations = append(violations,
 			fmt.Errorf("%w: session %q window %q has %d panes but layout %q expects %d",
 				errs.ErrLayoutMismatch, sname, wname, len(w.Panes), w.Layout, expectedPanes))
 	}
 	for i, p := range w.Panes {
 		if p.Root != "" {
 			if _, ok := c.Roots[p.Root]; !ok {
-				errs_ = append(errs_,
+				violations = append(violations,
 					fmt.Errorf("%w: session %q window %q pane %d references root %q",
 						errs.ErrUnknownRoot, sname, wname, i, p.Root))
 			}
 		}
 	}
-	return errs_
+	return violations
 }
 
 // joinErrors produces a compound error. Using Go 1.20+ errors.Join would be

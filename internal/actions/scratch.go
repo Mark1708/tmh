@@ -3,8 +3,6 @@ package actions
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -93,19 +91,4 @@ func SweepExpiredScratch(ctx context.Context, r tmux.Runner, db *state.DB) (kill
 // IsScratchName reports whether a session name follows the scratch prefix.
 func IsScratchName(name string) bool {
 	return strings.HasPrefix(name, scratchSessionPrefix)
-}
-
-// scratchAge returns how long a scratch session has been alive based on its
-// suffix timestamp. Falls back to zero on parse failure.
-func scratchAge(name string, now time.Time) time.Duration {
-	if !IsScratchName(name) {
-		return 0
-	}
-	suffix := strings.TrimPrefix(name, scratchSessionPrefix)
-	// suffix is "1504" or "150405" — ignore for now; SweepExpiredScratch
-	// uses the events table for accurate TTLs.
-	_ = suffix
-	_ = strconv.Atoi
-	_ = fmt.Sprintf
-	return now.Sub(time.Time{})
 }
