@@ -49,6 +49,10 @@ type errorMsg struct{ Err error }
 // actionDoneMsg signals an action completed successfully.
 type actionDoneMsg struct{ Text string }
 
+// undoHintMsg sets or clears the footer undo hint ("↶ kill session epcp").
+// An empty Text clears the hint.
+type undoHintMsg struct{ Text string }
+
 // paneRefreshTickMsg is the alias used internally; the actual type comes from
 // the refresh package and is re-exported here for documentation clarity.
 // (The root model switches on refresh.TickMsg and refresh.PaneDataMsg directly.)

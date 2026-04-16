@@ -89,6 +89,10 @@ type Model struct {
 	paneRefresher *refresh.Refresher
 	// paneProvider is the in-memory cache of pane runtime data.
 	paneProvider *pane.Provider
+
+	// undoHint is the last undoable action description shown in the footer
+	// (e.g. "kill session epcp"). Empty when there is nothing to undo.
+	undoHint string
 }
 
 // toastEntry captures one entry in the toast history ring buffer.
@@ -292,6 +296,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case actionDoneMsg:
 		return m, m.showToast(toast.KindSuccess, msg.Text)
+
+	case undoHintMsg:
+		m.undoHint = msg.Text
+		return m, nil
 
 	case historyLoadedMsg:
 		if msg.Err != nil {
@@ -554,6 +562,11 @@ func (m *Model) renderFooter() string {
 		m.st.KeyBinding.Render("q") + " " + m.str.Footer.Quit,
 	}
 	hintsStr := strings.Join(hints, " · ")
+
+	// Undo hint (Variant 4.3): "↶ kill session epcp" when undo stack is non-empty.
+	if m.undoHint != "" {
+		hintsStr += "  " + m.st.KeyBinding.Render("u") + " ↶ " + m.st.Hint.Render(m.undoHint)
+	}
 
 	// Footer heatmap (Variant 14): "live N · idle N" shown on the right when
 	// enabled in Display settings.
@@ -861,8 +874,10 @@ func (m *Model) killTargetCmd(target string) tea.Cmd {
 			return errorMsg{Err: err}
 		}
 		killed := i18n.Tf("tui.toast.session_killed", map[string]any{"name": target})
+		hint := "kill session " + target
 		return tea.Batch(
 			func() tea.Msg { return actionDoneMsg{Text: killed} },
+			func() tea.Msg { return undoHintMsg{Text: hint} },
 			m.loadDataCmd(),
 			func() tea.Msg { return switchScreenMsg{Screen: ScreenDashboard} },
 		)()
@@ -883,6 +898,7 @@ func (m *Model) undoCmd() tea.Cmd {
 		restored := i18n.Tf("tui.toast.session_restored", map[string]any{"name": target})
 		return tea.Batch(
 			func() tea.Msg { return actionDoneMsg{Text: restored} },
+			func() tea.Msg { return undoHintMsg{} }, // clear undo hint
 			m.loadDataCmd(),
 		)()
 	}
