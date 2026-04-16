@@ -14,9 +14,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// dashboardModel is a flattened tree (sessions + windows) with a preview
-// pane on the right. j/k navigate the flat list; left/right collapse and
-// expand sessions.
+// dashboardModel is a three-level flat tree (sessions → windows → panes)
+// rendered as a scrollable list with a detail panel on the right.
+//
+// j/k navigate; left/right collapse/expand sessions; Tab toggles inline
+// pane rows for windows (Variant 15).
 type dashboardModel struct {
 	keys Keys
 	st   theme.Styles
@@ -24,10 +26,11 @@ type dashboardModel struct {
 
 	width, height int
 
-	rows       []dashboardRow
-	collapsed  map[string]bool // session name → collapsed
-	cursor     int             // index into rows when not filtered
-	listing    *actions.Listing
+	rows      []dashboardRow
+	collapsed map[string]bool // session name → collapsed (Level 0)
+	expanded  map[string]bool // "session:window" → panes expanded (Level 1→2)
+	cursor    int             // index into rows when not filtered
+	listing   *actions.Listing
 	driftIndex map[string]config.DriftStatus // "session" or "session/window" → status
 
 	// process visibility (Variant 4)
@@ -48,25 +51,49 @@ type dashboardModel struct {
 	lastPreviewRowID   string // detects row change so previewPaneIdx can reset
 }
 
+// Level constants for dashboardRow.
+const (
+	levelSession = 0
+	levelWindow  = 1
+	levelPane    = 2
+)
+
 type dashboardRow struct {
-	IsSession bool
-	Session   string
-	Window    string // window name; empty if IsSession
-	WindowIdx int    // numeric window index used for pane cache lookups
-	Indent    int
+	Level     int    // levelSession, levelWindow, or levelPane
+	Session   string // always set
+	Window    string // window name; empty for level 0
+	WindowIdx int    // numeric window index for pane cache lookups
+	PaneIdx   int    // pane index (0-based); only used at level 2
+	Indent    int    // display indent columns
 	Status    config.DriftStatus
 	Live      bool
-	Attached  bool
-	Layout    string
-	WindowCnt int
+	Attached  bool   // sessions only
+	Layout    string // windows only
+	WindowCnt int    // sessions: #windows, windows: #panes
 	// Commands holds the live process names for this row (Variant 4).
 	// For sessions: all unique non-shell commands across all panes.
-	// For windows: first non-shell command visible in the pane cache.
+	// For windows: non-shell commands in this window's panes.
+	// For pane rows: single command from the pane cache (nil if idle shell).
 	Commands []string
 }
 
+// IsSession reports whether this row represents a session.
+func (r *dashboardRow) IsSession() bool { return r.Level == levelSession }
+
+// IsWindow reports whether this row represents a window.
+func (r *dashboardRow) IsWindow() bool { return r.Level == levelWindow }
+
+// IsPaneRow reports whether this row represents an individual pane.
+func (r *dashboardRow) IsPaneRow() bool { return r.Level == levelPane }
+
 func newDashboard(keys Keys, st theme.Styles, str UIStrings) *dashboardModel {
-	return &dashboardModel{keys: keys, st: st, str: str, collapsed: map[string]bool{}}
+	return &dashboardModel{
+		keys:      keys,
+		st:        st,
+		str:       str,
+		collapsed: map[string]bool{},
+		expanded:  map[string]bool{},
+	}
 }
 
 // Resize sets viewport dimensions.
@@ -100,15 +127,21 @@ func (d *dashboardModel) maybeResetPreviewPane() {
 // currentPreviewTarget returns the tmux target string for the preview pane.
 // For session rows it uses the session name (tmux picks the active window).
 // For window rows it encodes the specific pane: "session:windowIdx.paneIdx".
+// For pane rows it directly uses the pane key.
 func (d *dashboardModel) currentPreviewTarget() string {
 	r := d.currentRow()
 	if r == nil {
 		return ""
 	}
-	if r.IsSession {
+	switch r.Level {
+	case levelSession:
 		return r.Session
+	case levelWindow:
+		return fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, d.previewPaneIdx)
+	case levelPane:
+		return fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, r.PaneIdx)
 	}
-	return fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, d.previewPaneIdx)
+	return ""
 }
 
 // SetPreview updates the cached preview text. Only accepted when the target
@@ -122,17 +155,22 @@ func (d *dashboardModel) SetPreview(target, text string) {
 }
 
 // currentTargetKey returns a stable row identifier for cursor/selection
-// purposes. Does NOT include the pane index — use currentPreviewTarget for
-// that.
+// purposes. Does NOT include the pane index for window rows — use
+// currentPreviewTarget for that.
 func (d *dashboardModel) currentTargetKey() string {
 	r := d.currentRow()
 	if r == nil {
 		return ""
 	}
-	if r.IsSession {
+	switch r.Level {
+	case levelSession:
 		return r.Session
+	case levelWindow:
+		return r.Session + ":" + r.Window
+	case levelPane:
+		return fmt.Sprintf("%s:%s.%d", r.Session, r.Window, r.PaneIdx)
 	}
-	return r.Session + ":" + r.Window
+	return ""
 }
 
 // PreviewStale reports true when the cached preview doesn't match the current
@@ -191,22 +229,23 @@ func (d *dashboardModel) rebuildRows() {
 		return
 	}
 	for _, s := range d.listing.Sessions {
-		row := dashboardRow{
-			IsSession: true,
+		sessRow := dashboardRow{
+			Level:     levelSession,
 			Session:   s.Name,
 			Live:      s.Live,
 			Attached:  s.Attached,
 			WindowCnt: len(s.Windows),
 		}
-		row.Status = worstStatus(d.driftIndex, s.Name, s.Windows)
-		row.Commands = d.commandsFor(&row)
-		d.rows = append(d.rows, row)
+		sessRow.Status = worstStatus(d.driftIndex, s.Name, s.Windows)
+		sessRow.Commands = d.commandsFor(&sessRow)
+		d.rows = append(d.rows, sessRow)
 		if d.collapsed[s.Name] {
 			continue
 		}
 		for _, w := range s.Windows {
 			entry := s.Name + "/" + w.Name
-			wr := dashboardRow{
+			winRow := dashboardRow{
+				Level:     levelWindow,
 				Session:   s.Name,
 				Window:    w.Name,
 				WindowIdx: w.Index,
@@ -216,8 +255,25 @@ func (d *dashboardModel) rebuildRows() {
 				Layout:    w.Layout,
 				WindowCnt: w.Panes,
 			}
-			wr.Commands = d.commandsFor(&wr)
-			d.rows = append(d.rows, wr)
+			winRow.Commands = d.commandsFor(&winRow)
+			d.rows = append(d.rows, winRow)
+
+			// Variant 15: inline pane rows when window is expanded.
+			winKey := s.Name + ":" + w.Name
+			if d.expanded[winKey] {
+				for pIdx := 0; pIdx < w.Panes; pIdx++ {
+					pr := dashboardRow{
+						Level:     levelPane,
+						Session:   s.Name,
+						Window:    w.Name,
+						WindowIdx: w.Index,
+						PaneIdx:   pIdx,
+						Indent:    2,
+					}
+					pr.Commands = d.commandsFor(&pr)
+					d.rows = append(d.rows, pr)
+				}
+			}
 		}
 	}
 	// Rebuild filtered view if a filter is active.
@@ -231,10 +287,19 @@ func (d *dashboardModel) commandsFor(r *dashboardRow) []string {
 	if d.paneProvider == nil {
 		return nil
 	}
-	if r.IsSession {
+	switch r.Level {
+	case levelSession:
 		return d.paneProvider.CommandsForSession(r.Session)
+	case levelWindow:
+		return d.paneProvider.CommandsForWindow(r.Session, r.WindowIdx)
+	case levelPane:
+		paneKey := fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, r.PaneIdx)
+		if info, ok := d.paneProvider.Get(paneKey); ok && info.Command != "" && !pane.IsIdleShell(info.Command) {
+			return []string{info.Command}
+		}
+		return nil
 	}
-	return d.paneProvider.CommandsForWindow(r.Session, r.WindowIdx)
+	return nil
 }
 
 // applyFilter rebuilds the filtered index from filterText.
@@ -277,19 +342,26 @@ func (d *dashboardModel) restoreCursorByID(id string) {
 	}
 	eff := d.effectiveRows()
 	for i, idx := range eff {
-		r := d.rows[idx]
-		var rowID string
-		if r.IsSession {
-			rowID = r.Session
-		} else {
-			rowID = r.Session + ":" + r.Window
-		}
-		if rowID == id {
+		r := &d.rows[idx]
+		if d.rowID(r) == id {
 			d.setCursor(i)
 			return
 		}
 	}
 	d.clampCursor()
+}
+
+// rowID returns the stable string identifier for a row (mirrors currentTargetKey).
+func (d *dashboardModel) rowID(r *dashboardRow) string {
+	switch r.Level {
+	case levelSession:
+		return r.Session
+	case levelWindow:
+		return r.Session + ":" + r.Window
+	case levelPane:
+		return fmt.Sprintf("%s:%s.%d", r.Session, r.Window, r.PaneIdx)
+	}
+	return ""
 }
 
 func (d *dashboardModel) Update(msg tea.Msg) (*dashboardModel, tea.Cmd) {
@@ -315,14 +387,42 @@ func (d *dashboardModel) Update(msg tea.Msg) (*dashboardModel, tea.Cmd) {
 		case keyMatches(msg, d.keys.PgUp):
 			d.moveCursor(-10)
 		case keyMatches(msg, d.keys.Left):
-			if r := d.currentRow(); r != nil && r.IsSession {
-				d.collapsed[r.Session] = true
-				d.rebuildRows()
+			savedID := d.currentTargetKey()
+			if r := d.currentRow(); r != nil {
+				switch r.Level {
+				case levelSession:
+					d.collapsed[r.Session] = true
+					d.rebuildRows()
+					d.restoreCursorByID(savedID)
+				case levelWindow:
+					winKey := r.Session + ":" + r.Window
+					if d.expanded[winKey] {
+						delete(d.expanded, winKey)
+						d.rebuildRows()
+						d.restoreCursorByID(savedID)
+					}
+				case levelPane:
+					// Move cursor to the parent window row.
+					parentID := r.Session + ":" + r.Window
+					d.restoreCursorByID(parentID)
+				}
 			}
 		case keyMatches(msg, d.keys.Right):
-			if r := d.currentRow(); r != nil && r.IsSession {
-				delete(d.collapsed, r.Session)
-				d.rebuildRows()
+			savedID := d.currentTargetKey()
+			if r := d.currentRow(); r != nil {
+				switch r.Level {
+				case levelSession:
+					delete(d.collapsed, r.Session)
+					d.rebuildRows()
+					d.restoreCursorByID(savedID)
+				case levelWindow:
+					winKey := r.Session + ":" + r.Window
+					if !d.expanded[winKey] {
+						d.expanded[winKey] = true
+						d.rebuildRows()
+						d.restoreCursorByID(savedID)
+					}
+				}
 			}
 		case keyMatches(msg, d.keys.Search):
 			// `/` activates filter input.
@@ -331,15 +431,22 @@ func (d *dashboardModel) Update(msg tea.Msg) (*dashboardModel, tea.Cmd) {
 				d.filtered = make([]int, 0, len(d.rows))
 			}
 		case keyMatches(msg, d.keys.Tab):
-			// Tab cycles to the next pane within the current window (Variant 10).
-			if r := d.currentRow(); r != nil && !r.IsSession && r.WindowCnt > 0 {
-				d.previewPaneIdx = (d.previewPaneIdx + 1) % r.WindowCnt
-				d.preview = ""
-				d.previewTarget = ""
+			// Tab toggles inline pane rows for window rows (Variant 15).
+			// For window rows without pane cache data, falls back to pane cycling.
+			savedID := d.currentTargetKey()
+			if r := d.currentRow(); r != nil && r.Level == levelWindow {
+				winKey := r.Session + ":" + r.Window
+				if d.expanded[winKey] {
+					delete(d.expanded, winKey)
+				} else {
+					d.expanded[winKey] = true
+				}
+				d.rebuildRows()
+				d.restoreCursorByID(savedID)
 			}
 		case msg.Type == tea.KeyShiftTab:
-			// Shift+Tab cycles to the previous pane within the current window.
-			if r := d.currentRow(); r != nil && !r.IsSession && r.WindowCnt > 0 {
+			// Shift+Tab cycles to the previous pane preview within the current window.
+			if r := d.currentRow(); r != nil && r.Level == levelWindow && r.WindowCnt > 0 {
 				d.previewPaneIdx = (d.previewPaneIdx - 1 + r.WindowCnt) % r.WindowCnt
 				d.preview = ""
 				d.previewTarget = ""
@@ -463,14 +570,18 @@ func (d *dashboardModel) currentRow() *dashboardRow {
 	return &d.rows[idx]
 }
 
-// SelectedTarget returns "session" or "session:window" for the current row.
+// SelectedTarget returns the tmux target for the current row.
+// Returns "session", "session:window", or "session:window.pane".
 func (d *dashboardModel) SelectedTarget() string {
 	r := d.currentRow()
 	if r == nil {
 		return ""
 	}
-	if r.IsSession {
+	switch r.Level {
+	case levelSession:
 		return r.Session
+	case levelPane:
+		return fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, r.PaneIdx)
 	}
 	return r.Session + ":" + r.Window
 }
@@ -556,7 +667,8 @@ func (d *dashboardModel) renderTree(width int) string {
 
 func (d *dashboardModel) formatRow(r dashboardRow, width int) string {
 	indent := strings.Repeat("  ", r.Indent)
-	if r.IsSession {
+	switch r.Level {
+	case levelSession:
 		marker := " "
 		switch {
 		case r.Attached:
@@ -573,15 +685,36 @@ func (d *dashboardModel) formatRow(r dashboardRow, width int) string {
 			base = head + " " + procs
 		}
 		return padRight(base, width-lipgloss.Width(status)-1) + " " + status
+
+	case levelWindow:
+		prefix := indent + "├─ "
+		statusGlyph := " "
+		if r.Live {
+			statusGlyph = "●"
+		}
+		main := fmt.Sprintf("%s%s %-14s", prefix, statusGlyph, truncate(r.Window, 14))
+		right := d.statusLabel(r.Status)
+		return padRight(main, width-lipgloss.Width(right)-1) + " " + right
+
+	case levelPane:
+		// Pane row: "    │  N  cmd  cwd"
+		prefix := indent + "│  "
+		cmd := "—"
+		cwd := ""
+		if d.paneProvider != nil {
+			paneKey := fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, r.PaneIdx)
+			if info, ok := d.paneProvider.Get(paneKey); ok {
+				if info.Command != "" {
+					cmd = info.Command
+				}
+				cwd = shortenPath(info.Path, maxInt(0, width-30))
+			}
+		}
+		main := fmt.Sprintf("%s%d  %-10s  %s", prefix, r.PaneIdx,
+			truncate(cmd, 10), d.st.Hint.Render(cwd))
+		return main
 	}
-	prefix := indent + "├─ "
-	statusGlyph := " "
-	if r.Live {
-		statusGlyph = "●"
-	}
-	main := fmt.Sprintf("%s%s %-14s", prefix, statusGlyph, truncate(r.Window, 14))
-	right := d.statusLabel(r.Status)
-	return padRight(main, width-lipgloss.Width(right)-1) + " " + right
+	return ""
 }
 
 // procHint formats a short process hint (e.g. "nvim claude") for a session row.
@@ -615,7 +748,8 @@ func (d *dashboardModel) renderDetail(width int) string {
 		return d.st.Hint.Render(d.str.NothingSelected)
 	}
 	var b strings.Builder
-	if r.IsSession {
+	switch r.Level {
+	case levelSession:
 		title := i18n.Tf("tui.dashboard.session_label", map[string]any{"name": r.Session})
 		b.WriteString(d.st.Title.Render(title) + "\n\n")
 		fmt.Fprintf(&b, "%-10s%s\n", i18n.T("tui.dashboard.field.live"), d.boolGlyph(r.Live))
@@ -626,7 +760,27 @@ func (d *dashboardModel) renderDetail(width int) string {
 			procs := truncate(strings.Join(r.Commands, " · "), width-12)
 			fmt.Fprintf(&b, "%-10s%s\n", "procs", d.st.Hint.Render(procs))
 		}
-	} else {
+	case levelPane:
+		// Pane row detail: show command and cwd prominently.
+		paneKey := fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, r.PaneIdx)
+		title := fmt.Sprintf("pane %d — %s:%s", r.PaneIdx, r.Session, r.Window)
+		b.WriteString(d.st.Title.Render(title) + "\n\n")
+		if d.paneProvider != nil {
+			if info, ok := d.paneProvider.Get(paneKey); ok {
+				cmd := info.Command
+				if cmd == "" {
+					cmd = "—"
+				}
+				fmt.Fprintf(&b, "%-8s%s\n", "cmd", cmd)
+				if info.Path != "" {
+					fmt.Fprintf(&b, "%-8s%s\n", "cwd", shortenPath(info.Path, width-10))
+				}
+				fmt.Fprintf(&b, "%-8s%s\n", "active", d.boolGlyph(info.Active))
+			}
+		}
+		b.WriteString("\n")
+		b.WriteString(d.st.Hint.Render(d.str.AttachHint))
+	default: // levelWindow
 		title := i18n.Tf("tui.dashboard.window_label", map[string]any{"session": r.Session, "window": r.Window})
 		b.WriteString(d.st.Title.Render(title) + "\n\n")
 		fmt.Fprintf(&b, "%-8s%s\n", i18n.T("tui.dashboard.field.live"), d.boolGlyph(r.Live))
@@ -660,7 +814,7 @@ func (d *dashboardModel) renderDetail(width int) string {
 		}
 		b.WriteString("\n")
 		b.WriteString(d.st.Hint.Render(d.str.AttachHint))
-	}
+	} // end switch r.Level
 	if d.preview != "" {
 		b.WriteString("\n\n")
 		b.WriteString(d.st.Subtitle.Render(d.previewPaneLabel(r)) + "\n")
@@ -670,10 +824,10 @@ func (d *dashboardModel) renderDetail(width int) string {
 }
 
 // previewPaneLabel builds the header line for the preview section.
-// For session rows it returns the generic label. For window rows it includes
-// the pane index and its running command: "preview [pane N: cmd]".
+// For session rows it returns the generic label. For window/pane rows it
+// includes the pane index and its running command: "preview [pane N: cmd]".
 func (d *dashboardModel) previewPaneLabel(r *dashboardRow) string {
-	if r == nil || r.IsSession {
+	if r == nil || r.Level == levelSession {
 		return i18n.T("tui.dashboard.preview_label")
 	}
 	label := fmt.Sprintf("preview [pane %d", d.previewPaneIdx)
