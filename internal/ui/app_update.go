@@ -70,13 +70,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.drift = msg.Drift
 		if msg.Cfg != nil {
 			m.cfg = msg.Cfg
-			if m.dashboard != nil {
-				paneBase := 0
-				if m.cfg.Defaults.TmuxIntegration.PaneBaseIndex != nil {
-					paneBase = *m.cfg.Defaults.TmuxIntegration.PaneBaseIndex
-				}
-				m.dashboard.SetPaneBaseIndex(paneBase)
+		}
+		if m.dashboard != nil {
+			// Prefer the live tmux value; cfg override takes precedence when set.
+			paneBase := msg.PaneBaseIndex
+			if m.cfg != nil && m.cfg.Defaults.TmuxIntegration.PaneBaseIndex != nil {
+				paneBase = *m.cfg.Defaults.TmuxIntegration.PaneBaseIndex
 			}
+			m.dashboard.SetPaneBaseIndex(paneBase)
 		}
 		if m.dashboard != nil {
 			m.dashboard.SetData(msg.Listing, msg.Drift)

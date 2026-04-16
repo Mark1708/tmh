@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -92,10 +93,18 @@ func (m *Model) loadDataCmd() tea.Cmd {
 			return dataLoadedMsg{Err: err}
 		}
 		drift := config.Diff(resolved, snap)
+		// Auto-detect pane-base-index so rows match what tmux reports,
+		// regardless of whether the user configured it in tmh settings.
+		paneBaseIndex := 0
+		if raw, err := m.deps.Runner.ShowOption(ctx, "pane-base-index"); err == nil {
+			if n, err := strconv.Atoi(strings.TrimSpace(raw)); err == nil {
+				paneBaseIndex = n
+			}
+		}
 		// Do NOT write m.cfg here — tea.Cmd runs on a worker goroutine and m is
 		// not synchronised. Return cfg in the message; Update assigns it on the
 		// main goroutine.
-		return dataLoadedMsg{Listing: listing, Drift: drift, Cfg: cfg}
+		return dataLoadedMsg{Listing: listing, Drift: drift, Cfg: cfg, PaneBaseIndex: paneBaseIndex}
 	}
 }
 

@@ -10,10 +10,11 @@ import (
 
 // dataLoadedMsg arrives after the background poll fetches a new listing.
 type dataLoadedMsg struct {
-	Listing *actions.Listing
-	Drift   []config.Drift
-	Cfg     *config.Config // populated so Update can assign m.cfg on the main goroutine
-	Err     error
+	Listing       *actions.Listing
+	Drift         []config.Drift
+	Cfg           *config.Config // populated so Update can assign m.cfg on the main goroutine
+	PaneBaseIndex int            // actual pane-base-index read from tmux (0 when undetected)
+	Err           error
 }
 
 // previewLoadedMsg carries a tmux capture-pane result for the focused window.

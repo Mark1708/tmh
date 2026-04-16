@@ -262,9 +262,10 @@ func (d *dashboardModel) previewPaneLabel(r *dashboardRow) string {
 	if r == nil || r.Level == levelSession {
 		return i18n.T("tui.dashboard.preview_label")
 	}
-	label := fmt.Sprintf("preview [pane %d", d.previewPaneIdx)
+	actualIdx := d.previewPaneIdx + d.paneBaseOffset
+	label := fmt.Sprintf("preview [pane %d", actualIdx)
 	if d.paneProvider != nil {
-		paneKey := fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, d.previewPaneIdx)
+		paneKey := fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, actualIdx)
 		if info, ok := d.paneProvider.Get(paneKey); ok && info.Command != "" && !pane.IsIdleShell(info.Command) {
 			label += ": " + info.Command
 		}
