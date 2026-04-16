@@ -241,6 +241,7 @@
   "drift.reason.window_gone": "window in config, not running",
   "drift.reason.dir_differs": "dir differs",
   "drift.reason.window_new": "window in live, not in config",
+  "drift.reason.command_differs": "command differs",
 
   "doctor.tmux.ok": "tmux {{.version}}",
   "doctor.tmux.missing": "tmux not installed (apt/brew install tmux)",

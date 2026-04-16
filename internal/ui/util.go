@@ -158,11 +158,15 @@ func collectLive(ctx context.Context, r tmux.Runner) (config.LiveSnapshot, error
 		s string
 		w int
 	}
-	first := make(map[k]string, len(all))
+	type firstPane struct {
+		dir string
+		cmd string // first non-idle foreground command
+	}
+	first := make(map[k]firstPane, len(all))
 	for _, p := range all {
 		key := k{p.Session, p.Window}
 		if _, set := first[key]; !set {
-			first[key] = p.Path
+			first[key] = firstPane{dir: p.Path, cmd: p.Command}
 		}
 	}
 	for _, s := range sessions {
@@ -172,9 +176,11 @@ func collectLive(ctx context.Context, r tmux.Runner) (config.LiveSnapshot, error
 		}
 		ls := config.LiveSession{Name: s.Name}
 		for _, w := range wins {
+			fp := first[k{s.Name, w.Index}]
 			ls.Windows = append(ls.Windows, config.LiveWindow{
-				Name: w.Name,
-				Dir:  first[k{s.Name, w.Index}],
+				Name:    w.Name,
+				Dir:     fp.dir,
+				Command: fp.cmd,
 			})
 		}
 		snap.Sessions = append(snap.Sessions, ls)

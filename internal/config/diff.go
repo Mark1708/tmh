@@ -9,22 +9,25 @@ package config
 // drift.reason.* in the i18n bundle) that UI callers resolve into the
 // current language at render time.
 type Drift struct {
-	Status      DriftStatus
-	Session     string
-	Window      string // empty when the drift is session-level
-	ConfigDir   string // resolved dir from config
-	LiveDir     string // pane_current_path of first pane when available
-	ConfigEntry string // "session" or "session/window"
-	Reason      string // English description; stable for JSON
-	ReasonCode  string // e.g. "session_gone"; maps to drift.reason.<code> in i18n
+	Status        DriftStatus
+	Session       string
+	Window        string // empty when the drift is session-level
+	ConfigDir     string // resolved dir from config
+	LiveDir       string // pane_current_path of first pane when available
+	ConfigEntry   string // "session" or "session/window"
+	Reason        string // English description; stable for JSON
+	ReasonCode    string // e.g. "session_gone"; maps to drift.reason.<code> in i18n
+	ConfigCommand string // expected command from config (command_differs drift only)
+	LiveCommand   string // observed command from live state (command_differs drift only)
 }
 
 // Drift reason codes. Kept in sync with drift.reason.* keys in the i18n bundle.
 const (
-	ReasonSessionGone = "session_gone"
-	ReasonWindowGone  = "window_gone"
-	ReasonDirDiffers  = "dir_differs"
-	ReasonWindowNew   = "window_new"
+	ReasonSessionGone    = "session_gone"
+	ReasonWindowGone     = "window_gone"
+	ReasonDirDiffers     = "dir_differs"
+	ReasonWindowNew      = "window_new"
+	ReasonCommandDiffers = "command_differs"
 )
 
 // DriftStatus is one of ok/drift/new/gone.
@@ -59,10 +62,11 @@ type LiveSession struct {
 	Windows []LiveWindow
 }
 
-// LiveWindow represents one live window with first-pane cwd.
+// LiveWindow represents one live window with first-pane cwd and command.
 type LiveWindow struct {
-	Name string
-	Dir  string
+	Name    string
+	Dir     string
+	Command string // foreground command of the first non-idle pane; may be empty
 }
 
 // Diff compares a resolved config view against a live snapshot and returns
@@ -146,6 +150,22 @@ func Diff(resolved *Resolved, live LiveSnapshot) []Drift {
 					ConfigEntry: entry,
 					Reason:      "dir differs",
 					ReasonCode:  ReasonDirDiffers,
+				})
+				continue
+			}
+			// Process drift: command declared in config differs from running command.
+			if cw.Command != "" && lw.Command != "" && cw.Command != lw.Command {
+				out = append(out, Drift{
+					Status:         StatusDrift,
+					Session:        cs.Name,
+					Window:         cw.Name,
+					ConfigDir:      cw.Dir,
+					LiveDir:        lw.Dir,
+					ConfigEntry:    entry,
+					Reason:         "command differs: expected " + cw.Command + ", got " + lw.Command,
+					ReasonCode:     ReasonCommandDiffers,
+					ConfigCommand:  cw.Command,
+					LiveCommand:    lw.Command,
 				})
 				continue
 			}

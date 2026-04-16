@@ -240,6 +240,7 @@
   "drift.reason.window_gone": "окно в config, не запущено",
   "drift.reason.dir_differs": "отличается рабочий каталог",
   "drift.reason.window_new": "окно в live, но не в config",
+  "drift.reason.command_differs": "отличается команда процесса",
 
   "doctor.tmux.ok": "tmux {{.version}}",
   "doctor.tmux.missing": "tmux не установлен (apt/brew install tmux)",
