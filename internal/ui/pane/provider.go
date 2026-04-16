@@ -160,3 +160,18 @@ func (p *Provider) AllCommands() []string {
 	}
 	return result
 }
+
+// Stats returns the count of live (non-idle-shell) panes and idle (shell)
+// panes currently in the cache. Used by the footer heatmap.
+func (p *Provider) Stats() (live, idle int) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	for _, e := range p.entries {
+		if e.info.Command == "" || IsIdleShell(e.info.Command) {
+			idle++
+		} else {
+			live++
+		}
+	}
+	return live, idle
+}

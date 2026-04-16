@@ -554,8 +554,28 @@ func (m *Model) renderFooter() string {
 		m.st.KeyBinding.Render("q") + " " + m.str.Footer.Quit,
 	}
 	hintsStr := strings.Join(hints, " · ")
-	if m.toast == "" || m.width == 0 {
+
+	// Footer heatmap (Variant 14): "live N · idle N" shown on the right when
+	// enabled in Display settings.
+	heatmap := ""
+	if m.cfg != nil && m.cfg.Defaults.Display.ShowFooterHeatmap && m.paneProvider != nil {
+		live, idle := m.paneProvider.Stats()
+		heatmap = m.st.Hint.Render(fmt.Sprintf("live %d · idle %d", live, idle))
+	}
+
+	if m.toast == "" && heatmap == "" || m.width == 0 {
 		return m.st.Footer.Render(hintsStr)
+	}
+	if m.toast == "" {
+		// Only heatmap — right-align it.
+		contentW := m.width - 2
+		heatW := lipgloss.Width(heatmap)
+		hintsW := contentW - heatW - 1
+		if hintsW < 0 {
+			hintsW = 0
+		}
+		line := truncate(hintsStr, hintsW) + strings.Repeat(" ", maxInt(1, contentW-lipgloss.Width(truncate(hintsStr, hintsW))-heatW)) + heatmap
+		return m.st.Footer.Render(line)
 	}
 	// Inline toast right-aligned on the same footer row. We truncate hints
 	// from the right so the toast always fits; the full hint set stays
