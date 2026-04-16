@@ -41,12 +41,18 @@ type dashboardModel struct {
 
 	preview       string // cached capture-pane content for current row
 	previewTarget string // row key the cached preview belongs to
+
+	// pane cycling (Variant 10): preview is bound to a specific pane index
+	previewPaneIdx     int    // pane being previewed within the current window (0-based)
+	previewDefaultPane int    // reset value when row changes; set from Display settings
+	lastPreviewRowID   string // detects row change so previewPaneIdx can reset
 }
 
 type dashboardRow struct {
 	IsSession bool
 	Session   string
-	Window    string // empty if IsSession
+	Window    string // window name; empty if IsSession
+	WindowIdx int    // numeric window index used for pane cache lookups
 	Indent    int
 	Status    config.DriftStatus
 	Live      bool
@@ -75,17 +81,49 @@ func (d *dashboardModel) SetStrings(str UIStrings) { d.str = str }
 // SetPaneProvider wires in the pane command cache for process visibility.
 func (d *dashboardModel) SetPaneProvider(p *pane.Provider) { d.paneProvider = p }
 
-// SetPreview updates the cached preview text for the row key it was
-// captured against.
+// SetPreviewDefaultPane configures which pane index is selected when the
+// cursor moves to a new window row. 0 is the default (first pane).
+func (d *dashboardModel) SetPreviewDefaultPane(idx int) { d.previewDefaultPane = idx }
+
+// maybeResetPreviewPane resets previewPaneIdx to the default when the
+// selected row has changed since the last call.
+func (d *dashboardModel) maybeResetPreviewPane() {
+	id := d.currentTargetKey()
+	if id != d.lastPreviewRowID {
+		d.lastPreviewRowID = id
+		d.previewPaneIdx = d.previewDefaultPane
+		d.preview = ""
+		d.previewTarget = ""
+	}
+}
+
+// currentPreviewTarget returns the tmux target string for the preview pane.
+// For session rows it uses the session name (tmux picks the active window).
+// For window rows it encodes the specific pane: "session:windowIdx.paneIdx".
+func (d *dashboardModel) currentPreviewTarget() string {
+	r := d.currentRow()
+	if r == nil {
+		return ""
+	}
+	if r.IsSession {
+		return r.Session
+	}
+	return fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, d.previewPaneIdx)
+}
+
+// SetPreview updates the cached preview text. Only accepted when the target
+// matches the currently active preview target (pane-aware).
 func (d *dashboardModel) SetPreview(target, text string) {
-	if target != d.currentTargetKey() {
+	if target != d.currentPreviewTarget() {
 		return
 	}
 	d.preview = text
 	d.previewTarget = target
 }
 
-// currentTargetKey returns a stable identifier for the current selection.
+// currentTargetKey returns a stable row identifier for cursor/selection
+// purposes. Does NOT include the pane index — use currentPreviewTarget for
+// that.
 func (d *dashboardModel) currentTargetKey() string {
 	r := d.currentRow()
 	if r == nil {
@@ -97,9 +135,11 @@ func (d *dashboardModel) currentTargetKey() string {
 	return r.Session + ":" + r.Window
 }
 
-// PreviewStale reports true when the current selection lacks a matching cache.
+// PreviewStale reports true when the cached preview doesn't match the current
+// pane target. Resets pane index when the selected row has changed.
 func (d *dashboardModel) PreviewStale() (target string, stale bool) {
-	target = d.currentTargetKey()
+	d.maybeResetPreviewPane()
+	target = d.currentPreviewTarget()
 	if target == "" {
 		return "", false
 	}
@@ -167,7 +207,10 @@ func (d *dashboardModel) rebuildRows() {
 		for _, w := range s.Windows {
 			entry := s.Name + "/" + w.Name
 			wr := dashboardRow{
-				Session: s.Name, Window: w.Name, Indent: 1,
+				Session:   s.Name,
+				Window:    w.Name,
+				WindowIdx: w.Index,
+				Indent:    1,
 				Status:    d.driftIndex[entry],
 				Live:      w.Live,
 				Layout:    w.Layout,
@@ -191,9 +234,7 @@ func (d *dashboardModel) commandsFor(r *dashboardRow) []string {
 	if r.IsSession {
 		return d.paneProvider.CommandsForSession(r.Session)
 	}
-	// For windows: use CommandsForWindow with index 0 as a best-effort.
-	// Accurate matching requires window index correlation with config names.
-	return d.paneProvider.CommandsForWindow(r.Session, 0)
+	return d.paneProvider.CommandsForWindow(r.Session, r.WindowIdx)
 }
 
 // applyFilter rebuilds the filtered index from filterText.
@@ -288,6 +329,20 @@ func (d *dashboardModel) Update(msg tea.Msg) (*dashboardModel, tea.Cmd) {
 			d.filterActive = true
 			if d.filtered == nil {
 				d.filtered = make([]int, 0, len(d.rows))
+			}
+		case keyMatches(msg, d.keys.Tab):
+			// Tab cycles to the next pane within the current window (Variant 10).
+			if r := d.currentRow(); r != nil && !r.IsSession && r.WindowCnt > 0 {
+				d.previewPaneIdx = (d.previewPaneIdx + 1) % r.WindowCnt
+				d.preview = ""
+				d.previewTarget = ""
+			}
+		case msg.Type == tea.KeyShiftTab:
+			// Shift+Tab cycles to the previous pane within the current window.
+			if r := d.currentRow(); r != nil && !r.IsSession && r.WindowCnt > 0 {
+				d.previewPaneIdx = (d.previewPaneIdx - 1 + r.WindowCnt) % r.WindowCnt
+				d.preview = ""
+				d.previewTarget = ""
 			}
 		case keyMatches(msg, d.keys.Esc):
 			// Esc clears the filter entirely.
@@ -585,10 +640,27 @@ func (d *dashboardModel) renderDetail(width int) string {
 	}
 	if d.preview != "" {
 		b.WriteString("\n\n")
-		b.WriteString(d.st.Subtitle.Render(i18n.T("tui.dashboard.preview_label")) + "\n")
+		b.WriteString(d.st.Subtitle.Render(d.previewPaneLabel(r)) + "\n")
 		b.WriteString(d.renderPreview(width))
 	}
 	return b.String()
+}
+
+// previewPaneLabel builds the header line for the preview section.
+// For session rows it returns the generic label. For window rows it includes
+// the pane index and its running command: "preview [pane N: cmd]".
+func (d *dashboardModel) previewPaneLabel(r *dashboardRow) string {
+	if r == nil || r.IsSession {
+		return i18n.T("tui.dashboard.preview_label")
+	}
+	label := fmt.Sprintf("preview [pane %d", d.previewPaneIdx)
+	if d.paneProvider != nil {
+		paneKey := fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, d.previewPaneIdx)
+		if info, ok := d.paneProvider.Get(paneKey); ok && info.Command != "" && !pane.IsIdleShell(info.Command) {
+			label += ": " + info.Command
+		}
+	}
+	return label + "]"
 }
 
 func (d *dashboardModel) boolGlyph(v bool) string {

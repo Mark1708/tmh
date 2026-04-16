@@ -4,6 +4,7 @@
 package pane
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -118,20 +119,21 @@ func (p *Provider) CommandsForSession(session string) []string {
 // given window (identified as "session:windowIndex"). Duplicate commands
 // are deduplicated. The slice is empty when no active processes are found.
 //
-// target format: "session:windowIndex" (e.g. "epcp:1")
+// Cache keys have the format "session:windowIndex.paneIndex" so the window
+// prefix "session:windowIndex." is used for filtering.
 func (p *Provider) CommandsForWindow(session string, windowIndex int) []string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
+	prefix := fmt.Sprintf("%s:%d.", session, windowIndex)
 	seen := make(map[string]bool)
 	var result []string
-	for _, e := range p.entries {
+	for key, e := range p.entries {
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
 		if e.info.Command == "" || IsIdleShell(e.info.Command) {
 			continue
 		}
-		// Filter by session — window index would require parsing the key.
-		// The caller must match target keys themselves for stricter filtering.
-		_ = session
-		_ = windowIndex
 		if !seen[e.info.Command] {
 			seen[e.info.Command] = true
 			result = append(result, e.info.Command)
