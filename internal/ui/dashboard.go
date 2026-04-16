@@ -30,8 +30,9 @@ type dashboardModel struct {
 	collapsed map[string]bool // session name → collapsed (Level 0)
 	expanded  map[string]bool // "session:window" → panes expanded (Level 1→2)
 	cursor    int             // index into rows when not filtered
-	listing   *actions.Listing
+	listing    *actions.Listing
 	driftIndex map[string]config.DriftStatus // "session" or "session/window" → status
+	driftFull  map[string]config.Drift       // same key → full Drift (for command drift detail)
 
 	// process visibility (Variant 4)
 	paneProvider *pane.Provider
@@ -195,8 +196,10 @@ func (d *dashboardModel) SetData(l *actions.Listing, drift []config.Drift) {
 
 	d.listing = l
 	d.driftIndex = make(map[string]config.DriftStatus, len(drift))
+	d.driftFull = make(map[string]config.Drift, len(drift))
 	for _, dr := range drift {
 		d.driftIndex[dr.ConfigEntry] = dr.Status
+		d.driftFull[dr.ConfigEntry] = dr
 	}
 	d.rebuildRows()
 
@@ -786,6 +789,12 @@ func (d *dashboardModel) renderDetail(width int) string {
 		fmt.Fprintf(&b, "%-8s%s\n", i18n.T("tui.dashboard.field.live"), d.boolGlyph(r.Live))
 		if r.Layout != "" {
 			fmt.Fprintf(&b, "%-8s%s\n", i18n.T("tui.dashboard.field.layout"), r.Layout)
+		}
+		// Variant 11: inline command drift indicator.
+		entry := r.Session + "/" + r.Window
+		if dr, ok := d.driftFull[entry]; ok && dr.ReasonCode == config.ReasonCommandDiffers {
+			driftLine := fmt.Sprintf("%s ≠ expected: %s", dr.LiveCommand, dr.ConfigCommand)
+			fmt.Fprintf(&b, "%-8s%s\n", "drift", d.st.StatusDrift.Render(driftLine))
 		}
 		fmt.Fprintf(&b, "%-8s%d\n", i18n.T("tui.dashboard.field.panes"), r.WindowCnt)
 		fmt.Fprintf(&b, "%-8s%s\n", i18n.T("tui.dashboard.field.status"), d.statusLabel(r.Status))
