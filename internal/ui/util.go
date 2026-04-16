@@ -44,6 +44,32 @@ func truncate(s string, w int) string {
 	return string(r[:w-1]) + "…"
 }
 
+// shortenPath replaces the home directory prefix with "~" and truncates to w.
+func shortenPath(p string, w int) string {
+	if p == "" {
+		return ""
+	}
+	// Replace literal home dir prefix. We look for the conventional $HOME
+	// prefix embedded in the path; if unavailable the path is used as-is.
+	if idx := strings.Index(p, "/home/"); idx == 0 || (idx > 0 && p[idx-1] == '/') {
+		// Already absolute, no special handling needed.
+	}
+	// Simple heuristic: collapse any leading /home/<user>/ or /Users/<user>/.
+	parts := strings.SplitN(p, "/", 5)
+	if len(parts) >= 3 && (parts[1] == "home" || parts[1] == "Users") {
+		// /home/username/... → ~/...
+		if len(parts) >= 4 {
+			rest := strings.Join(parts[3:], "/")
+			if rest == "" {
+				p = "~"
+			} else {
+				p = "~/" + rest
+			}
+		}
+	}
+	return truncate(p, w)
+}
+
 func padRight(s string, w int) string {
 	if w <= lipgloss.Width(s) {
 		return s

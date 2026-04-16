@@ -635,6 +635,29 @@ func (d *dashboardModel) renderDetail(width int) string {
 		}
 		fmt.Fprintf(&b, "%-8s%d\n", i18n.T("tui.dashboard.field.panes"), r.WindowCnt)
 		fmt.Fprintf(&b, "%-8s%s\n", i18n.T("tui.dashboard.field.status"), d.statusLabel(r.Status))
+		// Variant 9: per-pane process + cwd rows.
+		if d.paneProvider != nil && r.WindowCnt > 0 {
+			b.WriteString("\n")
+			for pIdx := 0; pIdx < r.WindowCnt; pIdx++ {
+				paneKey := fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, pIdx)
+				info, ok := d.paneProvider.Get(paneKey)
+				if !ok {
+					continue
+				}
+				cmd := info.Command
+				if cmd == "" {
+					cmd = "—"
+				}
+				cwd := shortenPath(info.Path, width-16)
+				marker := " "
+				if pIdx == d.previewPaneIdx {
+					marker = "▶"
+				}
+				line := fmt.Sprintf(" %s %d  %-10s  %s", marker, pIdx,
+					truncate(cmd, 10), d.st.Hint.Render(cwd))
+				b.WriteString(line + "\n")
+			}
+		}
 		b.WriteString("\n")
 		b.WriteString(d.st.Hint.Render(d.str.AttachHint))
 	}
