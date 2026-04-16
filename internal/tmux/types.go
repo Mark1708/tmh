@@ -26,6 +26,7 @@ type Pane struct {
 	Command string
 	Path    string
 	Active  bool
+	PID     int // foreground process PID; 0 when unavailable
 }
 
 // NewSessionOpts parameterises a session creation call.

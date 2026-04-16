@@ -329,5 +329,15 @@
   "audit.fix.renumber-windows": "set -g renumber-windows on",
   "audit.fix.after-new-window-hook": "tmux set-hook -gu after-new-window",
   "audit.fix.automatic-rename": "setw -g automatic-rename off",
-  "audit.fix.status-right-tmh-missing": "set -ag status-right ' #(tmh status)'"
+  "audit.fix.status-right-tmh-missing": "set -ag status-right ' #(tmh status)'",
+
+  "cli.ps.short": "вывести все паны с информацией о процессах",
+  "cli.ps.flag.session": "фильтровать по имени сессии",
+  "cli.ps.flag.format": "формат вывода: table, json, tsv",
+  "cli.ps.header.session": "СЕССИЯ",
+  "cli.ps.header.window": "ОКНО",
+  "cli.ps.header.pane": "ПАНА",
+  "cli.ps.header.cmd": "КОМАНДА",
+  "cli.ps.header.pid": "PID",
+  "cli.ps.header.cwd": "ДИРЕКТОРИЯ"
 }

@@ -57,6 +57,7 @@ func NewRoot(version string) *cobra.Command {
 		newInitCmd(),
 		newKillCmd(),
 		newLsCmd(),
+		newPsCmd(),
 		newSyncCmd(),
 		newDiffCmd(),
 		newReloadCmd(),

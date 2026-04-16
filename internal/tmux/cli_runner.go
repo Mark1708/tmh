@@ -270,6 +270,7 @@ func (r *CLIRunner) ListPanes(ctx context.Context, target string) ([]Pane, error
 		"#{pane_current_command}",
 		"#{pane_current_path}",
 		"#{pane_active}",
+		"#{pane_pid}",
 	}, sep)
 	args := []string{"list-panes", "-F", format}
 	if target != "" {
@@ -293,6 +294,10 @@ func (r *CLIRunner) ListPanes(ctx context.Context, target string) ([]Pane, error
 		winIdx, _ := strconv.Atoi(parts[1])
 		paneIdx, _ := strconv.Atoi(parts[2])
 		active, _ := strconv.Atoi(parts[6])
+		var pid int
+		if len(parts) >= 8 {
+			pid, _ = strconv.Atoi(parts[7])
+		}
 		panes = append(panes, Pane{
 			Session: parts[0],
 			Window:  winIdx,
@@ -301,6 +306,7 @@ func (r *CLIRunner) ListPanes(ctx context.Context, target string) ([]Pane, error
 			Command: parts[4],
 			Path:    parts[5],
 			Active:  active > 0,
+			PID:     pid,
 		})
 	}
 	return panes, nil
