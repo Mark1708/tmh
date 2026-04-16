@@ -79,11 +79,9 @@ func PathGet(root *yaml.Node, path string) (*yaml.Node, error) {
 	return cursor, nil
 }
 
-// PathSet updates or creates a scalar at the given path. Missing intermediate
-// mappings are created (as empty MappingNodes with Tag !!map). If the target
-// already exists and is scalar, its Value is replaced in place preserving
-// comments. If it exists and is non-scalar, an error is returned.
-func PathSet(root *yaml.Node, path, value string) error {
+// pathSetScalar is the shared implementation for PathSet and its typed variants.
+// tag must be a valid YAML scalar tag such as "!!str", "!!bool", or "!!int".
+func pathSetScalar(root *yaml.Node, path, value, tag string) error {
 	segments := splitPath(path)
 	if len(segments) == 0 {
 		return fmt.Errorf("config: empty path")
@@ -92,14 +90,12 @@ func PathSet(root *yaml.Node, path, value string) error {
 	if err != nil {
 		return err
 	}
-	// descend into all-but-last, creating mappings as needed
 	for _, seg := range segments[:len(segments)-1] {
 		if cursor.Kind != yaml.MappingNode {
 			return &PathError{Path: path, Segment: seg, Reason: "parent is not a mapping"}
 		}
 		_, _, val := findPair(cursor, seg)
 		if val == nil {
-			// create new intermediate mapping
 			kn := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: seg}
 			vn := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 			cursor.Content = append(cursor.Content, kn, vn)
@@ -118,20 +114,41 @@ func PathSet(root *yaml.Node, path, value string) error {
 	_, _, val := findPair(cursor, last)
 	if val == nil {
 		kn := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: last}
-		vn := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value}
+		vn := &yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: value}
 		cursor.Content = append(cursor.Content, kn, vn)
 		return nil
 	}
 	if val.Kind != yaml.ScalarNode {
 		return &PathError{Path: path, Segment: last, Reason: "existing value is not scalar"}
 	}
-	// preserve quoting style only when it matches the new value's need.
-	// Default: plain/double-quoted decided by yaml.Marshal; we clear Style
-	// to let the encoder pick something safe.
 	val.Value = value
-	val.Tag = "!!str"
+	val.Tag = tag
 	val.Style = 0
 	return nil
+}
+
+// PathSetBool sets a boolean value at the given YAML path. The node is tagged
+// !!bool so yaml.v3 unmarshal correctly decodes it into bool or *bool fields.
+func PathSetBool(root *yaml.Node, path string, value bool) error {
+	s := "false"
+	if value {
+		s = "true"
+	}
+	return pathSetScalar(root, path, s, "!!bool")
+}
+
+// PathSetInt sets an integer value at the given YAML path.
+func PathSetInt(root *yaml.Node, path string, value int) error {
+	return pathSetScalar(root, path, fmt.Sprintf("%d", value), "!!int")
+}
+
+// PathSet updates or creates a scalar at the given path. Missing intermediate
+// mappings are created (as empty MappingNodes with Tag !!map). If the target
+// already exists and is scalar, its Value is replaced in place preserving
+// comments. If it exists and is non-scalar, an error is returned.
+// PathSet updates or creates a string scalar at the given path.
+func PathSet(root *yaml.Node, path, value string) error {
+	return pathSetScalar(root, path, value, "!!str")
 }
 
 // PathDelete removes the (key, value) pair at the given path. Returns

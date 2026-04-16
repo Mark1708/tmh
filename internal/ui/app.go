@@ -359,6 +359,10 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.helpVisible = false
 			return m, nil
 		}
+		// Settings handles its own Esc (dirty-state confirm). Let it through.
+		if m.current == ScreenSettings {
+			break
+		}
 		if m.current != ScreenDashboard {
 			m.current = ScreenDashboard
 			return m, nil
@@ -426,6 +430,8 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.undoCmd()
 	case keyMatches(msg, m.keys.Settings):
 		m.settings = newSettings(m.keys, m.st, m.str,
+			m.cfg,
+			m.deps.ConfigPath,
 			func(p theme.Palette) tea.Cmd {
 				m.st = theme.New(p)
 				if m.dashboard != nil {
@@ -437,7 +443,14 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return nil
 			},
 			m.applyLanguage,
-			m.deps.Runner,
+			func(d time.Duration) {
+				if d <= 0 {
+					// "off" — stop the refresher by setting a very large interval.
+					m.paneRefresher.SetInterval(24 * time.Hour)
+				} else {
+					m.paneRefresher.SetInterval(d)
+				}
+			},
 		)
 		m.settings.Resize(m.width, m.height)
 		m.current = ScreenSettings

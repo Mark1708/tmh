@@ -63,3 +63,11 @@ func HistoryPath() string {
 func MarksPath() string {
 	return filepath.Join(StateDir(), "marks.json")
 }
+
+// TmuxConfPath returns the path for the tmh-managed tmux include-file.
+// Users source this from ~/.tmux.conf:
+//
+//	source-file ~/.config/tmh/tmux.conf
+func TmuxConfPath() string {
+	return filepath.Join(ConfigDir(), "tmux.conf")
+}

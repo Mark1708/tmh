@@ -56,6 +56,25 @@ type UISettings struct {
 	Theme    string
 	Tmux     string
 	Hint     string
+
+	// Category names for the master-detail layout.
+	CatAppearance  string
+	CatDisplay     string
+	CatHistory     string
+	CatMarks       string
+	CatTmux        string
+	CatBehaviour   string
+	CatKeybindings string
+
+	// Navigation hints.
+	HintCategories string
+	HintFields     string
+	HintDirty      string
+	HintDiscard    string
+
+	// Action feedback.
+	Saved   string
+	TmuxConfWritten string
 }
 
 type UIDiff struct {
@@ -139,6 +158,22 @@ func LoadStrings() UIStrings {
 		Theme:    i18n.T("tui.settings.theme"),
 		Tmux:     i18n.T("tui.settings.tmux"),
 		Hint:     i18n.T("tui.settings.hint"),
+
+		CatAppearance:  i18n.T("tui.settings.cat.appearance"),
+		CatDisplay:     i18n.T("tui.settings.cat.display"),
+		CatHistory:     i18n.T("tui.settings.cat.history"),
+		CatMarks:       i18n.T("tui.settings.cat.marks"),
+		CatTmux:        i18n.T("tui.settings.cat.tmux"),
+		CatBehaviour:   i18n.T("tui.settings.cat.behaviour"),
+		CatKeybindings: i18n.T("tui.settings.cat.keybindings"),
+
+		HintCategories: i18n.T("tui.settings.hint.categories"),
+		HintFields:     i18n.T("tui.settings.hint.fields"),
+		HintDirty:      i18n.T("tui.settings.hint.dirty"),
+		HintDiscard:    i18n.T("tui.settings.hint.discard"),
+
+		Saved:           i18n.T("tui.settings.saved"),
+		TmuxConfWritten: i18n.T("tui.settings.tmux_conf_written"),
 	}
 
 	s.Diff = UIDiff{

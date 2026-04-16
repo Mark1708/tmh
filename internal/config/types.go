@@ -35,6 +35,60 @@ type Defaults struct {
 	// History controls persistent action history behaviour.
 	// All fields are optional; zero values fall back to the built-in defaults.
 	History HistoryConfig `yaml:"history,omitempty"`
+	// Display tunes what the TUI renders for each row.
+	Display DisplayConfig `yaml:"display,omitempty"`
+	// Behaviour tunes runtime TUI behaviour.
+	Behaviour BehaviourConfig `yaml:"behaviour,omitempty"`
+	// Marks controls the marks (bookmark) feature.
+	Marks MarksConfig `yaml:"marks,omitempty"`
+	// TmuxIntegration holds settings written to the tmh-managed include-file.
+	TmuxIntegration TmuxIntegrationConfig `yaml:"tmux_integration,omitempty"`
+}
+
+// DisplayConfig controls visual representation in the TUI.
+type DisplayConfig struct {
+	// ShowProcessesInTree shows running process names alongside session/window rows.
+	ShowProcessesInTree bool `yaml:"show_processes_in_tree,omitempty"`
+	// ShowFooterHeatmap shows a live/idle pane counter in the footer.
+	ShowFooterHeatmap bool `yaml:"show_footer_heatmap,omitempty"`
+	// PreviewDefaultPane is the 0-based pane index used for the detail preview.
+	// Special values: 0=first (default), -1=active.
+	PreviewDefaultPane int `yaml:"preview_default_pane,omitempty"`
+	// TreeDensity controls row spacing. "compact" or "normal" (default).
+	TreeDensity string `yaml:"tree_density,omitempty"`
+}
+
+// BehaviourConfig controls runtime behaviour of the TUI.
+type BehaviourConfig struct {
+	// AutoRefreshInterval is the cadence for pane-command polling.
+	// Valid: "1s", "2s", "5s", "10s", "off". Default: "2s".
+	AutoRefreshInterval string `yaml:"auto_refresh_interval,omitempty"`
+	// DryRunDefault makes the confirm dialog default to dry-run mode.
+	DryRunDefault bool `yaml:"dry_run_default,omitempty"`
+	// ConfirmOnKill requires confirmation before killing sessions/windows.
+	// Defaults to true when nil.
+	ConfirmOnKill *bool `yaml:"confirm_on_kill,omitempty"`
+	// OptimisticRendering applies UI changes before the tmux round-trip confirms them.
+	OptimisticRendering bool `yaml:"optimistic_rendering,omitempty"`
+}
+
+// MarksConfig controls the marks (bookmark) feature.
+type MarksConfig struct {
+	// PersistAcrossSessions writes marks to disk so they survive restarts.
+	// Defaults to true when nil.
+	PersistAcrossSessions *bool `yaml:"persist_across_sessions,omitempty"`
+}
+
+// TmuxIntegrationConfig holds settings written to the tmh-managed tmux
+// include-file (~/.config/tmh/tmux.conf). These take effect only after the
+// user adds `source-file ~/.config/tmh/tmux.conf` to their ~/.tmux.conf.
+type TmuxIntegrationConfig struct {
+	DefaultTerminal        string `yaml:"default_terminal,omitempty"`
+	EscapeTimeMs           *int   `yaml:"escape_time_ms,omitempty"`
+	MouseMode              *bool  `yaml:"mouse_mode,omitempty"`
+	StatusRightIntegration *bool  `yaml:"status_right_integration,omitempty"`
+	BaseIndex              *int   `yaml:"base_index,omitempty"`
+	PaneBaseIndex          *int   `yaml:"pane_base_index,omitempty"`
 }
 
 // HistoryConfig controls the append-only JSONL action history.
