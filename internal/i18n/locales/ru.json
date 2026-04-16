@@ -230,6 +230,10 @@
   "tui.toast.undo_unavailable": "undo: state.db недоступна",
   "tui.toast.session_created": "сессия создана",
   "tui.toast.history_cleared": "история очищена",
+  "tui.toast.mark_set": "метка {{.letter}} установлена",
+  "tui.toast.mark_not_found": "метка {{.letter}} не найдена",
+  "tui.toast.no_prev_location": "предыдущей позиции нет",
+  "tui.toast.goto_not_found": "процесс {{.name}} не найден",
 
   "tui.loading": "загрузка…",
   "tui.no_sessions": "сессий пока нет — нажми n чтобы создать",

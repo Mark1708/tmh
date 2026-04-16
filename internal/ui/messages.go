@@ -12,6 +12,7 @@ import (
 type dataLoadedMsg struct {
 	Listing *actions.Listing
 	Drift   []config.Drift
+	Cfg     *config.Config // populated so Update can assign m.cfg on the main goroutine
 	Err     error
 }
 
@@ -71,6 +72,14 @@ type historyDiskEntry struct {
 	Result  string
 	Details string
 }
+
+// pendingOpExpiredMsg fires when a two-step mark operation times out without
+// the user pressing a second key.
+type pendingOpExpiredMsg struct{ Op rune }
+
+// gotoProcMsg is returned by gotoProcCmd when a matching pane is found.
+// The model handles the cursor jump on the main goroutine.
+type gotoProcMsg struct{ Target string }
 
 // clearHistoryMsg requests a history wipe (with optional archive).
 type clearHistoryMsg struct{}

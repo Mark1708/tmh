@@ -4,20 +4,24 @@ import (
 	"strings"
 
 	"git.mark1708.ru/me/tmh/internal/ui/theme"
+	"git.mark1708.ru/me/tmh/internal/ui/toast"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 // confirmModel is a yes/no modal. OnConfirm is fired when the user accepts.
+// If DryRunDesc is non-empty, pressing `t` shows a dry-run info toast instead
+// of executing the action (Variant 4.6).
 type confirmModel struct {
-	keys      Keys
-	st        theme.Styles
-	str       UIStrings
-	width     int
-	height    int
-	title     string
-	body      string
-	OnConfirm func() tea.Cmd
+	keys       Keys
+	st         theme.Styles
+	str        UIStrings
+	width      int
+	height     int
+	title      string
+	body       string
+	OnConfirm  func() tea.Cmd
+	DryRunDesc string // human-readable description of what the action would do
 }
 
 func newConfirm(keys Keys, st theme.Styles, str UIStrings, title, body string, onConfirm func() tea.Cmd) *confirmModel {
@@ -36,6 +40,17 @@ func (c *confirmModel) Update(msg tea.Msg) (*confirmModel, tea.Cmd) {
 				return c, c.OnConfirm()
 			}
 			return c, nil
+		case "t":
+			// Dry-run: show what would happen without executing.
+			desc := c.DryRunDesc
+			if desc == "" {
+				desc = c.title
+			}
+			text := "[dry-run] " + desc
+			return c, tea.Sequence(
+				func() tea.Msg { return toastMsg{Kind: toast.KindInfo, Text: text} },
+				func() tea.Msg { return switchScreenMsg{Screen: ScreenDashboard} },
+			)
 		case "n", "esc":
 			return c, func() tea.Msg { return switchScreenMsg{Screen: ScreenDashboard} }
 		}
@@ -59,6 +74,10 @@ func (c *confirmModel) View() string {
 	}
 	b.WriteString(modalRow(c.st.Palette, rowW, ""))
 	b.WriteString("\n")
-	b.WriteString(modalRow(c.st.Palette, rowW, mb.Render(c.str.Modal.ConfirmYes+"   "+c.str.Modal.ConfirmNo)))
+	hint := c.str.Modal.ConfirmYes + "   " + c.str.Modal.ConfirmNo
+	if c.DryRunDesc != "" {
+		hint += "   t dry-run"
+	}
+	b.WriteString(modalRow(c.st.Palette, rowW, mb.Render(hint)))
 	return placeMiddle(c.width, c.height, c.st.Modal.Render(b.String()), c.st.Palette)
 }

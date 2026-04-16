@@ -13,12 +13,17 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-// PaletteAction is one row in the command palette. Run is invoked when the
-// user presses enter on this entry.
+// PaletteAction is one row in the command palette.
+// If NeedsParam is true, pressing Enter on this action switches the palette
+// into a parameter-input mode. ParamRun is called with the collected input.
+// Otherwise Run is called directly.
 type PaletteAction struct {
-	Title    string
-	Subtitle string
-	Run      func() tea.Cmd
+	Title       string
+	Subtitle    string
+	Run         func() tea.Cmd
+	NeedsParam  bool
+	ParamPrompt string            // shown as placeholder in param mode
+	ParamRun    func(string) tea.Cmd
 }
 
 // paletteModel is the fuzzy-search command palette overlay (`:` or ^P).
@@ -32,6 +37,11 @@ type paletteModel struct {
 	actions []PaletteAction
 	matches []int // indexes into actions, fuzzy-ranked
 	cursor  int
+
+	// param mode: set when a NeedsParam action is selected.
+	paramMode   bool
+	paramAction *PaletteAction
+	paramInput  textinput.Model
 }
 
 func newPalette(keys Keys, st theme.Styles, str UIStrings, actions []PaletteAction) *paletteModel {
@@ -51,6 +61,30 @@ func (p *paletteModel) Resize(w, h int) {
 }
 
 func (p *paletteModel) Update(msg tea.Msg) (*paletteModel, tea.Cmd) {
+	// ── Param mode ──────────────────────────────────────────────────────────
+	if p.paramMode {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch {
+			case keyMatches(msg, p.keys.Esc):
+				// Return to selection mode.
+				p.paramMode = false
+				p.paramAction = nil
+				return p, nil
+			case keyMatches(msg, p.keys.Enter):
+				val := strings.TrimSpace(p.paramInput.Value())
+				if p.paramAction != nil && p.paramAction.ParamRun != nil && val != "" {
+					return p, p.paramAction.ParamRun(val)
+				}
+				return p, nil
+			}
+		}
+		var cmd tea.Cmd
+		p.paramInput, cmd = p.paramInput.Update(msg)
+		return p, cmd
+	}
+
+	// ── Normal mode ─────────────────────────────────────────────────────────
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -67,8 +101,21 @@ func (p *paletteModel) Update(msg tea.Msg) (*paletteModel, tea.Cmd) {
 		case keyMatches(msg, p.keys.Enter):
 			if p.cursor >= 0 && p.cursor < len(p.matches) {
 				idx := p.matches[p.cursor]
-				if act := p.actions[idx].Run; act != nil {
-					return p, act()
+				act := &p.actions[idx]
+				if act.NeedsParam {
+					// Switch to param-input mode.
+					pi := textinput.New()
+					pi.Placeholder = act.ParamPrompt
+					pi.Focus()
+					pi.Prompt = "  » "
+					pi.CharLimit = 80
+					p.paramMode = true
+					p.paramAction = act
+					p.paramInput = pi
+					return p, nil
+				}
+				if act.Run != nil {
+					return p, act.Run()
 				}
 			}
 			return p, nil
@@ -107,6 +154,28 @@ func (p *paletteModel) refresh() {
 }
 
 func (p *paletteModel) View() string {
+	// ── Param mode ────��───────────────���──────────────────────────────────���──
+	if p.paramMode && p.paramAction != nil {
+		mb := modalBg(p.st.Palette)
+		title := p.st.Title.Inherit(mb)
+		hint := p.st.Hint.Inherit(mb)
+		width := minInt(80, p.width-8)
+		if width < 40 {
+			width = 40
+		}
+		var b strings.Builder
+		b.WriteString(modalRow(p.st.Palette, width, title.Render(p.paramAction.Title)))
+		b.WriteString("\n")
+		b.WriteString(modalRow(p.st.Palette, width, hint.Render("esc to cancel")))
+		b.WriteString("\n")
+		b.WriteString(modalRow(p.st.Palette, width, ""))
+		b.WriteString("\n")
+		b.WriteString(modalRow(p.st.Palette, width, p.paramInput.View()))
+		body := p.st.Modal.Render(b.String())
+		return placeMiddle(p.width, p.height, body, p.st.Palette)
+	}
+
+	// ── Normal mode ───────────────────────────────────────────────��─────────
 	// Page size derived from the modal height: reserve 6 rows for border,
 	// padding, input row, and a trailing spacer so the cursor can't outrun
 	// the viewport at the bottom.

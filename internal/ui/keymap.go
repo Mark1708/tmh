@@ -17,6 +17,11 @@ type Keys struct {
 	ConfigEditor, Diff, Snapshot, Undo     key.Binding
 	Palette, Help, Theme, Search           key.Binding
 	Refresh, Settings, History             key.Binding
+
+	// Marks / last-location (4.1 + 4.2)
+	PrevLoc   key.Binding // '' — pop last location
+	MarkSet   key.Binding // m — begin set-mark two-step
+	MarkJump  key.Binding // ' — begin jump-to-mark two-step
 }
 
 // DefaultKeys returns the default key bindings.
@@ -52,5 +57,9 @@ func DefaultKeys() Keys {
 		Refresh:      key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 		Settings:     key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "settings")),
 		History:      key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("^L", "history")),
+
+		PrevLoc:  key.NewBinding(key.WithKeys("''"), key.WithHelp("''", "prev location")),
+		MarkSet:  key.NewBinding(key.WithKeys("m"), key.WithHelp("m<a>", "set mark")),
+		MarkJump: key.NewBinding(key.WithKeys("'"), key.WithHelp("'<a>", "jump to mark")),
 	}
 }

@@ -161,6 +161,20 @@ func (p *Provider) AllCommands() []string {
 	return result
 }
 
+// FindByCommand returns the target key of the first pane whose Command
+// contains procName (case-insensitive). Returns "" when not found.
+// Used by the "goto process" palette action (Variant 8).
+func (p *Provider) FindByCommand(procName string) string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	for key, e := range p.entries {
+		if strings.Contains(strings.ToLower(e.info.Command), procName) {
+			return key
+		}
+	}
+	return ""
+}
+
 // Stats returns the count of live (non-idle-shell) panes and idle (shell)
 // panes currently in the cache. Used by the footer heatmap.
 func (p *Provider) Stats() (live, idle int) {

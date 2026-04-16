@@ -15,6 +15,8 @@ Single-binary TUI-хаб для tmux. Декларативные YAML-сесси
 - [Конфиг `config.yml`](#конфиг-configyml)
 - [CLI-справочник](#cli-справочник)
 - [TUI-дашборд](#tui-дашборд)
+- [Process visibility](#process-visibility)
+- [Marks и last-location](#marks-и-last-location)
 - [tmux-интеграция](#tmux-интеграция)
 - [Hooks и trust](#hooks-и-trust)
 - [Snapshots и undo](#snapshots-и-undo)
@@ -303,6 +305,23 @@ tmh window [--dir]           новое ad-hoc окно в текущей сес
 tmh scratch [--dir]          эфемерная сессия
 ```
 
+### Process inspector
+
+```
+tmh ps                           таблица всех панелей: session/window/pane/cmd/pid/cwd
+tmh ps --session <name>          только сессия <name>
+tmh ps --format json|tsv         машинно-читаемый вывод (json — нативно pipe-friendly)
+```
+
+Пример:
+
+```
+SESSION   WINDOW   PANE  CMD      PID    CWD
+work      editor   0     nvim     12345  ~/work/myproject/src
+work      server   0     go       12346  ~/work/myproject
+kb        main     0     zsh      -      ~/kb
+```
+
 ### Sync и diff
 
 ```
@@ -394,42 +413,151 @@ tmh                    без аргументов — дашборд
 ### Keymap
 
 **Навигация**
-- `j` / `k` / `↑↓` — вверх / вниз
-- `h` / `l` — свернуть / развернуть сессию
-- `g` / `G` — к началу / в конец
-- `PgUp` / `PgDn` — постранично
 
-**Действия с сессиями**
-- `enter` / `a` — attach (tmux перехватывает терминал, возврат через `prefix d`)
-- `n` — новая сессия через мастер (huh-форма, запускается как подпроцесс)
-- `d` — kill выбранной сессии (с подтверждением)
-- `u` — undo последнего kill (recreate из snapshot)
+| Клавиша | Действие |
+|---|---|
+| `j` / `k` / `↑↓` | вверх / вниз |
+| `h` / `l` | свернуть / развернуть сессию |
+| `Tab` на строке окна | показать / скрыть панели окна |
+| `ShiftTab` на строке окна | листать preview между панелями |
+| `/` | inline-фильтр дерева (Enter удерживает, Esc сбрасывает) |
+| `g` / `G` | к началу / в конец |
+| `PgUp` / `PgDn` | постранично |
+
+**Действия**
+
+| Клавиша | Действие |
+|---|---|
+| `enter` / `a` | attach (tmux перехватывает терминал, возврат через `prefix d`) |
+| `n` | новая сессия через мастер |
+| `d` | kill сессии / окна / панели (контекстный, с подтверждением) |
+| `u` | undo последнего kill |
+| `m<a>` | установить метку `a` на текущую позицию |
+| `'<a>` | перейти к метке `a` |
+| `''` | вернуться к предыдущей позиции (last-location) |
 
 **Sync / reload**
-- `r` — обновить дерево TUI из tmux (без побочных эффектов)
-- `R` — `source ~/.zshrc` + `tmux source-file ~/.tmux.conf`
-- `s` — `sync --push` (создать недостающие окна)
-- `D` — экран drift
+
+| Клавиша | Действие |
+|---|---|
+| `r` | обновить дерево TUI |
+| `R` | `source ~/.zshrc` + `tmux source-file` |
+| `s` | `sync --push` (создать недостающие окна) |
+| `D` | экран drift |
 
 **Прочее**
-- `:` / `Ctrl+P` — палитра команд (fuzzy-поиск)
-- `S` — настройки: язык / тема / tmux integration (см. ниже)
-- `Ctrl+L` — экран истории действий с OK/ERR бейджами
-- `Ctrl+T` — cycle темы без захода в settings
-- `?` / `esc` — help on / off
-- `q` / `Ctrl+C` — выход
+
+| Клавиша | Действие |
+|---|---|
+| `:` / `Ctrl+P` | палитра команд (fuzzy + параметрические action'ы) |
+| `S` | настройки |
+| `Ctrl+L` | история действий с OK/ERR бейджами |
+| `Ctrl+T` | смена темы |
+| `?` | контекстный help (разный для каждого экрана) |
+| `q` / `Ctrl+C` | выход |
 
 ### Settings screen
 
-Три секции, переключение между ними — `Tab` / `Shift+Tab`, навигация внутри секции — `↑↓`:
+Семь категорий в master-detail layout (левая колонка — категории, правая — поля):
 
-1. **язык** — live-swap `en` / `ru`. Выбор мгновенно перестраивает UIStrings и сохраняется как `defaults.lang` в `~/.config/tmh/config.yml`.
-2. **тема** — 4 Catppuccin flavour (mocha, macchiato, frappe, latte) с preview-свотчем.
-3. **tmux integration** — read-only аудит-список (✓/⚠/✗) с результатами `tmh tmux audit`.
+| Категория | Что настраивается |
+|---|---|
+| Внешний вид | тема (Catppuccin), язык (en/ru) |
+| Отображение | процессы в дереве, heatmap в футере, default preview pane |
+| История | retention (7d/30d/90d/forever), max entries, очистка |
+| Метки | persist_across_sessions, сброс всех меток |
+| Tmux | escape-time, mouse, base-index — пишет в `~/.config/tmh/tmux.conf` |
+| Поведение | auto-refresh интервал, dry_run_default, confirm_on_kill |
+| Горячие клавиши | read-only справка |
+
+Live-apply: тема, язык, display-поля — применяются мгновенно. Tmux-поля — Ctrl+S сохранить.
 
 ### Command palette
 
-`:` или `Ctrl+P`. Fuzzy-поиск по действиям + скролл-viewport когда список длиннее высоты модалки. Встроенные entries: data refresh, dotfile reload, sync --push, init, diff, snapshot save, undo, settings, tmux audit, doctor, history, theme cycle, quit, и по одной `attach <session>` для каждой live-сессии.
+`:` или `Ctrl+P`. Fuzzy-поиск + параметрические действия:
+
+| Action | Описание |
+|---|---|
+| `mark: set mark` | установить именованную метку (запросит букву) |
+| `goto: jump to process` | перейти к первой панели с нужным процессом (запросит имя) |
+| `attach <session>` | по одной записи для каждой live-сессии |
+| data refresh, sync, init, diff, snapshot, undo, doctor… | стандартные действия |
+
+Параметрические action'ы показывают дополнительное поле ввода перед выполнением. `Esc` отменяет и возвращает к выбору.
+
+### Confirm dialog
+
+При `d` (kill):
+- `y` / `Enter` — выполнить
+- `n` / `Esc` — отмена
+- `t` — dry-run: показывает что именно будет удалено без фактического выполнения
+
+---
+
+## Process visibility
+
+TUI автоматически подтягивает `pane_current_command` для всех панелей каждые 2 секунды (настраивается через `defaults.behaviour.auto_refresh_interval`).
+
+**В дереве сессий** — рядом с именем сессии отображаются уникальные не-idle процессы: `claude vim`. Рядом с окном — процесс первой не-shell панели.
+
+**В detail-панели** (правая колонка) — для каждой панели окна: маркер текущей preview-панели, индекс, команда, cwd.
+
+**Drift по command:** если в `config.yml` окно объявлено с `command: nvim`, а реально запущен `zsh`, detail-панель покажет:
+
+```
+drift   nvim ≠ expected: zsh
+```
+
+Пример конфига:
+
+```yaml
+sessions:
+  work:
+    windows:
+      editor:
+        dir: src
+        command: nvim    # ожидаемый процесс
+```
+
+**Inline-фильтр `/`:** нажми `/` и набери часть имени сессии, окна или процесса. Счётчик в футере показывает `3/42`. `Enter` удерживает фильтр (можно навигировать), `Esc` сбрасывает.
+
+---
+
+## Marks и last-location
+
+Метки позволяют быстро прыгать к часто используемым сессиям/окнам, аналогично vim-маркам.
+
+### Установить метку
+
+```
+m<letter>    — установить метку на текущую позицию
+              Пример: ma → метка 'a' на текущее окно
+```
+
+Через палитру: `:` → `mark: set mark` → ввести букву.
+
+### Перейти к метке
+
+```
+'<letter>    — перейти к метке и добавить текущую позицию в last-location ring
+              Пример: 'a → прыжок к метке 'a'
+```
+
+### Last-location
+
+```
+''           — вернуться к предыдущей позиции (pop из ring-буфера)
+```
+
+Каждый прыжок (`'<letter>`, `attach`, `''`) пушит текущую позицию в ring (последние 10 позиций). Повторные `''` циклируются по истории.
+
+Когда ring непуст, в футере отображается подсказка `'' ← prev`.
+
+### Persistence
+
+Метки и ring сохраняются в `~/.local/state/tmh/marks.json`. При kill сессии/окна/панели метки на удалённые target'ы автоматически инвалидируются.
+
+Отключить persistence: `defaults.marks.persist_across_sessions: false` в `config.yml` или через Settings → Метки.
 
 ---
 
@@ -541,6 +669,14 @@ mv ~/.local/state/tmh/state.db ~/.local/state/tmh/state.db.broken.$(date +%s)
 **`go install` падает с 410 Gone / unknown revision**
 Добавь `export GOPRIVATE=git.mark1708.ru/*` чтобы обойти proxy/sum.
 
+**Включить structured logging для отладки**
+
+```sh
+TMH_LOG=debug tmh
+```
+
+Поддерживаемые уровни: `debug`, `info`, `warn`, `error`. Лог пишется в `~/.local/state/tmh/tmh.log` (JSON-формат, ротация 5 MB × 3 файла). При `TMH_LOG` не заданном — вывод полностью отключён.
+
 **Drift/reload badge не виден в tmux status-right**
 Запусти `tmh tmux audit` — вероятно, отсутствует сегмент `#(tmh status)`. Исправить через `tmh tmux setup --append` либо вручную добавить в `~/.tmux.conf`.
 
@@ -550,6 +686,7 @@ mv ~/.local/state/tmh/state.db ~/.local/state/tmh/state.db.broken.$(date +%s)
 
 ```
 cmd/tmh/              cobra entrypoint + subcommands
+  cmd/ps.go           tmh ps — process inspector
 internal/
   config/             парсер/резолвер/валидатор/atomic writer, diff (+ReasonCode)
   tmux/               Runner interface (CLIRunner) — единственный seam к tmux
@@ -557,11 +694,16 @@ internal/
   actions/            side-effect API; CLI и TUI — тонкие фронтенды
                       (включает AuditTmuxConfig, Setup, snapshots, hooks)
   state/              SQLite WAL + busy_timeout: events / snapshots / trust / reload_queue
+                      + history.go (JSONL append-only), marks.go (marks + last-location ring)
+  slogx/              глобальный slog logger, ротирующий writer, TMH_LOG env
   errors/             типизированные sentinels (en-only, стабильный API)
   i18n/               go-i18n v2, embed locales/{en,ru}.json, DetectLang
   ui/                 bubbletea: dashboard, palette, settings, diff, confirm,
                       help, history, errrender (локализация sentinels)
-  xdg/                XDG пути
+    ui/pane/          Provider — кэш pane_current_command (TTL, FindByCommand)
+    ui/refresh/       Refresher — periodic batch fetch, seq-based debounce
+    ui/toast/         Kind enum + TTL
+  xdg/                XDG пути (Config, State, Backups, Log, History, Marks, TmuxConf)
 ```
 
 Принципы:

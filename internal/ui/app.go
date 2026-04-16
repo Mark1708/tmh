@@ -93,6 +93,16 @@ type Model struct {
 	// undoHint is the last undoable action description shown in the footer
 	// (e.g. "kill session epcp"). Empty when there is nothing to undo.
 	undoHint string
+
+	// marksStore persists named marks and last-location ring to disk.
+	marksStore *appstate.MarksStore
+
+	// pendingOp tracks the first keystroke of a two-step mark operation:
+	//   'm' → next key sets mark letter
+	//   '\'' → next key jumps to mark letter
+	// Zero means no pending operation.
+	pendingOp       rune
+	pendingOpExpiry time.Time
 }
 
 // toastEntry captures one entry in the toast history ring buffer.
@@ -165,6 +175,7 @@ func New(deps Deps) *Model {
 		historyStore:  hs,
 		paneRefresher: pr,
 		paneProvider:  pp,
+		marksStore:    appstate.NewMarksStore(),
 	}
 	m.dashboard.SetPaneProvider(pp)
 	return m
@@ -256,6 +267,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.listing = msg.Listing
 		m.drift = msg.Drift
+		if msg.Cfg != nil {
+			m.cfg = msg.Cfg
+		}
 		if m.dashboard != nil {
 			m.dashboard.SetData(msg.Listing, msg.Drift)
 		}
@@ -300,6 +314,27 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case undoHintMsg:
 		m.undoHint = msg.Text
 		return m, nil
+
+	case pendingOpExpiredMsg:
+		// Cancel the pending mark operation only if it matches the current one.
+		if m.pendingOp == msg.Op {
+			m.pendingOp = 0
+		}
+		return m, nil
+
+	case gotoProcMsg:
+		// Jump to the pane found by gotoProcCmd — runs on the main goroutine so
+		// dashboard and marksStore accesses are safe.
+		if m.marksStore != nil && m.dashboard != nil {
+			if cur := m.dashboard.SelectedTarget(); cur != "" {
+				m.marksStore.PushLocation(cur, m.dashboard.effectiveCursor())
+			}
+		}
+		if m.dashboard != nil {
+			m.dashboard.restoreCursorByID(msg.Target)
+		}
+		m.current = ScreenDashboard
+		return m, m.maybeLoadPreview()
 
 	case historyLoadedMsg:
 		if msg.Err != nil {
@@ -408,6 +443,47 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// ── Two-step mark operations (4.1 + 4.2) ──────────────────────────────
+	// If a pending operation is live, consume the next key as the mark letter.
+	if m.pendingOp != 0 && time.Now().Before(m.pendingOpExpiry) {
+		op := m.pendingOp
+		m.pendingOp = 0
+		key := msg.String()
+		if len([]rune(key)) == 1 {
+			letter := []rune(key)[0]
+			switch op {
+			case 'm':
+				// Set mark at current position.
+				target := m.dashboard.SelectedTarget()
+				cursor := m.dashboard.effectiveCursor()
+				if target != "" && m.marksStore != nil {
+					m.marksStore.SetMark(letter, target, cursor)
+					return m, m.showToast(toast.KindSuccess,
+						i18n.Tf("tui.toast.mark_set", map[string]any{"letter": string(letter)}))
+				}
+				return m, nil
+			case '\'':
+				// Jump to mark.
+				if m.marksStore != nil {
+					mark, ok := m.marksStore.GetMark(letter)
+					if !ok {
+						return m, m.showToast(toast.KindError,
+							i18n.Tf("tui.toast.mark_not_found", map[string]any{"letter": string(letter)}))
+					}
+					// Push current location before jumping.
+					if cur := m.dashboard.SelectedTarget(); cur != "" {
+						m.marksStore.PushLocation(cur, m.dashboard.effectiveCursor())
+					}
+					m.dashboard.restoreCursorByID(mark.Target)
+					return m, m.maybeLoadPreview()
+				}
+				return m, nil
+			}
+		}
+		// Unrecognised second key — cancel silently and fall through.
+	}
+	m.pendingOp = 0
+
 	switch {
 	case keyMatches(msg, m.keys.Refresh):
 		return m, m.loadDataCmd()
@@ -432,11 +508,23 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if target == "" {
 			return m, nil
 		}
+		level := m.dashboard.SelectedLevel()
+		var killCmd func() tea.Cmd
+		switch level {
+		case levelPane:
+			killCmd = func() tea.Cmd { return m.killPaneCmd(target) }
+		case levelWindow:
+			killCmd = func() tea.Cmd { return m.killWindowCmd(target) }
+		default:
+			killCmd = func() tea.Cmd { return m.killTargetCmd(target) }
+		}
 		m.confirm = newConfirm(m.keys, m.st, m.str,
 			i18n.Tf("tui.modal.kill.title_fmt", map[string]any{"target": target}),
 			m.str.Modal.KillBody,
-			func() tea.Cmd { return m.killTargetCmd(target) },
+			killCmd,
 		)
+		// Provide a dry-run description (4.6).
+		m.confirm.DryRunDesc = "would kill " + target
 		m.confirm.Resize(m.width, m.height)
 		m.current = ScreenConfirm
 		return m, nil
@@ -474,10 +562,47 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if target == "" {
 			return m, nil
 		}
+		// Push current location before attaching so '' can bring the user back.
+		if m.marksStore != nil {
+			m.marksStore.PushLocation(target, m.dashboard.effectiveCursor())
+		}
 		return m, tea.Sequence(
 			attachCmd(m.deps.Runner, m.deps.Runner.InTmux(), target),
 			m.loadDataCmd(),
 		)
+
+	case msg.String() == "''" || keyMatches(msg, m.keys.PrevLoc):
+		// Pop last location and jump to it (vi-style: swap current ↔ prev).
+		if m.marksStore == nil || !m.marksStore.HasLastLocation() {
+			return m, m.showToast(toast.KindInfo, i18n.T("tui.toast.no_prev_location"))
+		}
+		cur := m.dashboard.SelectedTarget()
+		loc, ok := m.marksStore.PopLocation()
+		if !ok {
+			return m, nil
+		}
+		// Push the current position only when it differs from the destination so
+		// repeated '' presses cycle back and forth without filling the ring with
+		// duplicates.
+		if cur != "" && cur != loc.Target {
+			m.marksStore.PushLocation(cur, m.dashboard.effectiveCursor())
+		}
+		m.dashboard.restoreCursorByID(loc.Target)
+		return m, m.maybeLoadPreview()
+
+	case msg.String() == "m" && m.marksStore != nil:
+		// Begin two-step set-mark.
+		m.pendingOp = 'm'
+		m.pendingOpExpiry = time.Now().Add(2 * time.Second)
+		op := m.pendingOp
+		return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg { return pendingOpExpiredMsg{Op: op} })
+
+	case msg.String() == "'" && m.marksStore != nil:
+		// Begin two-step jump-to-mark (single apostrophe, not double).
+		m.pendingOp = '\''
+		m.pendingOpExpiry = time.Now().Add(2 * time.Second)
+		op := m.pendingOp
+		return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg { return pendingOpExpiredMsg{Op: op} })
 	}
 	_, cmd := m.dashboard.Update(msg)
 	return m, tea.Batch(cmd, m.maybeLoadPreview())
@@ -568,6 +693,11 @@ func (m *Model) renderFooter() string {
 		hintsStr += "  " + m.st.KeyBinding.Render("u") + " ↶ " + m.st.Hint.Render(m.undoHint)
 	}
 
+	// Last-location hint (Variant 4.1): "'' ← prev" when ring is non-empty.
+	if m.marksStore != nil && m.marksStore.HasLastLocation() {
+		hintsStr += "  " + m.st.KeyBinding.Render("''") + " " + m.st.Hint.Render("← prev")
+	}
+
 	// Footer heatmap (Variant 14): "live N · idle N" shown on the right when
 	// enabled in Display settings.
 	heatmap := ""
@@ -643,10 +773,24 @@ func (m *Model) renderEmptyScreen() string {
 }
 
 func (m *Model) overlayHelp(body string) string {
-	// helpText already produces modalRow-padded lines; just wrap with the
-	// Modal border + bg and centre it on the screen.
 	_ = body
-	return placeMiddle(m.width, m.height, m.st.Modal.Render(m.helpText()), m.st.Palette)
+	return placeMiddle(m.width, m.height, m.st.Modal.Render(m.modeHelpText()), m.st.Palette)
+}
+
+// modeHelpText returns help text appropriate for the current screen.
+func (m *Model) modeHelpText() string {
+	switch m.current {
+	case ScreenSettings:
+		return m.helpTextSettings()
+	case ScreenHistory:
+		return m.helpTextHistory()
+	case ScreenPalette:
+		return m.helpTextPalette()
+	case ScreenConfirm:
+		return m.helpTextConfirm()
+	default:
+		return m.helpText()
+	}
 }
 
 func (m *Model) helpText() string {
@@ -666,6 +810,9 @@ func (m *Model) helpText() string {
 			{"n", km.ActionNew},
 			{"d", km.ActionKill},
 			{"u", km.ActionUndo},
+			{"m<a>", "set mark a"},
+			{"'<a>", "jump to mark a"},
+			{"''", "prev location"},
 		}},
 		{km.SectionSync, [][2]string{
 			{"r", km.SyncRefresh},
@@ -706,6 +853,68 @@ func (m *Model) helpText() string {
 			b.WriteString(modalRow(m.st.Palette, rowW, ""))
 			b.WriteString("\n")
 		}
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// helpTextSettings renders a minimal help overlay for the Settings screen.
+func (m *Model) helpTextSettings() string {
+	return m.buildModeHelp(m.str.Keymap.Title+" — settings", [][2]string{
+		{"j / k", "navigate fields"},
+		{"enter", "edit / activate"},
+		{"esc", "cancel / back"},
+		{"Ctrl+S", "save"},
+		{"?", "close help"},
+	})
+}
+
+// helpTextHistory renders a minimal help overlay for the History screen.
+func (m *Model) helpTextHistory() string {
+	return m.buildModeHelp(m.str.Keymap.Title+" — history", [][2]string{
+		{"j / k", "scroll"},
+		{"X", "clear history"},
+		{"esc / Ctrl+L", "close"},
+		{"?", "close help"},
+	})
+}
+
+// helpTextPalette renders a minimal help overlay for the Palette screen.
+func (m *Model) helpTextPalette() string {
+	return m.buildModeHelp(m.str.Keymap.Title+" — palette", [][2]string{
+		{"type", "filter actions"},
+		{"j / k / ↑↓", "navigate"},
+		{"enter", "execute"},
+		{"esc", "close"},
+		{"?", "close help"},
+	})
+}
+
+// helpTextConfirm renders a minimal help overlay for the Confirm dialog.
+func (m *Model) helpTextConfirm() string {
+	return m.buildModeHelp(m.str.Keymap.Title+" — confirm", [][2]string{
+		{"y / enter", "confirm"},
+		{"n / esc", "cancel"},
+		{"?", "close help"},
+	})
+}
+
+// buildModeHelp constructs a modal help text with a title and key rows.
+func (m *Model) buildModeHelp(title string, rows [][2]string) string {
+	mb := modalBg(m.st.Palette)
+	titleStyle := m.st.Title.Inherit(mb)
+	keyBind := m.st.KeyBinding.Inherit(mb)
+	plain := mb
+	rowW := maxInt(40, m.width-12)
+
+	var b strings.Builder
+	b.WriteString(modalRow(m.st.Palette, rowW, titleStyle.Render(title)))
+	b.WriteString("\n")
+	b.WriteString(modalRow(m.st.Palette, rowW, ""))
+	b.WriteString("\n")
+	for _, row := range rows {
+		line := plain.Render("  ") + keyBind.Render(row[0]) + plain.Render("   "+row[1])
+		b.WriteString(modalRow(m.st.Palette, rowW, line))
+		b.WriteString("\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -786,8 +995,10 @@ func (m *Model) loadDataCmd() tea.Cmd {
 			return dataLoadedMsg{Err: err}
 		}
 		drift := config.Diff(resolved, snap)
-		m.cfg = cfg
-		return dataLoadedMsg{Listing: listing, Drift: drift}
+		// Do NOT write m.cfg here — tea.Cmd runs on a worker goroutine and m is
+		// not synchronised. Return cfg in the message; Update assigns it on the
+		// main goroutine.
+		return dataLoadedMsg{Listing: listing, Drift: drift, Cfg: cfg}
 	}
 }
 
@@ -873,6 +1084,10 @@ func (m *Model) killTargetCmd(target string) tea.Cmd {
 		if err := m.deps.Runner.KillSession(ctx, target); err != nil {
 			return errorMsg{Err: err}
 		}
+		// Invalidate any marks that pointed at this target.
+		if m.marksStore != nil {
+			m.marksStore.InvalidateMark(target)
+		}
 		killed := i18n.Tf("tui.toast.session_killed", map[string]any{"name": target})
 		hint := "kill session " + target
 		return tea.Batch(
@@ -881,6 +1096,65 @@ func (m *Model) killTargetCmd(target string) tea.Cmd {
 			m.loadDataCmd(),
 			func() tea.Msg { return switchScreenMsg{Screen: ScreenDashboard} },
 		)()
+	}
+}
+
+func (m *Model) killWindowCmd(target string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := m.deps.Runner.KillWindow(ctx, target); err != nil {
+			return errorMsg{Err: err}
+		}
+		if m.marksStore != nil {
+			m.marksStore.InvalidateMark(target)
+		}
+		killed := i18n.Tf("tui.toast.session_killed", map[string]any{"name": target})
+		hint := "kill window " + target
+		return tea.Batch(
+			func() tea.Msg { return actionDoneMsg{Text: killed} },
+			func() tea.Msg { return undoHintMsg{Text: hint} },
+			m.loadDataCmd(),
+			func() tea.Msg { return switchScreenMsg{Screen: ScreenDashboard} },
+		)()
+	}
+}
+
+func (m *Model) killPaneCmd(target string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := m.deps.Runner.KillPane(ctx, target); err != nil {
+			return errorMsg{Err: err}
+		}
+		if m.marksStore != nil {
+			m.marksStore.InvalidateMark(target)
+		}
+		killed := i18n.Tf("tui.toast.session_killed", map[string]any{"name": target})
+		return tea.Batch(
+			func() tea.Msg { return actionDoneMsg{Text: killed} },
+			m.loadDataCmd(),
+			func() tea.Msg { return switchScreenMsg{Screen: ScreenDashboard} },
+		)()
+	}
+}
+
+// gotoProcCmd finds the first pane running the given process name.
+// It returns a gotoProcMsg so that the actual cursor mutation happens on the
+// main goroutine inside Update (Bubble Tea's message-passing model — tea.Cmd
+// closures must not access unsynchronised Model fields directly).
+func (m *Model) gotoProcCmd(procName string) tea.Cmd {
+	pp := m.paneProvider // capture safe handle; Provider is internally locked
+	return func() tea.Msg {
+		if pp == nil {
+			return toastMsg{Kind: toast.KindError, Text: "goto: no pane data available"}
+		}
+		target := pp.FindByCommand(strings.ToLower(procName))
+		if target == "" {
+			return toastMsg{Kind: toast.KindError,
+				Text: i18n.Tf("tui.toast.goto_not_found", map[string]any{"name": procName})}
+		}
+		return gotoProcMsg{Target: target}
 	}
 }
 
@@ -1070,6 +1344,43 @@ func (m *Model) paletteActions() []PaletteAction {
 		}},
 		{Title: i18n.T("tui.palette.action.quit.title"), Subtitle: i18n.T("tui.palette.action.quit.subtitle"), Run: func() tea.Cmd { return tea.Quit }},
 	}
+	// Parametrized actions (4.5).
+	out = append(out, PaletteAction{
+		Title:       "mark: set mark",
+		Subtitle:    "set a named mark at the current position",
+		NeedsParam:  true,
+		ParamPrompt: "letter (e.g. a)",
+		ParamRun: func(letter string) tea.Cmd {
+			r := []rune(letter)
+			if len(r) == 0 {
+				return nil
+			}
+			target := m.dashboard.SelectedTarget()
+			cursor := m.dashboard.effectiveCursor()
+			if target == "" || m.marksStore == nil {
+				return nil
+			}
+			m.marksStore.SetMark(r[0], target, cursor)
+			return func() tea.Msg {
+				return tea.Batch(
+					func() tea.Msg {
+						return toastMsg{Kind: toast.KindSuccess, Text: i18n.Tf("tui.toast.mark_set", map[string]any{"letter": string(r[0])})}
+					},
+					func() tea.Msg { return switchScreenMsg{Screen: ScreenDashboard} },
+				)()
+			}
+		},
+	})
+	out = append(out, PaletteAction{
+		Title:       "goto: jump to process",
+		Subtitle:    "jump to the first pane running the given command",
+		NeedsParam:  true,
+		ParamPrompt: "process name (e.g. vim)",
+		ParamRun: func(name string) tea.Cmd {
+			return m.gotoProcCmd(name)
+		},
+	})
+
 	if m.listing != nil {
 		for _, s := range m.listing.Sessions {
 			s := s

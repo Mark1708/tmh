@@ -231,6 +231,10 @@
   "tui.toast.undo_unavailable": "undo: state.db unavailable",
   "tui.toast.session_created": "session created",
   "tui.toast.history_cleared": "history cleared",
+  "tui.toast.mark_set": "mark {{.letter}} set",
+  "tui.toast.mark_not_found": "mark {{.letter}} not found",
+  "tui.toast.no_prev_location": "no previous location",
+  "tui.toast.goto_not_found": "no pane running {{.name}}",
 
   "tui.loading": "loading…",
   "tui.no_sessions": "no sessions yet — press n to create one",

@@ -126,3 +126,82 @@ func TestDashboard_NavigationAndAttachTarget(t *testing.T) {
 		t.Fatalf("expected s:w, got %q", got)
 	}
 }
+
+// TestDashboard_FilterCursorByID verifies that cursor identity is preserved
+// after the filter query is changed.
+func TestDashboard_FilterCursorByID(t *testing.T) {
+	listing := &actions.Listing{
+		Sessions: []actions.ListedSession{
+			{
+				Name: "alpha", Live: true, Configured: true,
+				Windows: []actions.ListedWindow{
+					{Name: "editor", Live: true, Configured: true},
+					{Name: "server", Live: true, Configured: true},
+				},
+			},
+			{
+				Name: "beta", Live: true, Configured: true,
+				Windows: []actions.ListedWindow{
+					{Name: "logs", Live: true, Configured: true},
+				},
+			},
+		},
+	}
+	d := newDashboard(DefaultKeys(), theme.New(theme.Mocha), LoadStrings())
+	d.Resize(120, 30)
+	d.SetData(listing, nil)
+
+	// Navigate: session alpha → window editor → window server.
+	d.Update(tea.KeyMsg{Type: tea.KeyDown}) // → alpha:editor
+	d.Update(tea.KeyMsg{Type: tea.KeyDown}) // → alpha:server
+	if got := d.SelectedTarget(); got != "alpha:server" {
+		t.Fatalf("pre-filter: expected alpha:server, got %q", got)
+	}
+
+	// Activate filter with a query that still matches alpha:server.
+	d.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	// Type "ser" into the filter.
+	for _, r := range "ser" {
+		d.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+
+	// Cursor should still be on alpha:server (cursor-by-ID semantics).
+	if got := d.SelectedTarget(); got != "alpha:server" {
+		t.Fatalf("after filter 'ser': expected alpha:server, got %q", got)
+	}
+
+	// Clear filter — cursor should remain on alpha:server.
+	d.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if got := d.SelectedTarget(); got != "alpha:server" {
+		t.Fatalf("after clear filter: expected alpha:server, got %q", got)
+	}
+}
+
+// TestDashboard_FilterBoundaryCheck ensures the filtered viewport never
+// returns an out-of-range row index.
+func TestDashboard_FilterBoundaryCheck(t *testing.T) {
+	listing := &actions.Listing{
+		Sessions: []actions.ListedSession{
+			{
+				Name: "work", Live: true, Configured: true,
+				Windows: []actions.ListedWindow{
+					{Name: "zsh", Live: true, Configured: true},
+				},
+			},
+		},
+	}
+	d := newDashboard(DefaultKeys(), theme.New(theme.Mocha), LoadStrings())
+	d.Resize(80, 20)
+	d.SetData(listing, nil)
+
+	// Apply a filter that matches nothing.
+	d.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	for _, r := range "zzznomatch" {
+		d.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+
+	// SelectedTarget must not panic and may return "" on empty results.
+	_ = d.SelectedTarget()
+	// View must not panic on empty results either.
+	_ = d.View()
+}

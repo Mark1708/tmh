@@ -589,6 +589,16 @@ func (d *dashboardModel) SelectedTarget() string {
 	return r.Session + ":" + r.Window
 }
 
+// SelectedLevel returns the level (levelSession/levelWindow/levelPane) of the
+// current row, or -1 when nothing is selected.
+func (d *dashboardModel) SelectedLevel() int {
+	r := d.currentRow()
+	if r == nil {
+		return -1
+	}
+	return r.Level
+}
+
 // ── rendering ─────────────────────────────────────────────────────────────
 
 func (d *dashboardModel) View() string {

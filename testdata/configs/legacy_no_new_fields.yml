@@ -1,0 +1,19 @@
+version: 1
+
+roots:
+  work: /home/user/work
+
+defaults:
+  layout: 2-pane
+  shell: zsh
+  lang: en
+
+sessions:
+  myproject:
+    root: work
+    path: myproject
+    windows:
+      editor: src
+      server:
+        dir: src
+        command: go run .

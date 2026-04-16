@@ -7,6 +7,7 @@ import (
 	"git.mark1708.ru/me/tmh/cmd/tmh/cmd"
 	"git.mark1708.ru/me/tmh/internal/config"
 	"git.mark1708.ru/me/tmh/internal/i18n"
+	"git.mark1708.ru/me/tmh/internal/slogx"
 	"git.mark1708.ru/me/tmh/internal/ui/errrender"
 	"git.mark1708.ru/me/tmh/internal/xdg"
 )
@@ -15,6 +16,7 @@ import (
 var Version = "dev"
 
 func main() {
+	slogx.Init()
 	initLang()
 	root := cmd.NewRoot(Version)
 	if err := root.Execute(); err != nil {
