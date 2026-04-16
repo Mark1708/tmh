@@ -111,7 +111,10 @@ type Styles struct {
 	Panel, PanelFocus                          lipgloss.Style
 	Title, Subtitle, Hint, Selected            lipgloss.Style
 	StatusOK, StatusDrift, StatusNew, StatusGone lipgloss.Style
-	Toast, Modal                               lipgloss.Style
+	// Toast is the default (info) style; ToastSuccess and ToastError are
+	// kind-specific variants used when the message carries a known severity.
+	Toast, ToastSuccess, ToastError lipgloss.Style
+	Modal                           lipgloss.Style
 	KeyBinding                                 lipgloss.Style
 }
 
@@ -145,7 +148,13 @@ func New(p Palette) Styles {
 		StatusNew:   lipgloss.NewStyle().Foreground(p.New).Bold(true),
 		StatusGone:  lipgloss.NewStyle().Foreground(p.Gone).Bold(true),
 		Toast: lipgloss.NewStyle().
-			Background(p.Accent).Foreground(p.Bg).Bold(true).
+			Background(p.BgOverlay).Foreground(p.Text).
+			Padding(0, 1),
+		ToastSuccess: lipgloss.NewStyle().
+			Background(p.BgOverlay).Foreground(p.OK).Bold(true).
+			Padding(0, 1),
+		ToastError: lipgloss.NewStyle().
+			Background(p.BgOverlay).Foreground(p.Bad).Bold(true).
 			Padding(0, 1),
 		Modal: lipgloss.NewStyle().
 			Border(border).BorderForeground(p.Accent).

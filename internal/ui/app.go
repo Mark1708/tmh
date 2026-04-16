@@ -17,10 +17,13 @@ import (
 	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
 	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/state"
+	appstate "git.mark1708.ru/me/tmh/internal/state"
 	"git.mark1708.ru/me/tmh/internal/tmux"
 	"git.mark1708.ru/me/tmh/internal/ui/errrender"
+	"git.mark1708.ru/me/tmh/internal/ui/pane"
+	"git.mark1708.ru/me/tmh/internal/ui/refresh"
 	"git.mark1708.ru/me/tmh/internal/ui/theme"
+	"git.mark1708.ru/me/tmh/internal/ui/toast"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -32,7 +35,7 @@ func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
 // here; production passes CLIRunner + the real config path.
 type Deps struct {
 	Runner     tmux.Runner
-	State      *state.DB
+	State      *appstate.DB
 	ConfigPath string
 	Profile    string
 	LoadConfig func() (*config.Config, error)
@@ -61,8 +64,15 @@ type Model struct {
 	helpVisible bool
 	errMsg      string
 
+	// toast is the current visible notification text; empty means no toast.
 	toast    string
 	toastEnd time.Time
+	// toastSeq is a tag-compare counter. Every call to showToast increments it
+	// and embeds the new value in the expiry Tick. The dismiss handler only
+	// clears the toast when the incoming Seq matches toastSeq, preventing an
+	// old Tick from dismissing a newer message.
+	toastSeq  uint64
+	toastKind toast.Kind
 	// history is a ring-buffer of the last few toasts (including errors) so
 	// the user can glance back at what finished and with what outcome via
 	// ScreenHistory (`Ctrl+L`).
@@ -70,6 +80,15 @@ type Model struct {
 	historyMax int
 
 	pollEvery time.Duration
+
+	// historyStore persists the action log to disk (JSONL). May be nil if
+	// the store could not be created (e.g. read-only FS).
+	historyStore *appstate.HistoryStore
+
+	// paneRefresher drives the periodic pane-command batch fetch.
+	paneRefresher *refresh.Refresher
+	// paneProvider is the in-memory cache of pane runtime data.
+	paneProvider *pane.Provider
 }
 
 // toastEntry captures one entry in the toast history ring buffer.
@@ -79,20 +98,69 @@ type toastEntry struct {
 	Stamp time.Time
 }
 
+// historyOptsFromConfig converts config.HistoryConfig to appstate.HistoryOptions.
+// Uses sensible defaults when fields are zero/nil.
+func historyOptsFromConfig(c config.HistoryConfig) appstate.HistoryOptions {
+	opts := appstate.HistoryOptions{
+		MaxEntries:     c.MaxEntries,
+		ArchiveOnClear: true, // default on
+	}
+	if c.ArchiveOnClear != nil {
+		opts.ArchiveOnClear = *c.ArchiveOnClear
+	}
+	if c.Retention != "" && c.Retention != "forever" {
+		if d, err := parseRetentionDuration(c.Retention); err == nil {
+			opts.Retention = d
+		}
+	}
+	if opts.Retention == 0 && c.Retention != "forever" {
+		opts.Retention = 30 * 24 * time.Hour // default 30d
+	}
+	return opts
+}
+
+// parseRetentionDuration parses strings like "7d", "30d", "90d".
+func parseRetentionDuration(s string) (time.Duration, error) {
+	if len(s) > 1 && s[len(s)-1] == 'd' {
+		days := strings.TrimSuffix(s, "d")
+		var n int
+		_, err := fmt.Sscanf(days, "%d", &n)
+		if err == nil && n > 0 {
+			return time.Duration(n) * 24 * time.Hour, nil
+		}
+	}
+	return 0, fmt.Errorf("unrecognised retention %q", s)
+}
+
 // New constructs the root model.
 func New(deps Deps) *Model {
 	keys := DefaultKeys()
 	st := theme.New(theme.Mocha)
 	str := LoadStrings()
+
+	// Build a HistoryStore from the default options (config not yet loaded).
+	// If the config specifies custom options, they're applied after the first
+	// dataLoadedMsg arrives.
+	hs := appstate.NewHistoryStore(appstate.HistoryOptions{
+		Retention:      30 * 24 * time.Hour,
+		ArchiveOnClear: true,
+	})
+
+	pr := refresh.New(refresh.DefaultInterval)
+	pp := pane.New(2 * time.Second) // 2s TTL matches DefaultInterval
+
 	return &Model{
-		deps:       deps,
-		keys:       keys,
-		st:         st,
-		str:        str,
-		current:    ScreenDashboard,
-		dashboard:  newDashboard(keys, st, str),
-		pollEvery:  2 * time.Second,
-		historyMax: 30,
+		deps:          deps,
+		keys:          keys,
+		st:            st,
+		str:           str,
+		current:       ScreenDashboard,
+		dashboard:     newDashboard(keys, st, str),
+		pollEvery:     2 * time.Second,
+		historyMax:    30,
+		historyStore:  hs,
+		paneRefresher: pr,
+		paneProvider:  pp,
 	}
 }
 
@@ -106,9 +174,24 @@ func (m *Model) pushHistory(text string, isErr bool) {
 	}
 }
 
-// Init triggers the first data load + polling tick.
+// showToast displays kind-styled text in the footer and schedules its expiry.
+// Uses tag-compare so concurrent Ticks from previous toasts cannot dismiss
+// a newer notification.
+func (m *Model) showToast(kind toast.Kind, text string) tea.Cmd {
+	ttl := kind.TTL()
+	m.toastSeq++
+	seq := m.toastSeq
+	m.toast = text
+	m.toastKind = kind
+	m.toastEnd = time.Now().Add(ttl)
+	m.pushHistory(text, kind == toast.KindError)
+	return tea.Tick(ttl, func(time.Time) tea.Msg { return toastExpiredMsg{Seq: seq} })
+}
+
+// Init triggers the first data load + polling tick + async history load
+// + first pane-refresh tick.
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(m.loadDataCmd(), m.tickCmd())
+	return tea.Batch(m.loadDataCmd(), m.tickCmd(), m.loadHistoryCmd(), m.paneRefresher.Tick())
 }
 
 // Update routes messages to active screens.
@@ -136,6 +219,25 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		return m, tea.Batch(m.loadDataCmd(), m.tickCmd())
 
+	case refresh.TickMsg:
+		// Always reschedule the tick to keep the loop alive.
+		cmd := m.paneRefresher.Tick()
+		// Skip the fetch while a text-input widget has focus (input-pause rule).
+		inputFocused := (m.palette != nil && m.current == ScreenPalette)
+		if inputFocused {
+			return m, cmd
+		}
+		seq := m.paneRefresher.BumpSeq()
+		return m, tea.Batch(cmd, m.paneRefresher.Fetch(m.deps.Runner, seq))
+
+	case refresh.PaneDataMsg:
+		// Drop stale results from a previous fetch cadence.
+		if msg.Seq != m.paneRefresher.Seq() {
+			return m, nil
+		}
+		m.paneProvider.SetAll(msg.Data)
+		return m, nil
+
 	case dataLoadedMsg:
 		if msg.Err != nil {
 			m.errMsg = errrender.Render(msg.Err)
@@ -156,35 +258,63 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case toastMsg:
-		ttl := msg.TTL
-		if ttl == 0 {
-			ttl = 4 * time.Second
+		kind := msg.Kind
+		text := msg.Text
+		// Allow caller to override the default kind TTL.
+		if msg.TTL != 0 {
+			m.toastSeq++
+			seq := m.toastSeq
+			m.toast = text
+			m.toastKind = kind
+			m.toastEnd = time.Now().Add(msg.TTL)
+			m.pushHistory(text, kind == toast.KindError)
+			return m, tea.Tick(msg.TTL, func(time.Time) tea.Msg { return toastExpiredMsg{Seq: seq} })
 		}
-		m.toast = msg.Text
-		m.toastEnd = time.Now().Add(ttl)
-		m.pushHistory(msg.Text, false)
-		return m, tea.Tick(ttl, func(time.Time) tea.Msg { return toastExpiredMsg{} })
+		return m, m.showToast(kind, text)
 
 	case toastExpiredMsg:
-		if !time.Now().Before(m.toastEnd) {
+		// Tag-compare: only dismiss if the Seq matches the current counter.
+		if msg.Seq == m.toastSeq {
 			m.toast = ""
 		}
 		return m, nil
 
 	case errorMsg:
 		rendered := errrender.Render(msg.Err)
-		m.toast = i18n.Tf("tui.toast.error_prefix", map[string]any{"msg": rendered})
-		const ttl = 5 * time.Second
-		m.toastEnd = time.Now().Add(ttl)
-		m.pushHistory(rendered, true)
-		return m, tea.Tick(ttl, func(time.Time) tea.Msg { return toastExpiredMsg{} })
+		return m, m.showToast(toast.KindError,
+			i18n.Tf("tui.toast.error_prefix", map[string]any{"msg": rendered}))
 
 	case actionDoneMsg:
-		m.toast = msg.Text
-		const ttl = 4 * time.Second
-		m.toastEnd = time.Now().Add(ttl)
-		m.pushHistory(msg.Text, false)
-		return m, tea.Tick(ttl, func(time.Time) tea.Msg { return toastExpiredMsg{} })
+		return m, m.showToast(toast.KindSuccess, msg.Text)
+
+	case historyLoadedMsg:
+		if msg.Err != nil {
+			// Non-fatal: show an error toast and continue with empty history.
+			return m, m.showToast(toast.KindError,
+				i18n.Tf("tui.toast.error_prefix", map[string]any{"msg": msg.Err.Error()}))
+		}
+		// Merge disk history into RAM ring-buffer (disk entries first, oldest first).
+		for _, e := range msg.Entries {
+			isErr := e.Result == "err"
+			t, _ := time.Parse(time.RFC3339, e.Ts)
+			if t.IsZero() {
+				t = time.Now()
+			}
+			m.history = append(m.history, toastEntry{Text: e.Details, Err: isErr, Stamp: t})
+		}
+		// Truncate to historyMax.
+		if len(m.history) > m.historyMax {
+			m.history = m.history[len(m.history)-m.historyMax:]
+		}
+		return m, nil
+
+	case historyClearedMsg:
+		if msg.Err != nil {
+			return m, m.showToast(toast.KindError,
+				i18n.Tf("tui.toast.error_prefix", map[string]any{"msg": msg.Err.Error()}))
+		}
+		m.history = nil
+		return m, m.showToast(toast.KindSuccess, i18n.T("tui.toast.history_cleared"))
 
 	case switchScreenMsg:
 		m.prev = m.current
@@ -411,7 +541,14 @@ func (m *Model) renderFooter() string {
 	// Inline toast right-aligned on the same footer row. We truncate hints
 	// from the right so the toast always fits; the full hint set stays
 	// visible in `?` help and in the palette.
-	toast := m.st.Toast.Render(m.toast)
+	toastStyle := m.st.Toast
+	switch m.toastKind {
+	case toast.KindSuccess:
+		toastStyle = m.st.ToastSuccess
+	case toast.KindError:
+		toastStyle = m.st.ToastError
+	}
+	toast := toastStyle.Render(m.toast)
 	contentW := m.width - 2 // Footer has Padding(0, 1)
 	toastW := lipgloss.Width(toast)
 	hintsW := contentW - toastW - 1
@@ -522,6 +659,59 @@ func (m *Model) helpText() string {
 }
 
 // --- commands ---
+
+// loadHistoryCmd asynchronously reads persistent history from disk.
+func (m *Model) loadHistoryCmd() tea.Cmd {
+	if m.historyStore == nil {
+		return nil
+	}
+	hs := m.historyStore
+	return func() tea.Msg {
+		entries, err := hs.Load()
+		if err != nil {
+			return historyLoadedMsg{Err: err}
+		}
+		disk := make([]historyDiskEntry, 0, len(entries))
+		for _, e := range entries {
+			disk = append(disk, historyDiskEntry{
+				Ts: e.Ts, Action: e.Action, Target: e.Target,
+				Result: e.Result, Details: e.Details,
+			})
+		}
+		return historyLoadedMsg{Entries: disk}
+	}
+}
+
+// appendHistoryCmd persists a single action to disk asynchronously.
+func (m *Model) appendHistoryCmd(action, target, result, details string) tea.Cmd {
+	if m.historyStore == nil {
+		return nil
+	}
+	hs := m.historyStore
+	e := appstate.HistoryEntry{
+		Ts: time.Now().UTC().Format(time.RFC3339),
+		Action:  action,
+		Target:  target,
+		Result:  result,
+		Details: details,
+	}
+	return func() tea.Msg {
+		_ = hs.Append(e) // best-effort; errors are not surfaced for writes
+		return nil
+	}
+}
+
+// clearHistoryCmd wipes all persistent history.
+func (m *Model) clearHistoryCmd() tea.Cmd {
+	if m.historyStore == nil {
+		return func() tea.Msg { return historyClearedMsg{} }
+	}
+	hs := m.historyStore
+	return func() tea.Msg {
+		archivePath, err := hs.Clear()
+		return historyClearedMsg{ArchivePath: archivePath, Err: err}
+	}
+}
 
 func (m *Model) loadDataCmd() tea.Cmd {
 	return func() tea.Msg {

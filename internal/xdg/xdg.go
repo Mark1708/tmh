@@ -53,3 +53,13 @@ func StateDBPath() string {
 func LogPath() string {
 	return filepath.Join(StateDir(), "tmh.log")
 }
+
+// HistoryPath returns the path for the persistent action history JSONL file.
+func HistoryPath() string {
+	return filepath.Join(StateDir(), "history.jsonl")
+}
+
+// MarksPath returns the path for the persistent marks + last-location JSON file.
+func MarksPath() string {
+	return filepath.Join(StateDir(), "marks.json")
+}

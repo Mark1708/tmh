@@ -5,6 +5,7 @@ import (
 
 	"git.mark1708.ru/me/tmh/internal/actions"
 	"git.mark1708.ru/me/tmh/internal/config"
+	"git.mark1708.ru/me/tmh/internal/ui/toast"
 )
 
 // dataLoadedMsg arrives after the background poll fetches a new listing.
@@ -23,12 +24,16 @@ type previewLoadedMsg struct {
 
 // toastMsg requests a transient bottom-right notification.
 type toastMsg struct {
+	Kind toast.Kind
 	Text string
-	TTL  time.Duration
+	// TTL overrides the kind-default duration when non-zero.
+	TTL time.Duration
 }
 
 // toastExpiredMsg fires after a toast TTL elapses.
-type toastExpiredMsg struct{}
+// Seq is the tag-compare counter set at Show time; the dismiss handler only
+// clears the toast when Seq matches the current counter.
+type toastExpiredMsg struct{ Seq uint64 }
 
 // tickMsg drives the polling cadence.
 type tickMsg time.Time
@@ -43,3 +48,31 @@ type errorMsg struct{ Err error }
 
 // actionDoneMsg signals an action completed successfully.
 type actionDoneMsg struct{ Text string }
+
+// paneRefreshTickMsg is the alias used internally; the actual type comes from
+// the refresh package and is re-exported here for documentation clarity.
+// (The root model switches on refresh.TickMsg and refresh.PaneDataMsg directly.)
+
+// historyLoadedMsg carries the initial history load from disk.
+type historyLoadedMsg struct {
+	Entries []historyDiskEntry
+	Err     error
+}
+
+// historyDiskEntry mirrors state.HistoryEntry for in-process use.
+type historyDiskEntry struct {
+	Ts      string
+	Action  string
+	Target  string
+	Result  string
+	Details string
+}
+
+// clearHistoryMsg requests a history wipe (with optional archive).
+type clearHistoryMsg struct{}
+
+// historyClearedMsg confirms the wipe completed.
+type historyClearedMsg struct {
+	ArchivePath string
+	Err         error
+}

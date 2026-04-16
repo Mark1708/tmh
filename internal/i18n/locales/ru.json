@@ -188,6 +188,7 @@
   "tui.toast.reload_triggered": "reload запущен",
   "tui.toast.undo_unavailable": "undo: state.db недоступна",
   "tui.toast.session_created": "сессия создана",
+  "tui.toast.history_cleared": "история очищена",
 
   "tui.loading": "загрузка…",
   "tui.no_sessions": "сессий пока нет — нажми n чтобы создать",

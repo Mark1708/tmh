@@ -32,6 +32,26 @@ type Defaults struct {
 	Popup  Popup             `yaml:"popup,omitempty"`
 	Env    map[string]string `yaml:"env,omitempty"`
 	Reload ReloadDefaults    `yaml:"reload,omitempty"`
+	// History controls persistent action history behaviour.
+	// All fields are optional; zero values fall back to the built-in defaults.
+	History HistoryConfig `yaml:"history,omitempty"`
+}
+
+// HistoryConfig controls the append-only JSONL action history.
+type HistoryConfig struct {
+	// MaxEntries is the maximum number of history records to keep.
+	// Amortized rewrite triggers at MaxEntries*1.2. Default: 1000.
+	MaxEntries int `yaml:"max_entries,omitempty"`
+	// Retention is a duration string (e.g. "30d", "7d", "forever").
+	// Records older than Retention are pruned on startup. Default: "30d".
+	Retention string `yaml:"retention,omitempty"`
+	// AutoClearOnStartup removes entries older than Retention when the TUI
+	// starts. Default: true.
+	AutoClearOnStartup *bool `yaml:"auto_clear_on_startup,omitempty"`
+	// ArchiveOnClear controls whether a manual "clear history" renames the
+	// current file to history.jsonl.archived-<ts> before truncating.
+	// Default: true.
+	ArchiveOnClear *bool `yaml:"archive_on_clear,omitempty"`
 }
 
 // ReloadDefaults tunes the deferred reload queue.
