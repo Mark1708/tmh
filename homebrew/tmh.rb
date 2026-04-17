@@ -30,7 +30,18 @@ class Tmh < Formula
 
   def install
     bin.install "tmh"
-    generate_completions_from_executable(bin/"tmh", "completion")
+    # goreleaser tarballs ship pre-generated man pages and completions
+    # under docs/ — install them into the Homebrew-standard locations so
+    # `man tmh` and tab-completion work out of the box.
+    man1.install Dir["docs/man/*.1"] if Dir.exist?("docs/man")
+    if Dir.exist?("docs/completions")
+      bash_completion.install "docs/completions/bash/tmh"
+      zsh_completion.install "docs/completions/zsh/tmh" => "_tmh"
+      fish_completion.install "docs/completions/fish/tmh" => "tmh.fish"
+    else
+      # Fallback for source builds that don't include pre-generated docs.
+      generate_completions_from_executable(bin/"tmh", "completion")
+    end
   end
 
   test do

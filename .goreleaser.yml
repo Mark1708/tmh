@@ -5,6 +5,9 @@ project_name: tmh
 before:
   hooks:
     - go mod tidy
+    # Regenerate man pages, completions, and JSON schema so release
+    # tarballs always ship in-sync with the cobra tree + config types.
+    - go run ./cmd/tmh-gen
 
 builds:
   - id: tmh
@@ -30,8 +33,14 @@ archives:
     formats: ["tar.gz"]
     files:
       - README.md
+      - README.ru.md
+      - CHANGELOG.md
       - LICENSE
+      - SECURITY.md
       - examples/*
+      - docs/man/*.1
+      - docs/completions/**/*
+      - schemas/tmh.schema.json
 
 checksum:
   name_template: "checksums.txt"
