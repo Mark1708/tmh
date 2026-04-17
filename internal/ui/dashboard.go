@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/ui/pane"
-	"git.mark1708.ru/me/tmh/internal/ui/theme"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/ui/pane"
+	"github.com/mark1708/tmh/internal/ui/theme"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

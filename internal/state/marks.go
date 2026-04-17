@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"git.mark1708.ru/me/tmh/internal/xdg"
+	"github.com/mark1708/tmh/internal/xdg"
 )
 
 // Mark records a named navigation target.

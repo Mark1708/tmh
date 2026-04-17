@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
-	"git.mark1708.ru/me/tmh/internal/i18n"
+	errs "github.com/mark1708/tmh/internal/errors"
+	"github.com/mark1708/tmh/internal/i18n"
 )
 
 func TestRender_SentinelsLocalized(t *testing.T) {

@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.mark1708.ru/me/tmh/internal/xdg"
+	"github.com/mark1708/tmh/internal/xdg"
 )
 
 // Init reads TMH_LOG and configures the default slog logger accordingly.

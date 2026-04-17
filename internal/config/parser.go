@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
+	errs "github.com/mark1708/tmh/internal/errors"
 	"gopkg.in/yaml.v3"
 )
 

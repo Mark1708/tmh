@@ -6,11 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/state"
-	"git.mark1708.ru/me/tmh/internal/xdg"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/shell"
+	"github.com/mark1708/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/xdg"
 
 	"github.com/spf13/cobra"
 )
@@ -53,14 +54,14 @@ func renderStatus() string {
 		pending = len(entries)
 	}
 
-	zsh := dotfileStale(filepath.Join(os.Getenv("HOME"), ".zshrc"))
+	rcStale := dotfileStale(shell.DefaultRCFile())
 	tmuxConf := dotfileStale(filepath.Join(os.Getenv("HOME"), ".tmux.conf"))
 
 	switch {
 	case drift > 0:
 		return fmt.Sprintf("⚠drift:%d", drift)
-	case zsh:
-		return "⚠zsh"
+	case rcStale:
+		return "⚠rc"
 	case tmuxConf:
 		return "⚠tmux"
 	case pending > 0:

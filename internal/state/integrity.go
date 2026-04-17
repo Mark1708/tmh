@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
+	errs "github.com/mark1708/tmh/internal/errors"
 	_ "modernc.org/sqlite"
 )
 

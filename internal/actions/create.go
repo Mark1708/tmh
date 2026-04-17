@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"git.mark1708.ru/me/tmh/internal/config"
-	errs "git.mark1708.ru/me/tmh/internal/errors"
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/config"
+	errs "github.com/mark1708/tmh/internal/errors"
+	"github.com/mark1708/tmh/internal/tmux"
 )
 
 // CreateSession materialises one ResolvedSession in tmux. Existing sessions

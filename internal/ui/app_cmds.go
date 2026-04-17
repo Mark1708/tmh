@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	appstate "git.mark1708.ru/me/tmh/internal/state"
-	"git.mark1708.ru/me/tmh/internal/tmux"
-	"git.mark1708.ru/me/tmh/internal/ui/toast"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/shell"
+	appstate "github.com/mark1708/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/ui/toast"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -116,8 +117,9 @@ func (m *Model) reloadAllCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_, err := actions.Reload(ctx, m.deps.Runner, m.deps.State, "~/.zshrc",
-			actions.ReloadOptions{Shell: true, Tmux: true, Busy: true})
+		rcFile := shell.DefaultRCFile()
+		_, err := actions.Reload(ctx, m.deps.Runner, m.deps.State, rcFile,
+			actions.ReloadOptions{Shell: true, Tmux: true, Busy: true, RcFile: rcFile})
 		if err != nil {
 			return errorMsg{Err: err}
 		}

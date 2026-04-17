@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest a new capability, command, or improvement
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! tmh stays focused — not every good idea
+        belongs in the core tool. Please explain the *problem* first, then the
+        *solution*, so we can evaluate whether a change is the right answer.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow feels rough today? Describe the pain point, not the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you want tmh to do? New command, flag, config field, UI element?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing workarounds (hooks, aliases, other tools). Have you tried them? Why don't they suffice?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Related tools (sesh, tmuxinator, zellij…) that handle this well; screenshots; links to prior discussions.

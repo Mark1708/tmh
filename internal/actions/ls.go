@@ -3,8 +3,8 @@ package actions
 import (
 	"context"
 
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/tmux"
 )
 
 // Listing is a merged view of live tmux sessions and the configured ones.

@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"git.mark1708.ru/me/tmh/internal/state"
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/tmux"
 )
 
 // SessionSnapshot is what we persist for snapshot/restore and undo.

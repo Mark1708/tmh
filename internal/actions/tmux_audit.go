@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/tmux"
 )
 
 // AuditLevel classifies findings from AuditTmuxConfig.

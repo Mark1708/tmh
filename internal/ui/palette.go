@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"git.mark1708.ru/me/tmh/internal/ui/theme"
+	"github.com/mark1708/tmh/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

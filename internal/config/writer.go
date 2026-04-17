@@ -79,7 +79,7 @@ func writeTemp(dir string, data []byte) (string, error) {
 		return "", err
 	}
 	name := filepath.Join(dir, fmt.Sprintf(".tmh.%d.%s.tmp", os.Getpid(), hex.EncodeToString(suffix)))
-	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return "", err
 	}
@@ -109,7 +109,7 @@ func backupFile(path, backupDir string, maxKeep int) error {
 	ts := time.Now().Format("20060102-150405")
 	base := filepath.Base(path)
 	out := filepath.Join(backupDir, fmt.Sprintf("%s.%s.bak", base, ts))
-	if err := os.WriteFile(out, orig, 0o644); err != nil {
+	if err := os.WriteFile(out, orig, 0o600); err != nil {
 		return err
 	}
 	if maxKeep > 0 {

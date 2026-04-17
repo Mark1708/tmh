@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/config"
-	appstate "git.mark1708.ru/me/tmh/internal/state"
-	"git.mark1708.ru/me/tmh/internal/tmux"
-	"git.mark1708.ru/me/tmh/internal/ui/pane"
-	"git.mark1708.ru/me/tmh/internal/ui/refresh"
-	"git.mark1708.ru/me/tmh/internal/ui/theme"
-	"git.mark1708.ru/me/tmh/internal/ui/toast"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/config"
+	appstate "github.com/mark1708/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/ui/pane"
+	"github.com/mark1708/tmh/internal/ui/refresh"
+	"github.com/mark1708/tmh/internal/ui/theme"
+	"github.com/mark1708/tmh/internal/ui/toast"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

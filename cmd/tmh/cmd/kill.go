@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/i18n"
 
 	"github.com/spf13/cobra"
 )

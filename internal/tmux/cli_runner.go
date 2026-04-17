@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
+	errs "github.com/mark1708/tmh/internal/errors"
 )
 
 // sep is an ASCII Unit Separator — safe inside tmux format strings and not

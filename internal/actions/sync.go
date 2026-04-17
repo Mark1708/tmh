@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"git.mark1708.ru/me/tmh/internal/config"
-	errs "git.mark1708.ru/me/tmh/internal/errors"
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/config"
+	errs "github.com/mark1708/tmh/internal/errors"
+	"github.com/mark1708/tmh/internal/tmux"
 )
 
 // SyncOptions controls sync behaviour.
@@ -254,12 +254,12 @@ func collectLive(ctx context.Context, r tmux.Runner) (config.LiveSnapshot, error
 //
 // Example — paths
 //
-//	/Users/mark/Projects/otr/x/a
-//	/Users/mark/Projects/otr/x/b
-//	/Users/mark/Projects/me/y/a
+//	/home/user/work/orgA/x/a
+//	/home/user/work/orgA/x/b
+//	/home/user/work/personal/y/a
 //
-// share /Users/mark/Projects, which forks into {otr, me}. The resulting
-// roots are otr=/Users/mark/Projects/otr and me=/Users/mark/Projects/me.
+// share /home/user/work, which forks into {orgA, personal}. The resulting
+// roots are orgA=/home/user/work/orgA and personal=/home/user/work/personal.
 func inferRoots(snap config.LiveSnapshot) map[string]string {
 	paths := make([]string, 0)
 	for _, s := range snap.Sessions {

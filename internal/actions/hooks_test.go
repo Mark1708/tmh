@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
-	"git.mark1708.ru/me/tmh/internal/state"
+	errs "github.com/mark1708/tmh/internal/errors"
+	"github.com/mark1708/tmh/internal/state"
 )
 
 func TestEnsureTrusted_PromptApproval(t *testing.T) {

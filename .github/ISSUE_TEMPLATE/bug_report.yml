@@ -1,0 +1,86 @@
+name: Bug report
+description: Report a defect, crash, or unexpected behavior in tmh
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please search existing
+        issues before opening a new one — duplicates slow everyone down.
+
+  - type: input
+    id: version
+    attributes:
+      label: tmh version
+      description: Output of `tmh version`
+      placeholder: "1.0.0 (commit abc1234, built 2026-05-01)"
+    validations:
+      required: true
+
+  - type: input
+    id: tmux_version
+    attributes:
+      label: tmux version
+      description: Output of `tmux -V`
+      placeholder: "tmux 3.4"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (x86_64)
+        - Linux (arm64)
+        - Other (specify below)
+    validations:
+      required: true
+
+  - type: input
+    id: shell
+    attributes:
+      label: Shell
+      placeholder: "zsh 5.9, bash 5.2, fish 3.7, …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Paste error output verbatim.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: Minimal, numbered steps to reproduce. Include a minimal `config.yml` snippet if relevant.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: tmh doctor output
+      description: Paste the full output of `tmh doctor` — it catches most environment issues before we ask.
+      render: text
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, related issues, recent upgrades, custom hooks, …

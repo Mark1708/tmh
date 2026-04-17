@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"git.mark1708.ru/me/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/config"
 
 	"gopkg.in/yaml.v3"
 )

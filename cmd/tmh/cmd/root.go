@@ -5,12 +5,12 @@ import (
 	"context"
 	"os"
 
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/state"
-	"git.mark1708.ru/me/tmh/internal/tmux"
-	"git.mark1708.ru/me/tmh/internal/ui"
-	"git.mark1708.ru/me/tmh/internal/xdg"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/ui"
+	"github.com/mark1708/tmh/internal/xdg"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"

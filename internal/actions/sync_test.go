@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"git.mark1708.ru/me/tmh/internal/tmux"
-	"git.mark1708.ru/me/tmh/internal/tmux/tmuxtest"
+	"github.com/mark1708/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/tmux/tmuxtest"
 )
 
 func TestPush_CreatesMissing(t *testing.T) {
@@ -125,12 +125,12 @@ sessions:
 func TestBootstrap_InfersRoots(t *testing.T) {
 	m := tmuxtest.New()
 	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{
-		Name: "epcp", Dir: "/Users/mark/Projects/otr/products/epcp/repos/lk",
-		WindowName: "lk", Detached: true,
+		Name: "alpha", Dir: "/home/user/work/orgA/services/api/repos/web",
+		WindowName: "web", Detached: true,
 	})
 	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{
-		Name: "kb", Dir: "/Users/mark/Projects/me/products/kb/bases/claude",
-		WindowName: "claude", Detached: true,
+		Name: "beta", Dir: "/home/user/work/personal/notes/bases/kb",
+		WindowName: "notes", Detached: true,
 	})
 
 	cfg := parseConfig(t, `version: 1`)
@@ -145,10 +145,10 @@ func TestBootstrap_InfersRoots(t *testing.T) {
 
 func TestInferRoots_LCP(t *testing.T) {
 	snap := liveSnapshotFromPaths(
-		"/Users/mark/Projects/otr/x/a",
-		"/Users/mark/Projects/otr/x/b",
-		"/Users/mark/Projects/me/y/a",
-		"/Users/mark/Projects/me/y/b",
+		"/home/user/work/orgA/x/a",
+		"/home/user/work/orgA/x/b",
+		"/home/user/work/personal/y/a",
+		"/home/user/work/personal/y/b",
 	)
 	roots := inferRoots(snap)
 	// expect 2 clusters
@@ -156,8 +156,8 @@ func TestInferRoots_LCP(t *testing.T) {
 		t.Fatalf("expected 2 roots, got %+v", roots)
 	}
 	wantBases := map[string]bool{
-		"/Users/mark/Projects/otr": true,
-		"/Users/mark/Projects/me":  true,
+		"/home/user/work/orgA":     true,
+		"/home/user/work/personal": true,
 	}
 	for _, base := range roots {
 		if !wantBases[base] {

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"git.mark1708.ru/me/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/state"
 )
 
 // newTempStore creates a MarksStore backed by a temp file.

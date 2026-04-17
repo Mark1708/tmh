@@ -1,27 +1,27 @@
 class Tmh < Formula
   desc "TUI hub for tmux: declarative sessions, drift sync, dotfile reload"
-  homepage "https://git.mark1708.ru/me/tmh"
+  homepage "https://github.com/mark1708/tmh"
   version "0.1.0"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://git.mark1708.ru/me/tmh/releases/download/v#{version}/tmh_#{version}_darwin_arm64.tar.gz"
+      url "https://github.com/mark1708/tmh/releases/download/v#{version}/tmh_#{version}_darwin_arm64.tar.gz"
       sha256 "REPLACE_WITH_DARWIN_ARM64_SHA256"
     end
     if Hardware::CPU.intel?
-      url "https://git.mark1708.ru/me/tmh/releases/download/v#{version}/tmh_#{version}_darwin_amd64.tar.gz"
+      url "https://github.com/mark1708/tmh/releases/download/v#{version}/tmh_#{version}_darwin_amd64.tar.gz"
       sha256 "REPLACE_WITH_DARWIN_AMD64_SHA256"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://git.mark1708.ru/me/tmh/releases/download/v#{version}/tmh_#{version}_linux_arm64.tar.gz"
+      url "https://github.com/mark1708/tmh/releases/download/v#{version}/tmh_#{version}_linux_arm64.tar.gz"
       sha256 "REPLACE_WITH_LINUX_ARM64_SHA256"
     end
     if Hardware::CPU.intel?
-      url "https://git.mark1708.ru/me/tmh/releases/download/v#{version}/tmh_#{version}_linux_amd64.tar.gz"
+      url "https://github.com/mark1708/tmh/releases/download/v#{version}/tmh_#{version}_linux_amd64.tar.gz"
       sha256 "REPLACE_WITH_LINUX_AMD64_SHA256"
     end
   end

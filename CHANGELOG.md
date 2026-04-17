@@ -1,6 +1,43 @@
 # Changelog
 
-## [Unreleased] — Post-MVP refactoring
+All notable changes to tmh are documented here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) from
+1.0.0 onwards. The **public API surface** for semver purposes is:
+
+- the CLI subcommand and flag set,
+- the `config.yml` schema (fields, types, required fields, coerced values),
+- exit codes.
+
+Internal Go packages (`internal/...`) are explicitly **not** part of the
+public API.
+
+## [1.0.0] — 2026-05-XX (upcoming)
+
+First public release. Highlights (English summary):
+
+- **Declarative tmux sessions** — keep your tmux layout in a commented YAML
+  and verify live state against it with `tmh diff` / `tmh watch`.
+- **Drift detection as verification** (not enforcement) — tmh shows what
+  changed; you decide whether to `push` the live state into the config, or
+  `init` the config into tmux.
+- **Rich TUI dashboard** with palette, fuzzy filter, marks, snapshots +
+  undo, inline per-pane process visibility, toast notifications, theming.
+- **20+ CLI subcommands** (`attach`, `new`, `init`, `ls`, `ps`, `sync`,
+  `diff`, `reload`, `watch`, `status`, `doctor`, `snapshot`, `undo`,
+  `export`, `import`, `tmux audit`, …).
+- **SQLite state store** (pure Go, no CGO) for history, marks, hook
+  trust-hashes, snapshots.
+- **i18n out of the box** — English + Russian bundled.
+- **Hardened defaults** — config, history, and state DB files are written
+  with `0600` perms; hooks require trust-prompt on first use and on hash
+  change.
+
+Detailed Russian-language changelog for the post-MVP refactor cycle that
+culminated in 1.0.0 follows below; it is preserved verbatim for historical
+reference.
+
+---
 
 Большой рефакторинг после MVP: персистентность, process visibility, улучшения UX.
 

@@ -34,6 +34,12 @@ func Open(path string) (*DB, error) {
 		raw.Close()
 		return nil, fmt.Errorf("state: ping: %w", err)
 	}
+	// Tighten permissions on the on-disk DB file (contains trust-hashes,
+	// history, snapshots). Ignore :memory: and any failure to chmod — it's
+	// a best-effort hardening, not a correctness guarantee.
+	if path != ":memory:" {
+		_ = os.Chmod(path, 0o600)
+	}
 	db := &DB{sql: raw}
 	if err := db.migrate(); err != nil {
 		raw.Close()

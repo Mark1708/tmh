@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	errs "github.com/mark1708/tmh/internal/errors"
+	"github.com/mark1708/tmh/internal/tmux"
 )
 
 func TestMock_SessionLifecycle(t *testing.T) {

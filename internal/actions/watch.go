@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/mark1708/tmh/internal/shell"
+
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -17,11 +19,13 @@ type WatchEvent struct {
 	Path string
 }
 
-// WatchPaths returns the default dotfiles tmh watch monitors.
+// WatchPaths returns the default dotfiles tmh watch monitors. The shell
+// rc-file is derived from $SHELL so bash and fish users see their own
+// dotfile in the watchlist instead of a hard-coded ~/.zshrc.
 func WatchPaths(configPath string) []string {
 	home := os.Getenv("HOME")
 	return []string{
-		filepath.Join(home, ".zshrc"),
+		shell.DefaultRCFile(),
 		filepath.Join(home, ".tmux.conf"),
 		configPath,
 	}

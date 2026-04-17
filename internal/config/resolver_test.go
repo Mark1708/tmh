@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
+	errs "github.com/mark1708/tmh/internal/errors"
 )
 
 func TestResolve_RootsAndPath(t *testing.T) {

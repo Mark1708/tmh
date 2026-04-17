@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/xdg"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/xdg"
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"

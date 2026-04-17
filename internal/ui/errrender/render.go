@@ -8,8 +8,8 @@ import (
 	"errors"
 	"strings"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
-	"git.mark1708.ru/me/tmh/internal/i18n"
+	errs "github.com/mark1708/tmh/internal/errors"
+	"github.com/mark1708/tmh/internal/i18n"
 )
 
 // Render returns a localized message for known sentinels and falls back to

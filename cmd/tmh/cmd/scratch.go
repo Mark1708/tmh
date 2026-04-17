@@ -6,10 +6,10 @@ import (
 	"os"
 	"time"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/state"
-	"git.mark1708.ru/me/tmh/internal/xdg"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/xdg"
 
 	"github.com/spf13/cobra"
 )

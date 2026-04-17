@@ -3,8 +3,8 @@ package actions
 import (
 	"context"
 
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/tmux"
 )
 
 // PopupOpts mirrors the relevant subset of tmux.PopupOpts but lets the

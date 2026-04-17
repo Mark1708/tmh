@@ -3,7 +3,7 @@ package ui
 import (
 	"strings"
 
-	"git.mark1708.ru/me/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/i18n"
 )
 
 // renderHistory draws the action-history panel (`Ctrl+L`). Newest entries

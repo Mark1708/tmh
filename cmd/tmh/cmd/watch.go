@@ -3,16 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/state"
-	"git.mark1708.ru/me/tmh/internal/xdg"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/shell"
+	"github.com/mark1708/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/xdg"
 
 	"github.com/spf13/cobra"
 )
@@ -38,7 +37,7 @@ func newWatchCmd() *cobra.Command {
 				defer db.Close()
 			}
 
-			rcFile := filepath.Join(os.Getenv("HOME"), ".zshrc")
+			rcFile := shell.DefaultRCFile()
 
 			// Optional: drain the reload queue periodically.
 			drainT := time.NewTicker(2 * time.Second)

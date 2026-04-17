@@ -12,8 +12,8 @@ import (
 	"strings"
 	"sync"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	errs "github.com/mark1708/tmh/internal/errors"
+	"github.com/mark1708/tmh/internal/tmux"
 )
 
 // Call captures one Runner method invocation for assertions.

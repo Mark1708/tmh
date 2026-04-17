@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/tmux"
 
 	"github.com/spf13/cobra"
 )
@@ -126,15 +127,11 @@ func runDoctor() []doctorResult {
 	if _, err := exec.LookPath("fd"); err != nil {
 		out = append(out, doctorResult{"INFO", i18n.T("doctor.fd.missing")})
 	}
-	// terminal-notifier
-	if _, err := exec.LookPath("terminal-notifier"); err != nil {
-		out = append(out, doctorResult{"INFO", i18n.T("doctor.notifier.missing")})
-	}
-	// GOPRIVATE
-	if v := os.Getenv("GOPRIVATE"); strings.Contains(v, "git.mark1708.ru") {
-		out = append(out, doctorResult{"INFO", i18n.T("doctor.goprivate.set")})
-	} else {
-		out = append(out, doctorResult{"INFO", i18n.T("doctor.goprivate.unset")})
+	// terminal-notifier (macOS-only utility; skip check on other OSes)
+	if runtime.GOOS == "darwin" {
+		if _, err := exec.LookPath("terminal-notifier"); err != nil {
+			out = append(out, doctorResult{"INFO", i18n.T("doctor.notifier.missing")})
+		}
 	}
 
 	return out

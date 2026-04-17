@@ -10,9 +10,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"git.mark1708.ru/me/tmh/internal/config"
-	errs "git.mark1708.ru/me/tmh/internal/errors"
-	"git.mark1708.ru/me/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/config"
+	errs "github.com/mark1708/tmh/internal/errors"
+	"github.com/mark1708/tmh/internal/state"
 )
 
 // HookContext carries enough info to render meaningful trust prompts and to

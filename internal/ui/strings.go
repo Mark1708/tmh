@@ -1,6 +1,6 @@
 package ui
 
-import "git.mark1708.ru/me/tmh/internal/i18n"
+import "github.com/mark1708/tmh/internal/i18n"
 
 // UIStrings holds all translated UI-level strings. Built once per language
 // via LoadStrings() and stored on Model; sub-models receive a copy at

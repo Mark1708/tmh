@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"git.mark1708.ru/me/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/config"
 )
 
 // TestMigration_SmokeParse verifies that every fixture in testdata/configs/

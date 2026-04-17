@@ -3,9 +3,9 @@ package ui
 import (
 	"time"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/ui/toast"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/ui/toast"
 )
 
 // dataLoadedMsg arrives after the background poll fetches a new listing.

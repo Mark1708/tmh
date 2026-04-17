@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
+	errs "github.com/mark1708/tmh/internal/errors"
 )
 
 // Resolved is a flattened, applied view of the configuration. It's what

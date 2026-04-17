@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/tmux"
 )
 
 // InitOptions filters which sessions Init creates.

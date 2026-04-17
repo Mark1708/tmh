@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"git.mark1708.ru/me/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/config"
 )
 
 // ImportMode is replace (full overwrite) or merge (additive, conflicts win

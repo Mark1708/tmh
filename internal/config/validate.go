@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 
-	errs "git.mark1708.ru/me/tmh/internal/errors"
+	errs "github.com/mark1708/tmh/internal/errors"
 )
 
 // BuiltinLayouts is the set of layout names tmh implements natively as

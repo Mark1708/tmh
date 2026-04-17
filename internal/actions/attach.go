@@ -3,7 +3,7 @@ package actions
 import (
 	"context"
 
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/tmux"
 )
 
 // Attach brings the caller into the named session. When invoked inside tmux

@@ -5,15 +5,15 @@ import (
 	"strings"
 	"testing"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/tmux"
-	"git.mark1708.ru/me/tmh/internal/tmux/tmuxtest"
-	"git.mark1708.ru/me/tmh/internal/ui/theme"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/tmux/tmuxtest"
+	"github.com/mark1708/tmh/internal/ui/theme"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"git.mark1708.ru/me/tmh/internal/ui/toast"
+	"github.com/mark1708/tmh/internal/ui/toast"
 )
 
 func TestModel_RendersWithoutPanic(t *testing.T) {

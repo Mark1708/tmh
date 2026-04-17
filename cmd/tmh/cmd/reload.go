@@ -6,10 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"git.mark1708.ru/me/tmh/internal/actions"
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/state"
-	"git.mark1708.ru/me/tmh/internal/xdg"
+	"github.com/mark1708/tmh/internal/actions"
+	"github.com/mark1708/tmh/internal/i18n"
+	shellpkg "github.com/mark1708/tmh/internal/shell"
+	"github.com/mark1708/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/xdg"
 
 	"github.com/spf13/cobra"
 )
@@ -35,7 +36,7 @@ func newReloadCmd() *cobra.Command {
 				tmuxOnly = true
 			}
 			if rcFile == "" {
-				rcFile = filepath.Join(os.Getenv("HOME"), ".zshrc")
+				rcFile = shellpkg.DefaultRCFile()
 			}
 			if tmuxConf == "" {
 				tmuxConf = filepath.Join(os.Getenv("HOME"), ".tmux.conf")

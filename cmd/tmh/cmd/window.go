@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/tmux"
 
 	"github.com/spf13/cobra"
 )

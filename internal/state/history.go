@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"git.mark1708.ru/me/tmh/internal/xdg"
+	"github.com/mark1708/tmh/internal/xdg"
 )
 
 // HistoryEntry is one record in the persistent action history JSONL file.
@@ -115,7 +115,7 @@ func (s *HistoryStore) Append(e HistoryEntry) error {
 		return fmt.Errorf("history: marshal: %w", err)
 	}
 
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("history: open for append: %w", err)
 	}

@@ -269,8 +269,6 @@
   "doctor.server.stopped": "tmux server not running (will start on first action)",
   "doctor.fd.missing": "fd not installed (optional, used for file-picker)",
   "doctor.notifier.missing": "terminal-notifier not installed (optional, used for tmh watch)",
-  "doctor.goprivate.set": "GOPRIVATE includes git.mark1708.ru",
-  "doctor.goprivate.unset": "GOPRIVATE does not include git.mark1708.ru (needed only for `go install` from self-hosted source)",
   "doctor.tmux_integration_header": "tmux integration:",
   "doctor.failed": "one or more checks failed",
 

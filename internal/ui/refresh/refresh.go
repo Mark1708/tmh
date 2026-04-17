@@ -17,8 +17,8 @@ import (
 	"fmt"
 	"time"
 
-	"git.mark1708.ru/me/tmh/internal/tmux"
-	"git.mark1708.ru/me/tmh/internal/ui/pane"
+	"github.com/mark1708/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/ui/pane"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

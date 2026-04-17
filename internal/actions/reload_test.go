@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"git.mark1708.ru/me/tmh/internal/state"
-	"git.mark1708.ru/me/tmh/internal/tmux"
-	"git.mark1708.ru/me/tmh/internal/tmux/tmuxtest"
+	"github.com/mark1708/tmh/internal/state"
+	"github.com/mark1708/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/tmux/tmuxtest"
 )
 
 func TestReload_ShellIdlePanes(t *testing.T) {

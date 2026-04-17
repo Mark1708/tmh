@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/tmux"
-	"git.mark1708.ru/me/tmh/internal/tmux/tmuxtest"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/tmux"
+	"github.com/mark1708/tmh/internal/tmux/tmuxtest"
 )
 
 func TestAttach_OutsideTmux(t *testing.T) {

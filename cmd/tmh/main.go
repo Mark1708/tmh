@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 
-	"git.mark1708.ru/me/tmh/cmd/tmh/cmd"
-	"git.mark1708.ru/me/tmh/internal/config"
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/slogx"
-	"git.mark1708.ru/me/tmh/internal/ui/errrender"
-	"git.mark1708.ru/me/tmh/internal/xdg"
+	"github.com/mark1708/tmh/cmd/tmh/cmd"
+	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/slogx"
+	"github.com/mark1708/tmh/internal/ui/errrender"
+	"github.com/mark1708/tmh/internal/xdg"
 )
 
 // Version is set at build time via -ldflags "-X main.Version=...".

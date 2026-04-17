@@ -3,11 +3,11 @@ package ui
 import (
 	"time"
 
-	"git.mark1708.ru/me/tmh/internal/i18n"
-	"git.mark1708.ru/me/tmh/internal/ui/errrender"
-	"git.mark1708.ru/me/tmh/internal/ui/refresh"
-	"git.mark1708.ru/me/tmh/internal/ui/theme"
-	"git.mark1708.ru/me/tmh/internal/ui/toast"
+	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/ui/errrender"
+	"github.com/mark1708/tmh/internal/ui/refresh"
+	"github.com/mark1708/tmh/internal/ui/theme"
+	"github.com/mark1708/tmh/internal/ui/toast"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

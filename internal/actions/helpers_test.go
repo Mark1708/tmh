@@ -1,6 +1,6 @@
 package actions
 
-import "git.mark1708.ru/me/tmh/internal/config"
+import "github.com/mark1708/tmh/internal/config"
 
 // liveSnapshotFromPaths builds a synthetic LiveSnapshot where each path
 // becomes a session "s<i>" with a single window "w" at that path. Useful
