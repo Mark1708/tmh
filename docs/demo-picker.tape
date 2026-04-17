@@ -23,13 +23,14 @@ Type "tmux new-session -d -s infra -c ~/ops"
 Enter
 Type "clear"
 Enter
-Show
-Sleep 400ms
 
-# Chapter card
-Type 'printf "\033[2m▸ bare \`tmh\` → fuzzy picker (TTY + tmux running)\033[0m\n"'
+# Chapter card — emitted while Hidden so only the dim caption reaches
+# the viewer, never the `printf` itself.
+Type 'printf "\033[2m▸ bare \`tmh\` → fuzzy picker (TTY + tmux running)\033[0m\n\n"'
 Enter
-Sleep 1200ms
+Sleep 200ms
+Show
+Sleep 1400ms
 
 Type "tmh"
 Enter

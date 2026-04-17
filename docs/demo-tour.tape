@@ -35,13 +35,14 @@ Type "tmh init >/dev/null"
 Enter
 Type "clear"
 Enter
-Show
-Sleep 400ms
 
 # ── Act 1 — Launch the dashboard ────────────────────────────────────────
-Type 'printf "\033[2m▸ tmh --dashboard — full TUI\033[0m\n"'
+# Chapter card emitted while Hidden — only the dim caption surfaces.
+Type 'printf "\033[2m▸ tmh --dashboard — full TUI\033[0m\n\n"'
 Enter
-Sleep 1000ms
+Sleep 200ms
+Show
+Sleep 1200ms
 
 Type "tmh --dashboard"
 Enter

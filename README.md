@@ -12,10 +12,18 @@
 Русская версия — [README.ru.md](./README.ru.md).
 
 <p align="center">
-  <img src="./docs/demo-picker.gif" alt="tmh picker" width="760">
+  <img src="./docs/demo-picker.gif" alt="tmh picker — bare tmh opens a fuzzy session picker" width="760">
+  <br><sub><b>picker</b> — bare <code>tmh</code> opens a fuzzy session picker</sub>
 </p>
+
 <p align="center">
-  <sub><code>docs/demo-tour.gif</code> — full dashboard walkthrough · <code>docs/demo-workflow.gif</code> — drift detection and resolution</sub>
+  <img src="./docs/demo-tour.gif" alt="tmh dashboard tour — help, palette, settings, create, kill, undo" width="760">
+  <br><sub><b>tour</b> — full TUI: help overlay, tree navigation, palette, new-session wizard, settings, theme cycle, kill + undo, history</sub>
+</p>
+
+<p align="center">
+  <img src="./docs/demo-workflow.gif" alt="tmh drift workflow — config → live → diff → freeze" width="760">
+  <br><sub><b>workflow</b> — declare in YAML, <code>tmh init</code>, introduce drift, <code>tmh diff</code> detects it, <code>tmh freeze</code> captures it back</sub>
 </p>
 
 tmh exists because the zsh aliases around `tmux` stop scaling around

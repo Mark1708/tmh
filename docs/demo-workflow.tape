@@ -33,21 +33,26 @@ Type "EOF"
 Enter
 Type "clear"
 Enter
-Show
-Sleep 400ms
 
 # ── Act 1 — Declared config ─────────────────────────────────────────────
-Type 'printf "\033[2m▸ config.yml — declared state\033[0m\n"'
+# Chapter cards are emitted while Hide is active — only the dim caption
+# surfaces to the viewer, never the `printf` command itself.
+Type 'printf "\033[2m▸ config.yml — declared state\033[0m\n\n"'
 Enter
-Sleep 800ms
+Sleep 200ms
+Show
+Sleep 1000ms
 Type "cat ~/.config/tmh/config.yml"
 Enter
 Sleep 2500ms
 
 # ── Act 2 — Bring it up ─────────────────────────────────────────────────
-Type 'printf "\n\033[2m▸ tmh init — live comes up from config\033[0m\n"'
+Hide
+Type 'printf "\n\033[2m▸ tmh init — live comes up from config\033[0m\n\n"'
 Enter
-Sleep 600ms
+Sleep 200ms
+Show
+Sleep 1000ms
 Type "tmh init"
 Enter
 Sleep 1500ms
@@ -56,47 +61,65 @@ Enter
 Sleep 2000ms
 
 # ── Act 3 — Introduce drift by hand (simulates a real workflow change) ─
-Type 'printf "\n\033[2m▸ rename server → renamed live (drift!)\033[0m\n"'
+Hide
+Type 'printf "\n\033[2m▸ rename server → renamed live (drift!)\033[0m\n\n"'
 Enter
-Sleep 600ms
+Sleep 200ms
+Show
+Sleep 1000ms
 Type "tmux rename-window -t api:0 renamed"
 Enter
-Sleep 800ms
+Sleep 1000ms
 
 # ── Act 4 — Detect ──────────────────────────────────────────────────────
-Type 'printf "\n\033[2m▸ tmh diff — drift is surfaced\033[0m\n"'
+Hide
+Type 'printf "\n\033[2m▸ tmh diff — drift is surfaced\033[0m\n\n"'
 Enter
-Sleep 600ms
+Sleep 200ms
+Show
+Sleep 1000ms
 Type "tmh diff"
 Enter
-Sleep 2500ms
+Sleep 2800ms
 
 # ── Act 5 — Resolve by freezing live into YAML ──────────────────────────
-Type 'printf "\n\033[2m▸ tmh freeze --dry-run — preview the merge\033[0m\n"'
+Hide
+Type 'printf "\n\033[2m▸ tmh freeze --dry-run — preview the merge\033[0m\n\n"'
 Enter
-Sleep 600ms
+Sleep 200ms
+Show
+Sleep 1000ms
 Type "tmh freeze --dry-run"
 Enter
 Sleep 2500ms
 
-Type 'printf "\n\033[2m▸ tmh freeze — write it into config.yml\033[0m\n"'
+Hide
+Type 'printf "\n\033[2m▸ tmh freeze — write it into config.yml\033[0m\n\n"'
 Enter
-Sleep 600ms
+Sleep 200ms
+Show
+Sleep 1000ms
 Type "tmh freeze"
 Enter
 Sleep 1500ms
 
-Type 'printf "\n\033[2m▸ cat config.yml — renamed captured, comments preserved\033[0m\n"'
+Hide
+Type 'printf "\n\033[2m▸ cat config.yml — renamed captured, comments preserved\033[0m\n\n"'
 Enter
-Sleep 600ms
+Sleep 200ms
+Show
+Sleep 1000ms
 Type "cat ~/.config/tmh/config.yml"
 Enter
 Sleep 3000ms
 
 # ── Act 6 — Prove drift is now resolved ─────────────────────────────────
-Type 'printf "\n\033[2m▸ tmh diff — back to ok\033[0m\n"'
+Hide
+Type 'printf "\n\033[2m▸ tmh diff — back to ok\033[0m\n\n"'
 Enter
-Sleep 600ms
+Sleep 200ms
+Show
+Sleep 1000ms
 Type "tmh diff"
 Enter
 Sleep 2500ms

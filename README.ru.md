@@ -12,10 +12,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
 <p align="center">
-  <img src="./docs/demo-picker.gif" alt="tmh picker" width="760">
+  <img src="./docs/demo-picker.gif" alt="tmh picker — голый tmh открывает fuzzy picker" width="760">
+  <br><sub><b>picker</b> — голый <code>tmh</code> открывает fuzzy picker сессий</sub>
 </p>
+
 <p align="center">
-  <sub><code>docs/demo-tour.gif</code> — полный dashboard walkthrough · <code>docs/demo-workflow.gif</code> — drift detection и его разрешение</sub>
+  <img src="./docs/demo-tour.gif" alt="tmh dashboard tour — help, palette, settings, create, kill, undo" width="760">
+  <br><sub><b>tour</b> — полный TUI: help overlay, навигация по дереву, палитра, мастер создания сессии, settings, смена темы, kill + undo, история</sub>
+</p>
+
+<p align="center">
+  <img src="./docs/demo-workflow.gif" alt="tmh drift workflow — config → live → diff → freeze" width="760">
+  <br><sub><b>workflow</b> — объяви в YAML, <code>tmh init</code>, сломай live, <code>tmh diff</code> ловит drift, <code>tmh freeze</code> захватывает назад</sub>
 </p>
 
 Собран потому что zsh-функции вокруг `tmux` плохо масштабируются: один
