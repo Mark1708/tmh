@@ -17,10 +17,33 @@ type Config struct {
 	Layouts   map[string]Layout  `yaml:"layouts,omitempty"`
 	Profiles  map[string]Profile `yaml:"profiles,omitempty"`
 	Sessions  map[string]Session `yaml:"sessions,omitempty"`
+	Discover  []DiscoverRule     `yaml:"discover,omitempty"`
 
 	// Node holds the raw yaml.v3 document root for comment-preserving writes.
 	// Populated by the parser; not marshalled.
 	Node *yaml.Node `yaml:"-"`
+}
+
+// DiscoverRule auto-generates virtual sessions from the filesystem so users
+// don't have to enumerate every project in config.yml. A rule points at a
+// glob pattern (or optionally the zoxide database) and each directory it
+// matches becomes a session named after its basename.
+//
+// The virtual entries are shown by `tmh ls` and are attachable like any
+// declared session; `tmh diff` ignores them (they're not drift targets).
+type DiscoverRule struct {
+	// Path is a glob pattern — e.g. "~/work/*" matches every child of
+	// ~/work. Tilde is expanded; relative paths are resolved against $HOME.
+	// Supported metacharacters match Go's filepath.Glob (no **).
+	Path string `yaml:"path,omitempty"`
+	// Template references a Templates[<name>] entry whose fields seed each
+	// discovered session's single implicit window.
+	Template string `yaml:"template,omitempty"`
+	// Zoxide, when true, additionally pulls the top N scored directories
+	// from the zoxide binary (graceful no-op when zoxide is not installed).
+	Zoxide bool `yaml:"zoxide,omitempty"`
+	// ZoxideLimit caps how many zoxide entries are pulled (default 20).
+	ZoxideLimit int `yaml:"zoxide_limit,omitempty"`
 }
 
 // Defaults captures global fallbacks that apply when a field is unset deeper

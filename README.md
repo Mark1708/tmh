@@ -10,8 +10,11 @@
 
 Русская версия: [README.ru.md](./README.ru.md).
 
-<!-- TODO: replace with rendered VHS demo -->
-<!-- ![demo](./docs/demo.gif) -->
+<p align="center">
+  <img src="./docs/demo-picker.gif" alt="tmh picker flow" width="720">
+</p>
+
+<sub>Three scripted demos live in <code>docs/*.tape</code> — render with <code>make demo</code> (requires <a href="https://github.com/charmbracelet/vhs"><code>vhs</code></a>).</sub>
 
 ## Why tmh?
 

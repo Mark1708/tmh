@@ -20,7 +20,14 @@ type ListedSession struct {
 	Live       bool
 	Attached   bool
 	Configured bool
-	Windows    []ListedWindow
+	// Discovered is true when the session is an auto-generated candidate
+	// from a DiscoverRule (glob or zoxide), not a declared session. Such
+	// entries are attachable but are not drift-checked.
+	Discovered bool
+	// Dir is the candidate attach path for discovered sessions (for
+	// declared and live sessions the attach path is derived elsewhere).
+	Dir     string
+	Windows []ListedWindow
 }
 
 // ListedWindow combines config + live data for one window.
@@ -115,6 +122,22 @@ func BuildListing(ctx context.Context, r tmux.Runner, cfg *config.Config, profil
 			})
 		}
 		out.Sessions = append(out.Sessions, sess)
+	}
+
+	// Discovered candidates go after concrete sessions so `tmh ls` shows
+	// the declared/live surface first. Neither live nor attached by
+	// definition — they only become live when the user attaches.
+	if discovered, err := config.ExpandDiscoverRules(ctx, cfg, config.DefaultZoxideRunner{}); err == nil {
+		for _, d := range discovered {
+			if seen[d.Name] {
+				continue
+			}
+			out.Sessions = append(out.Sessions, ListedSession{
+				Name:       d.Name,
+				Discovered: true,
+				Dir:        d.Path,
+			})
+		}
 	}
 
 	return out, nil

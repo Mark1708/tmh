@@ -62,6 +62,24 @@
       "additionalProperties": false,
       "type": "object"
     },
+    "DiscoverRule": {
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "template": {
+          "type": "string"
+        },
+        "zoxide": {
+          "type": "boolean"
+        },
+        "zoxide_limit": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
     "DisplayConfig": {
       "properties": {
         "show_processes_in_tree": {
@@ -379,6 +397,12 @@
         "$ref": "#/$defs/Session"
       },
       "type": "object"
+    },
+    "discover": {
+      "items": {
+        "$ref": "#/$defs/DiscoverRule"
+      },
+      "type": "array"
     }
   },
   "additionalProperties": false,
