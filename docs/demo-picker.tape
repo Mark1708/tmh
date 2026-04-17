@@ -10,6 +10,8 @@ Set Theme "Catppuccin Mocha"
 
 # Start with a tmux server running so `tmh` (bare) routes to the picker.
 Hide
+Type "mkdir -p ~/work/api ~/work/web ~/ops"
+Enter
 Type "tmux new-session -d -s api -c ~/work/api"
 Enter
 Type "tmux new-session -d -s web -c ~/work/web"
