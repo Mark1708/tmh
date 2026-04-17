@@ -24,7 +24,17 @@ type WriteOptions struct {
 	// PreserveBlanks, when true, restores blank lines between top-level keys
 	// based on the original file's layout.
 	PreserveBlanks bool
+	// NoSchemaHeader suppresses the yaml-language-server `$schema` comment
+	// that Write otherwise injects as the file's first line. Callers that
+	// round-trip configs (sync, import) leave this false so the schema
+	// hint stays; callers that write machine-consumed YAML may set it.
+	NoSchemaHeader bool
 }
+
+// schemaHeader is the one-line hint that turns on JSON-Schema-powered
+// autocompletion in VS Code / Helix / Neovim (yaml-language-server
+// respects this modeline).
+const schemaHeader = "# yaml-language-server: $schema=" + SchemaID
 
 // Write persists the yaml.Node tree on c atomically to path. If PreserveBlanks
 // is true, the caller should have captured the original file content via the
@@ -47,6 +57,12 @@ func Write(c *Config, path string, opts WriteOptions) error {
 		if orig, err := os.ReadFile(path); err == nil {
 			out = reinjectBlankLines(out, orig)
 		}
+	}
+	if !opts.NoSchemaHeader && !bytes.HasPrefix(out, []byte("# yaml-language-server:")) {
+		// Prepend the schema modeline so editors pick up autocompletion
+		// on first save — without it users would need to add it by hand.
+		head := []byte(schemaHeader + "\n")
+		out = append(head, out...)
 	}
 
 	// ensure dir exists

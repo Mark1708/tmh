@@ -164,6 +164,7 @@ type Window struct {
 	Env     map[string]string `yaml:"env,omitempty"`
 	Focus   bool              `yaml:"focus,omitempty"`
 	Panes   []Pane            `yaml:"panes,omitempty"`
+	Hooks   Hooks             `yaml:"hooks,omitempty"`
 }
 
 // Pane describes an explicit per-pane entry inside a Window.panes[] list.
@@ -174,6 +175,7 @@ type Pane struct {
 	Command string            `yaml:"command,omitempty"`
 	Env     map[string]string `yaml:"env,omitempty"`
 	Focus   bool              `yaml:"focus,omitempty"`
+	Hooks   Hooks             `yaml:"hooks,omitempty"`
 }
 
 // Hooks lists commands to run at lifecycle points. A YAML scalar is coerced

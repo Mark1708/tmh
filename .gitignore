@@ -14,3 +14,4 @@ coverage.html
 /state.db
 /state.db-*
 /testdata/tmp/
+tmh-gen

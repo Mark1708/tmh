@@ -82,12 +82,39 @@ func EnsureTrusted(ctx context.Context, db *state.DB, hc HookContext, hooksList 
 	return db.MarkTrusted(ctx, hc.ConfigPath, hash)
 }
 
+// HookScope identifies the lifecycle point a hook runs at. Used for log
+// prefixes and to disambiguate error messages when hooks are defined at
+// session, window, and pane levels simultaneously.
+type HookScope string
+
+const (
+	ScopeSession HookScope = "session"
+	ScopeWindow  HookScope = "window"
+	ScopePane    HookScope = "pane"
+)
+
+// HookEvent identifies which lifecycle event fired.
+type HookEvent string
+
+const (
+	EventOnCreate  HookEvent = "on_create"
+	EventOnAttach  HookEvent = "on_attach"
+	EventOnDestroy HookEvent = "on_destroy"
+)
+
 // RunHooks executes a list of shell commands sequentially. Each runs in `sh
 // -c` with the supplied env and working directory. Output is forwarded to
 // the supplied writers.
 //
 // Trust enforcement is the caller's responsibility (use EnsureTrusted first).
 func RunHooks(ctx context.Context, hc HookContext, opts HookOptions, hooks []string, stdout, stderr io.Writer) error {
+	return RunScopedHooks(ctx, hc, opts, "", "", hooks, stdout, stderr)
+}
+
+// RunScopedHooks is RunHooks with scope + event metadata prefixed to every
+// error so diagnostics from deeply nested hooks (session/window/pane) stay
+// readable. Pass empty scope/event to fall back to the bare behaviour.
+func RunScopedHooks(ctx context.Context, hc HookContext, opts HookOptions, scope HookScope, event HookEvent, hooks []string, stdout, stderr io.Writer) error {
 	if opts.NoHooks || len(hooks) == 0 {
 		return nil
 	}
@@ -101,6 +128,9 @@ func RunHooks(ctx context.Context, hc HookContext, opts HookOptions, hooks []str
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
 		if err := cmd.Run(); err != nil {
+			if scope != "" || event != "" {
+				return fmt.Errorf("%s %s hook %q: %w", scope, event, h, err)
+			}
 			return fmt.Errorf("hook %q: %w", h, err)
 		}
 	}
@@ -108,8 +138,8 @@ func RunHooks(ctx context.Context, hc HookContext, opts HookOptions, hooks []str
 }
 
 // CollectHookCommands returns every hook command across the resolved config
-// (defaults, profile, sessions). Used to render the trust prompt's full
-// inventory.
+// (sessions, windows, panes). Used to render the trust prompt's full
+// inventory so the user sees the complete blast radius before approving.
 func CollectHookCommands(cfg *config.Config, profile string) []string {
 	if cfg == nil {
 		return nil
@@ -119,10 +149,19 @@ func CollectHookCommands(cfg *config.Config, profile string) []string {
 		return nil
 	}
 	var out []string
+	appendHooks := func(h config.Hooks) {
+		out = append(out, h.OnCreate...)
+		out = append(out, h.OnAttach...)
+		out = append(out, h.OnDestroy...)
+	}
 	for _, s := range resolved.Sessions {
-		out = append(out, s.Hooks.OnCreate...)
-		out = append(out, s.Hooks.OnAttach...)
-		out = append(out, s.Hooks.OnDestroy...)
+		appendHooks(s.Hooks)
+		for _, w := range s.Windows {
+			appendHooks(w.Hooks)
+			for _, p := range w.Panes {
+				appendHooks(p.Hooks)
+			}
+		}
 	}
 	return out
 }

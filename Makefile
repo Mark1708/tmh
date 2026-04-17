@@ -1,4 +1,4 @@
-.PHONY: build test test-race lint install clean fmt
+.PHONY: build test test-race lint install clean fmt docs schema
 
 BINARY := tmh
 CMD    := ./cmd/tmh
@@ -25,3 +25,12 @@ fmt:
 clean:
 	rm -f $(BINARY)
 	rm -rf dist/
+
+# Regenerate docs/man, docs/completions, and schemas/tmh.schema.json.
+# Run after touching the CLI flag surface or config/types.go.
+docs:
+	go run ./cmd/tmh-gen
+
+# Alias for just the JSON schema (faster feedback loop during config work).
+schema:
+	go run ./cmd/tmh-gen

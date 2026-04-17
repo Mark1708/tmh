@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mark1708/tmh/main/schemas/tmh.schema.json",
+  "$defs": {
+    "BehaviourConfig": {
+      "properties": {
+        "auto_refresh_interval": {
+          "type": "string"
+        },
+        "dry_run_default": {
+          "type": "boolean"
+        },
+        "confirm_on_kill": {
+          "type": "boolean"
+        },
+        "optimistic_rendering": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Defaults": {
+      "properties": {
+        "layout": {
+          "type": "string"
+        },
+        "shell": {
+          "type": "string"
+        },
+        "lang": {
+          "type": "string"
+        },
+        "popup": {
+          "$ref": "#/$defs/Popup"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "reload": {
+          "$ref": "#/$defs/ReloadDefaults"
+        },
+        "history": {
+          "$ref": "#/$defs/HistoryConfig"
+        },
+        "display": {
+          "$ref": "#/$defs/DisplayConfig"
+        },
+        "behaviour": {
+          "$ref": "#/$defs/BehaviourConfig"
+        },
+        "marks": {
+          "$ref": "#/$defs/MarksConfig"
+        },
+        "tmux_integration": {
+          "$ref": "#/$defs/TmuxIntegrationConfig"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "DisplayConfig": {
+      "properties": {
+        "show_processes_in_tree": {
+          "type": "boolean"
+        },
+        "show_footer_heatmap": {
+          "type": "boolean"
+        },
+        "preview_default_pane": {
+          "type": "integer"
+        },
+        "tree_density": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "HistoryConfig": {
+      "properties": {
+        "max_entries": {
+          "type": "integer"
+        },
+        "retention": {
+          "type": "string"
+        },
+        "auto_clear_on_startup": {
+          "type": "boolean"
+        },
+        "archive_on_clear": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Hooks": {
+      "properties": {
+        "on_create": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "on_attach": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "on_destroy": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Layout": {
+      "properties": {
+        "hash": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "hash"
+      ]
+    },
+    "MarksConfig": {
+      "properties": {
+        "persist_across_sessions": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Pane": {
+      "properties": {
+        "dir": {
+          "type": "string"
+        },
+        "root": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "focus": {
+          "type": "boolean"
+        },
+        "hooks": {
+          "$ref": "#/$defs/Hooks"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Popup": {
+      "properties": {
+        "width": {
+          "type": "string"
+        },
+        "height": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Profile": {
+      "properties": {
+        "groups": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "defaults": {
+          "$ref": "#/$defs/Defaults"
+        },
+        "hooks": {
+          "$ref": "#/$defs/Hooks"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "ReloadDefaults": {
+      "properties": {
+        "busy_ttl": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Session": {
+      "properties": {
+        "group": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "root": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "defaults": {
+          "$ref": "#/$defs/Defaults"
+        },
+        "hooks": {
+          "$ref": "#/$defs/Hooks"
+        },
+        "windows": {
+          "$ref": "#/$defs/Windows"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "TmuxIntegrationConfig": {
+      "properties": {
+        "default_terminal": {
+          "type": "string"
+        },
+        "escape_time_ms": {
+          "type": "integer"
+        },
+        "mouse_mode": {
+          "type": "boolean"
+        },
+        "status_right_integration": {
+          "type": "boolean"
+        },
+        "base_index": {
+          "type": "integer"
+        },
+        "pane_base_index": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Window": {
+      "properties": {
+        "dir": {
+          "type": "string"
+        },
+        "root": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "layout": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        },
+        "extends": {
+          "type": "string"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "focus": {
+          "type": "boolean"
+        },
+        "panes": {
+          "items": {
+            "$ref": "#/$defs/Pane"
+          },
+          "type": "array"
+        },
+        "hooks": {
+          "$ref": "#/$defs/Hooks"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Windows": {
+      "properties": {
+        "Order": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "Entries": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Window"
+          },
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "Order",
+        "Entries"
+      ]
+    }
+  },
+  "properties": {
+    "version": {
+      "type": "integer"
+    },
+    "roots": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "defaults": {
+      "$ref": "#/$defs/Defaults"
+    },
+    "templates": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Window"
+      },
+      "type": "object"
+    },
+    "layouts": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Layout"
+      },
+      "type": "object"
+    },
+    "profiles": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Profile"
+      },
+      "type": "object"
+    },
+    "sessions": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Session"
+      },
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "version"
+  ],
+  "title": "tmh configuration",
+  "description": "Schema for tmh's config.yml — see https://github.com/mark1708/tmh for the full reference."
+}

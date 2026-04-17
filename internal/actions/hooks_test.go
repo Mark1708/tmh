@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	errs "github.com/mark1708/tmh/internal/errors"
@@ -117,5 +118,63 @@ func TestRunHooks_EnvOverrides(t *testing.T) {
 	}
 	if out.String() != "bar\n" {
 		t.Fatalf("got %q", out.String())
+	}
+}
+
+func TestRunScopedHooks_ErrorIncludesScopeAndEvent(t *testing.T) {
+	out := &bytes.Buffer{}
+	err := RunScopedHooks(
+		context.Background(), HookContext{}, HookOptions{},
+		ScopeWindow, EventOnCreate,
+		[]string{"false"}, out, out,
+	)
+	if err == nil {
+		t.Fatal("expected error from failing hook")
+	}
+	if !strings.Contains(err.Error(), "window") || !strings.Contains(err.Error(), "on_create") {
+		t.Fatalf("error missing scope/event context: %v", err)
+	}
+}
+
+func TestRunScopedHooks_EmptyScopeMatchesLegacyFormat(t *testing.T) {
+	out := &bytes.Buffer{}
+	err := RunScopedHooks(
+		context.Background(), HookContext{}, HookOptions{},
+		"", "", []string{"false"}, out, out,
+	)
+	if err == nil {
+		t.Fatal("expected error from failing hook")
+	}
+	// Legacy callers (RunHooks) pass empty scope/event — error should start
+	// with "hook", not "<scope>".
+	if !strings.HasPrefix(err.Error(), "hook ") {
+		t.Fatalf("expected legacy-style error prefix, got %v", err)
+	}
+}
+
+func TestCollectHookCommands_IncludesWindowAndPaneScopes(t *testing.T) {
+	cfg := parseConfig(t, `
+version: 1
+sessions:
+  api:
+    hooks:
+      on_create: ["session-hook"]
+    windows:
+      server:
+        dir: /tmp
+        hooks:
+          on_create: ["window-hook"]
+        panes:
+          - dir: /tmp
+            hooks:
+              on_create: ["pane-hook"]
+`)
+	got := CollectHookCommands(cfg, "")
+	want := map[string]bool{"session-hook": true, "window-hook": true, "pane-hook": true}
+	for _, h := range got {
+		delete(want, h)
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing scope(s) in collected hooks: %v (got %v)", want, got)
 	}
 }

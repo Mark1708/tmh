@@ -32,6 +32,7 @@ type ResolvedWindow struct {
 	Command string
 	Env     map[string]string
 	Focus   bool
+	Hooks   Hooks
 	Panes   []ResolvedPane
 }
 
@@ -41,6 +42,7 @@ type ResolvedPane struct {
 	Command string
 	Env     map[string]string
 	Focus   bool
+	Hooks   Hooks
 }
 
 // Resolve applies the layered configuration model to produce a Resolved view.
@@ -142,6 +144,7 @@ func resolveWindow(c *Config, sessDir string, sessDefaults Defaults, sessEnv map
 		Command: w.Command,
 		Env:     env,
 		Focus:   w.Focus,
+		Hooks:   w.Hooks,
 	}
 	for _, p := range w.Panes {
 		pdir, err := paneDir(c.Roots, p, dir)
@@ -153,6 +156,7 @@ func resolveWindow(c *Config, sessDir string, sessDefaults Defaults, sessEnv map
 			Command: p.Command,
 			Env:     mergeEnv(env, p.Env),
 			Focus:   p.Focus,
+			Hooks:   p.Hooks,
 		})
 	}
 	return rw, nil
@@ -179,6 +183,12 @@ func applyTemplate(tmpl, w Window) Window {
 	if len(w.Panes) == 0 {
 		w.Panes = tmpl.Panes
 	}
+	// Concatenate template hooks first, then window hooks — template is the
+	// "base", so its hooks run before window-specific ones at each lifecycle
+	// point. Duplicates are preserved; the user can dedupe in the template.
+	w.Hooks.OnCreate = append(append([]string{}, tmpl.Hooks.OnCreate...), w.Hooks.OnCreate...)
+	w.Hooks.OnAttach = append(append([]string{}, tmpl.Hooks.OnAttach...), w.Hooks.OnAttach...)
+	w.Hooks.OnDestroy = append(append([]string{}, tmpl.Hooks.OnDestroy...), w.Hooks.OnDestroy...)
 	return w
 }
 
