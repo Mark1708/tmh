@@ -1,6 +1,7 @@
 # VHS tape — the unique-to-tmh workflow: declare → live → drift → detect
-# → resolve (sync|freeze). This is the one that explains why tmh exists
-# vs tmuxinator/tmuxp.
+# → resolve (sync|freeze). Uses a `card` helper that clears the screen
+# inside its own body so the typed `card "..."` command never leaks into
+# the captured frames.
 
 Output docs/demo-workflow.gif
 
@@ -11,8 +12,10 @@ Set Theme "Catppuccin Mocha"
 Set TypingSpeed 50ms
 Set PlaybackSpeed 1
 
-# ── Bootstrap: clean state ──────────────────────────────────────────────
+# ── Bootstrap ──────────────────────────────────────────────────────────
 Hide
+Type 'card() { clear; printf "\033[2m▸ %s\033[0m\n\n" "$*"; }'
+Enter
 Type "mkdir -p ~/.config/tmh ~/work/api ~/work/api-renamed"
 Enter
 Type "cat > ~/.config/tmh/config.yml <<'EOF'"
@@ -34,23 +37,21 @@ Enter
 Type "clear"
 Enter
 
-# ── Act 1 — Declared config ─────────────────────────────────────────────
-# Chapter cards are emitted while Hide is active — only the dim caption
-# surfaces to the viewer, never the `printf` command itself.
-Type 'printf "\033[2m▸ config.yml — declared state\033[0m\n\n"'
+# ── Act 1 — Declared config ────────────────────────────────────────────
+Type 'card "config.yml — declared state"'
 Enter
-Sleep 200ms
+Sleep 300ms
 Show
 Sleep 1000ms
 Type "cat ~/.config/tmh/config.yml"
 Enter
-Sleep 2500ms
+Sleep 3000ms
 
-# ── Act 2 — Bring it up ─────────────────────────────────────────────────
+# ── Act 2 — Bring it up ────────────────────────────────────────────────
 Hide
-Type 'printf "\n\033[2m▸ tmh init — live comes up from config\033[0m\n\n"'
+Type 'card "tmh init — live comes up from config"'
 Enter
-Sleep 200ms
+Sleep 300ms
 Show
 Sleep 1000ms
 Type "tmh init"
@@ -58,66 +59,66 @@ Enter
 Sleep 1500ms
 Type "tmh ls"
 Enter
-Sleep 2000ms
+Sleep 2500ms
 
-# ── Act 3 — Introduce drift by hand (simulates a real workflow change) ─
+# ── Act 3 — Introduce drift by hand ────────────────────────────────────
 Hide
-Type 'printf "\n\033[2m▸ rename server → renamed live (drift!)\033[0m\n\n"'
+Type 'card "rename server → renamed live (drift!)"'
 Enter
-Sleep 200ms
+Sleep 300ms
 Show
 Sleep 1000ms
 Type "tmux rename-window -t api:0 renamed"
 Enter
-Sleep 1000ms
+Sleep 1200ms
 
-# ── Act 4 — Detect ──────────────────────────────────────────────────────
+# ── Act 4 — Detect ─────────────────────────────────────────────────────
 Hide
-Type 'printf "\n\033[2m▸ tmh diff — drift is surfaced\033[0m\n\n"'
+Type 'card "tmh diff — drift is surfaced"'
 Enter
-Sleep 200ms
+Sleep 300ms
 Show
 Sleep 1000ms
 Type "tmh diff"
 Enter
-Sleep 2800ms
+Sleep 3000ms
 
-# ── Act 5 — Resolve by freezing live into YAML ──────────────────────────
+# ── Act 5 — Resolve by freezing live into YAML ─────────────────────────
 Hide
-Type 'printf "\n\033[2m▸ tmh freeze --dry-run — preview the merge\033[0m\n\n"'
+Type 'card "tmh freeze --dry-run — preview the merge"'
 Enter
-Sleep 200ms
+Sleep 300ms
 Show
 Sleep 1000ms
 Type "tmh freeze --dry-run"
 Enter
-Sleep 2500ms
+Sleep 2800ms
 
 Hide
-Type 'printf "\n\033[2m▸ tmh freeze — write it into config.yml\033[0m\n\n"'
+Type 'card "tmh freeze — write it into config.yml"'
 Enter
-Sleep 200ms
+Sleep 300ms
 Show
 Sleep 1000ms
 Type "tmh freeze"
 Enter
-Sleep 1500ms
+Sleep 1800ms
 
 Hide
-Type 'printf "\n\033[2m▸ cat config.yml — renamed captured, comments preserved\033[0m\n\n"'
+Type 'card "cat config.yml — renamed captured, comments preserved"'
 Enter
-Sleep 200ms
+Sleep 300ms
 Show
 Sleep 1000ms
 Type "cat ~/.config/tmh/config.yml"
 Enter
-Sleep 3000ms
+Sleep 3500ms
 
-# ── Act 6 — Prove drift is now resolved ─────────────────────────────────
+# ── Act 6 — Prove drift is now resolved ────────────────────────────────
 Hide
-Type 'printf "\n\033[2m▸ tmh diff — back to ok\033[0m\n\n"'
+Type 'card "tmh diff — back to ok"'
 Enter
-Sleep 200ms
+Sleep 300ms
 Show
 Sleep 1000ms
 Type "tmh diff"
