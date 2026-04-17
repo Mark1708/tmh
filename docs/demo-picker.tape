@@ -1,16 +1,19 @@
-# VHS tape — bare-tmh picker flow.
-# Render locally with `vhs docs/demo-picker.tape` → docs/demo-picker.gif.
+# VHS tape — bare-tmh fuzzy picker.
+# Render via `make demo` (uses scripts/render-demos.sh which sandboxes
+# HOME and TMUX_TMPDIR so your real tmux server / config.yml stay safe).
 
 Output docs/demo-picker.gif
 
 Set FontSize 14
-Set Width 1100
-Set Height 560
+Set Width 1280
+Set Height 720
 Set Theme "Catppuccin Mocha"
+Set TypingSpeed 60ms
+Set PlaybackSpeed 1
 
-# Start with a tmux server running so `tmh` (bare) routes to the picker.
+# Bootstrap a small live tmux with three sessions.
 Hide
-Type "mkdir -p ~/work/api ~/work/web ~/ops"
+Type "mkdir -p ~/work/api ~/work/web ~/ops && cd ~"
 Enter
 Type "tmux new-session -d -s api -c ~/work/api"
 Enter
@@ -21,27 +24,29 @@ Enter
 Type "clear"
 Enter
 Show
+Sleep 400ms
 
-Type "tmh"
+# Chapter card
+Type 'printf "\033[2m▸ bare \`tmh\` → fuzzy picker (TTY + tmux running)\033[0m\n"'
 Enter
 Sleep 1200ms
 
-# Fuzzy filter — land on "api"
-Type "a"
-Sleep 400ms
-Type "p"
-Sleep 400ms
-Type "i"
-Sleep 800ms
+Type "tmh"
+Enter
+Sleep 1800ms
 
-# Confirm with Enter → tmux attach
+# Type a fuzzy filter — "a" narrows to "api".
+Type "a"
+Sleep 700ms
+
+# Attach
 Enter
 Sleep 1500ms
 
-# Detach back to shell so the demo ends cleanly
-Type "C-b"
+# Detach politely back to the shell
+Ctrl+B
 Type "d"
-Sleep 500ms
+Sleep 800ms
 
 Hide
 Type "tmux kill-server 2>/dev/null; clear"
