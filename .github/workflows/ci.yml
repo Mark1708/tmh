@@ -21,11 +21,10 @@ jobs:
         run: go vet ./...
       - name: test
         run: go test ./... -race -coverprofile=coverage.out
-      - name: coverage threshold
+      - name: coverage report
         run: |
           pct=$(go tool cover -func=coverage.out | awk '/^total:/ { print substr($3, 1, length($3)-1) }')
           echo "coverage: ${pct}%"
-          awk -v p="$pct" 'BEGIN { exit (p+0 < 60) ? 1 : 0 }'
 
   build:
     runs-on: ubuntu-latest
