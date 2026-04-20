@@ -46,7 +46,7 @@ Two options; pick one.
 **Option A — Gitea/Forgejo native mirror UI (recommended):**
 
 1. Open your self-hosted repo settings at
-   `https://git.mark1708.ru/me/tmh/settings`.
+   `https://github.com/Mark1708/tmh/settings`.
 2. Enable "Push mirror" → add `https://github.com/mark1708/tmh.git`,
    sync every 8h, push on every event.
 3. Auth: create a GitHub personal access token with `repo` scope and
@@ -266,7 +266,7 @@ If it fails:
   typo; fix on `main`, delete the tag with
   `git tag -d v1.0.0 && git push origin :refs/tags/v1.0.0`, re-tag.
 - **`go: module not found`** → module path mismatch; the tag points at
-  a commit where `go.mod` still says `git.mark1708.ru`. Re-tag after
+  a commit where `go.mod` still says `github.com/Mark1708/tmh`. Re-tag after
   fixing.
 
 ### 5.5 Publish the release

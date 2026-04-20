@@ -1,8 +1,8 @@
-# tmh
+# tmh — Declarative tmux session manager in YAML
 
-> Declarative tmux sessions in YAML, with live-vs-config drift detection,
-> a full-featured TUI dashboard, and a sesh-style fuzzy picker. One Go
-> binary, no plugins, no telemetry.
+> Single-binary tmux session manager: declare sessions in YAML, detect drift
+> between live state and config, reload dotfiles across all sessions.
+> Full TUI dashboard, sesh-style fuzzy picker. No plugins, no telemetry.
 
 [![CI](https://github.com/mark1708/tmh/actions/workflows/ci.yml/badge.svg)](https://github.com/mark1708/tmh/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mark1708/tmh.svg)](https://pkg.go.dev/github.com/mark1708/tmh)
@@ -31,6 +31,20 @@ session #5. nine `tm-*` aliases, one ini file, no diff, no undo, no
 sharing. tmh is the single-binary replacement: one `config.yml`, one
 tool, and a `tmh diff` that tells you what drifted so you don't find
 out by accident.
+
+One unique feature: `tmh reload --shell` sources the correct rc file in every
+live session instantly — no manual re-sourcing after dotfile changes.
+
+---
+
+## How does tmh compare?
+
+| Tool | Language | Config | Drift Detection | Dotfile Sync | Single Binary |
+|------|----------|--------|:-:|:-:|:-:|
+| **tmh** | Go | YAML | ✓ | ✓ | ✓ |
+| tmuxinator | Ruby | ERB DSL | — | — | — |
+| tmuxp | Python | YAML/JSON | — | — | — |
+| sesh | Rust | CLI flags | — | — | ✓ |
 
 ---
 

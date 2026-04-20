@@ -1,10 +1,10 @@
-# tmh — русская версия
+# tmh — декларативный менеджер сессий tmux в YAML
 
 > Английская версия: [README.md](./README.md).
 
-Декларативные сессии tmux в YAML, drift detection между live и config,
-полноценный TUI-дашборд и sesh-style fuzzy picker. Один Go-бинарь, без
-плагинов и телеметрии.
+Один Go-бинарь — менеджер сессий tmux: объявляйте сессии в YAML, обнаруживайте
+расхождения между live-состоянием и конфигом, перезагружайте dotfiles во всех
+сессиях. Полноценный TUI-дашборд, sesh-style fuzzy picker. Без плагинов и телеметрии.
 
 [![CI](https://github.com/mark1708/tmh/actions/workflows/ci.yml/badge.svg)](https://github.com/mark1708/tmh/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mark1708/tmh.svg)](https://pkg.go.dev/github.com/mark1708/tmh)
@@ -30,6 +30,20 @@
 INI-файл, 9 алиасов, нет диффа, нет undo, нет sharing. tmh — это
 single-binary замена: один `config.yml`, один тул, и `tmh diff`
 который говорит что поломалось — вместо того чтобы узнавать случайно.
+
+Уникальная фича: `tmh reload --shell` моментально перечитывает нужный rc-файл
+во всех живых сессиях — не нужно вручную ресорсить dotfiles после изменений.
+
+---
+
+## Сравнение с аналогами
+
+| Инструмент | Язык | Конфиг | Drift Detection | Dotfile Sync | Один бинарь |
+|------------|------|--------|:-:|:-:|:-:|
+| **tmh** | Go | YAML | ✓ | ✓ | ✓ |
+| tmuxinator | Ruby | ERB DSL | — | — | — |
+| tmuxp | Python | YAML/JSON | — | — | — |
+| sesh | Rust | CLI flags | — | — | ✓ |
 
 ---
 
