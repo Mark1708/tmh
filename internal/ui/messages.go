@@ -51,7 +51,7 @@ type errorMsg struct{ Err error }
 // actionDoneMsg signals an action completed successfully.
 type actionDoneMsg struct{ Text string }
 
-// undoHintMsg sets or clears the footer undo hint ("↶ kill session epcp").
+// undoHintMsg sets or clears the footer undo hint ("↶ kill session atlas").
 // An empty Text clears the hint.
 type undoHintMsg struct{ Text string }
 

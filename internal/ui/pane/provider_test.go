@@ -8,12 +8,12 @@ import (
 func TestProvider_SetAllAndGet(t *testing.T) {
 	p := New(5 * time.Second)
 	p.SetAll(map[string]Info{
-		"epcp:0.0": {Command: "nvim", Path: "/home/mark"},
-		"epcp:0.1": {Command: "zsh", Path: "/home/mark"},
+		"atlas:0.0": {Command: "nvim", Path: "/home/mark"},
+		"atlas:0.1": {Command: "zsh", Path: "/home/mark"},
 	})
-	got, ok := p.Get("epcp:0.0")
+	got, ok := p.Get("atlas:0.0")
 	if !ok {
-		t.Fatal("expected cache hit for epcp:0.0")
+		t.Fatal("expected cache hit for atlas:0.0")
 	}
 	if got.Command != "nvim" {
 		t.Errorf("expected nvim, got %q", got.Command)

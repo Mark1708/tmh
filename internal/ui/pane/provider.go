@@ -32,7 +32,7 @@ func IsIdleShell(cmd string) bool {
 
 // Provider is a thread-safe in-memory cache of pane Info entries.
 //
-// The canonical target key format is "session:window.pane" (e.g. "epcp:0.1").
+// The canonical target key format is "session:window.pane" (e.g. "atlas:0.1").
 // The Provider never calls tmux directly; all updates come from the root model
 // via SetAll after a successful batch fetch.
 type Provider struct {

@@ -85,7 +85,7 @@ type Model struct {
 	paneProvider *pane.Provider
 
 	// undoHint is the last undoable action description shown in the footer
-	// (e.g. "kill session epcp"). Empty when there is nothing to undo.
+	// (e.g. "kill session atlas"). Empty when there is nothing to undo.
 	undoHint string
 
 	// marksStore persists named marks and last-location ring to disk.

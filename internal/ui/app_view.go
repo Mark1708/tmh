@@ -91,7 +91,7 @@ func (m *Model) renderFooter() string {
 	}
 	hintsStr := strings.Join(hints, " · ")
 
-	// Undo hint (Variant 4.3): "↶ kill session epcp" when undo stack is non-empty.
+	// Undo hint (Variant 4.3): "↶ kill session atlas" when undo stack is non-empty.
 	if m.undoHint != "" {
 		hintsStr += "  " + m.st.KeyBinding.Render("u") + " ↶ " + m.st.Hint.Render(m.undoHint)
 	}
