@@ -17,7 +17,7 @@ func tmpHistoryStore(t *testing.T, opts HistoryOptions) *HistoryStore {
 
 func TestHistory_AppendAndLoad(t *testing.T) {
 	s := tmpHistoryStore(t, HistoryOptions{})
-	e := HistoryEntry{Action: "kill_session", Target: "epcp", Result: "ok", Details: "done"}
+	e := HistoryEntry{Action: "kill_session", Target: "atlas", Result: "ok", Details: "done"}
 	if err := s.Append(e); err != nil {
 		t.Fatalf("Append: %v", err)
 	}

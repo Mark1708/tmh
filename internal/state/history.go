@@ -19,7 +19,7 @@ type HistoryEntry struct {
 	Ts string `json:"ts"`
 	// Action is a short machine-readable action name (e.g. "kill_session").
 	Action string `json:"action"`
-	// Target identifies the primary object of the action (e.g. "epcp").
+	// Target identifies the primary object of the action (e.g. "atlas").
 	Target string `json:"target,omitempty"`
 	// Result is "ok" or "err".
 	Result string `json:"result"`

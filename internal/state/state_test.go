@@ -25,7 +25,7 @@ func openInMemory(t *testing.T) *DB {
 func TestEvents_InsertAndList(t *testing.T) {
 	d := openInMemory(t)
 	ctx := context.Background()
-	id1, err := d.InsertEvent(ctx, "kill_session", "epcp", `{"name":"epcp"}`)
+	id1, err := d.InsertEvent(ctx, "kill_session", "atlas", `{"name":"atlas"}`)
 	if err != nil {
 		t.Fatal(err)
 	}
