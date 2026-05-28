@@ -9,17 +9,17 @@ import (
 
 func TestWindow_UnmarshalShortForm(t *testing.T) {
 	var w Window
-	if err := yaml.Unmarshal([]byte(`"repos/lk"`), &w); err != nil {
+	if err := yaml.Unmarshal([]byte(`"repos/web"`), &w); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if w.Dir != "repos/lk" {
-		t.Fatalf("dir = %q, want %q", w.Dir, "repos/lk")
+	if w.Dir != "repos/web" {
+		t.Fatalf("dir = %q, want %q", w.Dir, "repos/web")
 	}
 }
 
 func TestWindow_UnmarshalFullForm(t *testing.T) {
 	src := `
-dir: repos/lk
+dir: repos/web
 layout: 3-pane
 command: pnpm dev
 env:
@@ -30,7 +30,7 @@ focus: true
 	if err := yaml.Unmarshal([]byte(src), &w); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if w.Dir != "repos/lk" || w.Layout != "3-pane" || w.Command != "pnpm dev" {
+	if w.Dir != "repos/web" || w.Layout != "3-pane" || w.Command != "pnpm dev" {
 		t.Fatalf("unexpected window: %+v", w)
 	}
 	if !w.Focus {
@@ -43,9 +43,9 @@ focus: true
 
 func TestWindows_PreservesOrder(t *testing.T) {
 	src := `
-lk: lk-mosru-epcp
-mdr: mdr
-filings: filings
+web: web-frontend
+api: api
+reports: reports
 kb:
   layout: 2-pane
   dir: kb-dir
@@ -54,15 +54,15 @@ kb:
 	if err := yaml.Unmarshal([]byte(src), &ws); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	want := []string{"lk", "mdr", "filings", "kb"}
+	want := []string{"web", "api", "reports", "kb"}
 	if !reflect.DeepEqual(ws.Order, want) {
 		t.Fatalf("order = %v, want %v", ws.Order, want)
 	}
 	if ws.Entries["kb"].Layout != "2-pane" {
 		t.Fatalf("kb layout lost")
 	}
-	if ws.Entries["lk"].Dir != "lk-mosru-epcp" {
-		t.Fatalf("lk short form lost")
+	if ws.Entries["web"].Dir != "web-frontend" {
+		t.Fatalf("web short form lost")
 	}
 }
 
@@ -91,13 +91,13 @@ version: 1
 roots:
   otr: /tmp/otr
 sessions:
-  epcp:
+  atlas:
     group: [work]
     root: otr
     windows:
-      lk: repos/lk
-      mdr:
-        dir: repos/mdr
+      web: repos/web
+      api:
+        dir: repos/api
         layout: 3-pane
 `
 	var c Config
@@ -110,17 +110,17 @@ sessions:
 	if c.Roots["otr"] != "/tmp/otr" {
 		t.Fatalf("roots lost")
 	}
-	sess, ok := c.Sessions["epcp"]
+	sess, ok := c.Sessions["atlas"]
 	if !ok {
-		t.Fatalf("session epcp missing")
+		t.Fatalf("session atlas missing")
 	}
 	if sess.Root != "otr" {
 		t.Fatalf("session.root = %q", sess.Root)
 	}
-	if sess.Windows.Entries["lk"].Dir != "repos/lk" {
+	if sess.Windows.Entries["web"].Dir != "repos/web" {
 		t.Fatalf("window short form broken")
 	}
-	if sess.Windows.Entries["mdr"].Layout != "3-pane" {
+	if sess.Windows.Entries["api"].Layout != "3-pane" {
 		t.Fatalf("window full form broken")
 	}
 }

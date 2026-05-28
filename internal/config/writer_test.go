@@ -17,7 +17,7 @@ roots:
   # comment before otr
   otr: /tmp/otr
 sessions:
-  epcp:
+  atlas:
     root: otr
     # comment before env
     env:
@@ -30,7 +30,7 @@ sessions:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := PathSet(c.Node, "sessions.epcp.env.KUBE", "new"); err != nil {
+	if err := PathSet(c.Node, "sessions.atlas.env.KUBE", "new"); err != nil {
 		t.Fatal(err)
 	}
 	if err := Write(c, path, WriteOptions{}); err != nil {
@@ -124,7 +124,7 @@ func TestWrite_AddAndDelete(t *testing.T) {
 
 	original := `version: 1
 sessions:
-  epcp:
+  atlas:
     root: otr
 `
 	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
@@ -135,10 +135,10 @@ sessions:
 		t.Fatal(err)
 	}
 
-	if err := PathSet(c.Node, "sessions.epcp.path", "products/x"); err != nil {
+	if err := PathSet(c.Node, "sessions.atlas.path", "products/x"); err != nil {
 		t.Fatal(err)
 	}
-	if err := PathDelete(c.Node, "sessions.epcp.root"); err != nil {
+	if err := PathDelete(c.Node, "sessions.atlas.root"); err != nil {
 		t.Fatal(err)
 	}
 
