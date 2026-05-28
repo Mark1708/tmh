@@ -37,6 +37,28 @@ live session instantly — no manual re-sourcing after dotfile changes.
 
 ---
 
+## At a glance
+
+| Area | Details |
+|------|---------|
+| Runtime | Go 1.25+, tmux 3.2+ |
+| Config | `~/.config/tmh/config.yml`, JSON Schema in [`schemas/tmh.schema.json`](./schemas/tmh.schema.json) |
+| Main modes | fuzzy picker, full TUI dashboard, scripted CLI |
+| Core workflow | declare YAML → `tmh init` → `tmh diff` → `tmh freeze` |
+| Generated docs | man pages and shell completions under [`docs/`](./docs/) |
+| Contributor checks | `make build`, `make test`, `make test-race`, `make lint`, `make docs`, `make schema` |
+
+## Status
+
+Actively maintained personal CLI tool. Public issues and improvements are welcome, but the project is primarily maintained around the author's own tmux workflow.
+
+Useful next reads: [examples](./examples/README.md),
+[migration from zsh aliases](./docs/migrate-from-zsh.md),
+[versioning and public API](./docs/versioning.md), and
+[architecture notes](./docs/architecture.md).
+
+---
+
 ## How does tmh compare?
 
 | Tool | Language | Config | Drift Detection | Dotfile Sync | Single Binary |
@@ -369,7 +391,7 @@ defaults.env
 
 Maps are merged key-by-key, not replaced wholesale.
 
-### Validation
+### Schema checks
 
 `tmh doctor` validates the schema and prints
 `config.yml schema: <err>` if anything is off. Checked:
@@ -398,8 +420,10 @@ tmh                          open the TUI dashboard (or the picker — see below
 tmh --dashboard              force the full TUI, bypassing the picker
 tmh version                  print the version
 tmh doctor                   environment + tmux-integration audit
-tmh completion {zsh|bash|fish}   completion script
 ```
+
+Shell completions are generated artifacts in `docs/completions/{bash,zsh,fish}/tmh`
+and are installed by the Homebrew formula. Regenerate them with `make docs`.
 
 ### Sessions
 
@@ -471,9 +495,9 @@ tmh status                     single-glyph segment for tmux status-right
 
 ```
 tmh snapshot save <name>       named checkpoint of live state
-tmh snapshot list
+tmh snapshot ls
 tmh snapshot restore <name>
-tmh snapshot delete <name>
+tmh snapshot rm <name>
 tmh undo                       revert the last destructive action
 tmh export [--minimal] [--only <name>]   YAML to stdout; --minimal redacts secrets
 tmh import <path> --merge|--replace
@@ -1103,8 +1127,10 @@ Design rules:
   `Drift.ReasonCode` (stable) — the TUI resolves the code into
   localised text via `i18n.T("drift.reason." + code)`.
 
-Deeper notes — [CONTRIBUTING.md](./CONTRIBUTING.md) +
-[docs/architecture.md](./docs/architecture.md) + [docs/](./docs/).
+Deeper notes — [CONTRIBUTING.md](./CONTRIBUTING.md),
+[examples](./examples/README.md), [docs/architecture.md](./docs/architecture.md),
+[docs/versioning.md](./docs/versioning.md),
+[docs/migrate-from-zsh.md](./docs/migrate-from-zsh.md), and [docs/](./docs/).
 
 ---
 
