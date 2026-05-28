@@ -51,8 +51,8 @@ func TestT_MissingKeyReturnsKey(t *testing.T) {
 
 func TestTf_SubstitutesTemplateData(t *testing.T) {
 	_ = Init("en")
-	got := Tf("tui.toast.session_killed", map[string]any{"name": "epcp"})
-	if got != "killed epcp" {
+	got := Tf("tui.toast.session_killed", map[string]any{"name": "atlas"})
+	if got != "killed atlas" {
 		t.Fatalf("Tf = %q", got)
 	}
 }

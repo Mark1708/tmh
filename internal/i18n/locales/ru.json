@@ -331,7 +331,7 @@
   "audit.msg.mouse": "mouse нужен для scroll/hover bubbletea в дашборде",
   "audit.msg.escape-time": "bubbletea видит esc с задержкой ~500ms при значении по умолчанию",
   "audit.msg.extended-keys": "extended-keys=on включает Shift+Tab / Ctrl+Enter в TUI",
-  "audit.msg.base-index": "индексация с 1 совпадает с `tmh attach epcp:1`",
+  "audit.msg.base-index": "индексация с 1 совпадает с `tmh attach atlas:1`",
   "audit.msg.pane-base-index": "консистентно с base-index",
   "audit.msg.renumber-windows": "сохраняет индексы окон без пропусков после kill; drift остаётся чистым",
   "audit.msg.after-new-window-hook": "hook конфликтует с tmh при создании окна и может перетереть заданное имя",

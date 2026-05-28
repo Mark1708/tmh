@@ -6,7 +6,7 @@
 //
 //	i18n.Init(i18n.DetectLang(cfg.Defaults.Lang))  // once at startup
 //	fmt.Println(i18n.T("cli.root.short"))          // anywhere else
-//	fmt.Println(i18n.Tf("toast.session_killed", map[string]any{"name": "epcp"}))
+//	fmt.Println(i18n.Tf("toast.session_killed", map[string]any{"name": "atlas"}))
 //
 // Default language is English. Russian is the only other supported locale;
 // any unsupported language tag (e.g. `de_DE`) falls back to English silently

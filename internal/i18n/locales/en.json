@@ -329,7 +329,7 @@
   "audit.msg.mouse": "mouse needed for bubbletea scroll/hover in the dashboard",
   "audit.msg.escape-time": "bubbletea sees esc ~500ms late with the default 500ms escape-time",
   "audit.msg.extended-keys": "extended-keys=on enables Shift+Tab / Ctrl+Enter in the TUI",
-  "audit.msg.base-index": "1-based index matches the convention used by `tmh attach epcp:1`",
+  "audit.msg.base-index": "1-based index matches the convention used by `tmh attach atlas:1`",
   "audit.msg.pane-base-index": "consistent with base-index",
   "audit.msg.renumber-windows": "keeps window indices contiguous after kill; drift view stays clean",
   "audit.msg.after-new-window-hook": "hook races with tmh window creation and can overwrite the chosen name",
