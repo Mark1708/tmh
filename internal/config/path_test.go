@@ -9,16 +9,16 @@ func TestPathGet_Scalar(t *testing.T) {
 	src := `
 version: 1
 sessions:
-  epcp:
+  atlas:
     env:
-      KUBE: epcp-dev
+      KUBE: atlas-dev
 `
 	c := mustParse(t, src)
-	n, err := PathGet(c.Node, "sessions.epcp.env.KUBE")
+	n, err := PathGet(c.Node, "sessions.atlas.env.KUBE")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if n.Value != "epcp-dev" {
+	if n.Value != "atlas-dev" {
 		t.Fatalf("value = %q", n.Value)
 	}
 }
@@ -26,7 +26,7 @@ sessions:
 func TestPathGet_Missing(t *testing.T) {
 	src := `
 sessions:
-  epcp: {}
+  atlas: {}
 `
 	c := mustParse(t, src)
 	_, err := PathGet(c.Node, "sessions.ghost")
@@ -41,15 +41,15 @@ sessions:
 func TestPathSet_UpdateScalar(t *testing.T) {
 	src := `
 sessions:
-  epcp:
+  atlas:
     env:
       KUBE: old
 `
 	c := mustParse(t, src)
-	if err := PathSet(c.Node, "sessions.epcp.env.KUBE", "new"); err != nil {
+	if err := PathSet(c.Node, "sessions.atlas.env.KUBE", "new"); err != nil {
 		t.Fatalf("set: %v", err)
 	}
-	n, _ := PathGet(c.Node, "sessions.epcp.env.KUBE")
+	n, _ := PathGet(c.Node, "sessions.atlas.env.KUBE")
 	if n.Value != "new" {
 		t.Fatalf("value = %q", n.Value)
 	}
@@ -58,13 +58,13 @@ sessions:
 func TestPathSet_CreateNested(t *testing.T) {
 	src := `
 sessions:
-  epcp: {}
+  atlas: {}
 `
 	c := mustParse(t, src)
-	if err := PathSet(c.Node, "sessions.epcp.env.NEW_KEY", "hello"); err != nil {
+	if err := PathSet(c.Node, "sessions.atlas.env.NEW_KEY", "hello"); err != nil {
 		t.Fatalf("set: %v", err)
 	}
-	n, err := PathGet(c.Node, "sessions.epcp.env.NEW_KEY")
+	n, err := PathGet(c.Node, "sessions.atlas.env.NEW_KEY")
 	if err != nil {
 		t.Fatalf("get after set: %v", err)
 	}
@@ -76,19 +76,19 @@ sessions:
 func TestPathDelete(t *testing.T) {
 	src := `
 sessions:
-  epcp:
+  atlas:
     env:
       KEEP: a
       REMOVE: b
 `
 	c := mustParse(t, src)
-	if err := PathDelete(c.Node, "sessions.epcp.env.REMOVE"); err != nil {
+	if err := PathDelete(c.Node, "sessions.atlas.env.REMOVE"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	if _, err := PathGet(c.Node, "sessions.epcp.env.REMOVE"); err == nil {
+	if _, err := PathGet(c.Node, "sessions.atlas.env.REMOVE"); err == nil {
 		t.Fatalf("should be removed")
 	}
-	if n, err := PathGet(c.Node, "sessions.epcp.env.KEEP"); err != nil || n.Value != "a" {
+	if n, err := PathGet(c.Node, "sessions.atlas.env.KEEP"); err != nil || n.Value != "a" {
 		t.Fatalf("sibling gone: err=%v value=%q", err, n.Value)
 	}
 }

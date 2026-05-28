@@ -6,18 +6,18 @@ func TestDiff_OK(t *testing.T) {
 	cfg := mustParse(t, `
 version: 1
 sessions:
-  epcp:
+  atlas:
     windows:
-      lk: /tmp/lk
-      mdr: /tmp/mdr
+      web: /tmp/web
+      api: /tmp/api
 `)
 	r, _ := Resolve(cfg, "")
 	live := LiveSnapshot{
 		Sessions: []LiveSession{{
-			Name: "epcp",
+			Name: "atlas",
 			Windows: []LiveWindow{
-				{Name: "lk", Dir: "/tmp/lk"},
-				{Name: "mdr", Dir: "/tmp/mdr"},
+				{Name: "web", Dir: "/tmp/web"},
+				{Name: "api", Dir: "/tmp/api"},
 			},
 		}},
 	}
@@ -36,14 +36,14 @@ func TestDiff_Drift(t *testing.T) {
 	cfg := mustParse(t, `
 version: 1
 sessions:
-  epcp:
+  atlas:
     windows:
       jr: /tmp/jr
 `)
 	r, _ := Resolve(cfg, "")
 	live := LiveSnapshot{
 		Sessions: []LiveSession{{
-			Name:    "epcp",
+			Name:    "atlas",
 			Windows: []LiveWindow{{Name: "jr", Dir: "/tmp/jr-frontend"}},
 		}},
 	}
@@ -60,16 +60,16 @@ func TestDiff_New_TrackedWindowInLive(t *testing.T) {
 	cfg := mustParse(t, `
 version: 1
 sessions:
-  epcp:
+  atlas:
     windows:
-      lk: /tmp/lk
+      web: /tmp/web
 `)
 	r, _ := Resolve(cfg, "")
 	live := LiveSnapshot{
 		Sessions: []LiveSession{{
-			Name: "epcp",
+			Name: "atlas",
 			Windows: []LiveWindow{
-				{Name: "lk", Dir: "/tmp/lk"},
+				{Name: "web", Dir: "/tmp/web"},
 				{Name: "preview", Dir: "/tmp/preview"},
 			},
 		}},
@@ -90,16 +90,16 @@ func TestDiff_Gone(t *testing.T) {
 	cfg := mustParse(t, `
 version: 1
 sessions:
-  epcp:
+  atlas:
     windows:
-      lk: /tmp/lk
+      web: /tmp/web
       missing: /tmp/missing
 `)
 	r, _ := Resolve(cfg, "")
 	live := LiveSnapshot{
 		Sessions: []LiveSession{{
-			Name:    "epcp",
-			Windows: []LiveWindow{{Name: "lk", Dir: "/tmp/lk"}},
+			Name:    "atlas",
+			Windows: []LiveWindow{{Name: "web", Dir: "/tmp/web"}},
 		}},
 	}
 	d := Diff(r, live)
@@ -132,9 +132,9 @@ func TestDiff_SessionGone(t *testing.T) {
 	cfg := mustParse(t, `
 version: 1
 sessions:
-  epcp:
+  atlas:
     windows:
-      lk: /tmp/lk
+      web: /tmp/web
 `)
 	r, _ := Resolve(cfg, "")
 	live := LiveSnapshot{}

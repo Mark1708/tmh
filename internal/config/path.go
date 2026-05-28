@@ -7,7 +7,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Dotted paths: `sessions.epcp.env.KUBE_CONTEXT`. The first segment is
+// Dotted paths: `sessions.atlas.env.KUBE_CONTEXT`. The first segment is
 // looked up from the document root mapping; subsequent segments descend
 // into nested mappings.
 

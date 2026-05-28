@@ -14,13 +14,13 @@ version: 1
 roots:
   otr: /tmp/otr
 sessions:
-  epcp:
+  atlas:
     root: otr
-    path: products/epcp/repos
+    path: products/atlas/repos
     windows:
-      lk: lk-mosru-epcp
-      mdr:
-        dir: mdr
+      web: web-frontend
+      api:
+        dir: api
 `
 	c := mustParse(t, src)
 	r, err := Resolve(c, "")
@@ -31,16 +31,16 @@ sessions:
 		t.Fatalf("sessions count = %d", len(r.Sessions))
 	}
 	s := r.Sessions[0]
-	if s.Dir != "/tmp/otr/products/epcp/repos" {
+	if s.Dir != "/tmp/otr/products/atlas/repos" {
 		t.Fatalf("session dir = %q", s.Dir)
 	}
 	if len(s.Windows) != 2 {
 		t.Fatalf("windows count = %d", len(s.Windows))
 	}
-	if s.Windows[0].Name != "lk" || s.Windows[0].Dir != "/tmp/otr/products/epcp/repos/lk-mosru-epcp" {
+	if s.Windows[0].Name != "web" || s.Windows[0].Dir != "/tmp/otr/products/atlas/repos/web-frontend" {
 		t.Fatalf("window 0: %+v", s.Windows[0])
 	}
-	if s.Windows[1].Dir != "/tmp/otr/products/epcp/repos/mdr" {
+	if s.Windows[1].Dir != "/tmp/otr/products/atlas/repos/api" {
 		t.Fatalf("window 1 dir: %q", s.Windows[1].Dir)
 	}
 }
@@ -52,13 +52,13 @@ roots:
   otr: /tmp/otr
   kb:  /tmp/kb
 sessions:
-  epcp:
+  atlas:
     root: otr
     windows:
-      lk: repos/lk
+      web: repos/web
       notes:
         root: kb
-        path: epcp
+        path: atlas
 `
 	c := mustParse(t, src)
 	r, err := Resolve(c, "")
@@ -66,10 +66,10 @@ sessions:
 		t.Fatalf("resolve: %v", err)
 	}
 	s := r.Sessions[0]
-	if s.Windows[0].Dir != "/tmp/otr/repos/lk" {
-		t.Fatalf("lk: %q", s.Windows[0].Dir)
+	if s.Windows[0].Dir != "/tmp/otr/repos/web" {
+		t.Fatalf("web: %q", s.Windows[0].Dir)
 	}
-	if s.Windows[1].Dir != "/tmp/kb/epcp" {
+	if s.Windows[1].Dir != "/tmp/kb/atlas" {
 		t.Fatalf("notes: %q", s.Windows[1].Dir)
 	}
 }
@@ -87,13 +87,13 @@ profiles:
       AWS_REGION: eu-central-1
       SHARED: profile
 sessions:
-  epcp:
+  atlas:
     group: [work]
     env:
-      KUBE: epcp
+      KUBE: atlas
       SHARED: session
     windows:
-      lk:
+      web:
         dir: .
         env:
           SHARED: window
@@ -110,7 +110,7 @@ sessions:
 	want := map[string]string{
 		"EDITOR":     "nvim",
 		"AWS_REGION": "eu-central-1",
-		"KUBE":       "epcp",
+		"KUBE":       "atlas",
 		"SHARED":     "window",
 	}
 	if !reflect.DeepEqual(win.Env, want) {
@@ -125,10 +125,10 @@ profiles:
   work:
     groups: [work]
 sessions:
-  epcp:
+  atlas:
     group: [work]
     windows:
-      lk: /tmp/x
+      web: /tmp/x
   kb:
     group: [kb]
     windows:
@@ -139,8 +139,8 @@ sessions:
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
-	if len(r.Sessions) != 1 || r.Sessions[0].Name != "epcp" {
-		t.Fatalf("expected only epcp, got %+v", r.Sessions)
+	if len(r.Sessions) != 1 || r.Sessions[0].Name != "atlas" {
+		t.Fatalf("expected only atlas, got %+v", r.Sessions)
 	}
 }
 
@@ -148,10 +148,10 @@ func TestResolve_UnknownRoot(t *testing.T) {
 	src := `
 version: 1
 sessions:
-  epcp:
+  atlas:
     root: nonexistent
     windows:
-      lk: .
+      web: .
 `
 	c := mustParse(t, src)
 	_, err := Resolve(c, "")
