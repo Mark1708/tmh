@@ -13,23 +13,23 @@ func TestMock_SessionLifecycle(t *testing.T) {
 	ctx := context.Background()
 	m := New()
 
-	if err := m.NewSession(ctx, tmux.NewSessionOpts{Name: "epcp", Dir: "/tmp", Detached: true}); err != nil {
+	if err := m.NewSession(ctx, tmux.NewSessionOpts{Name: "atlas", Dir: "/tmp", Detached: true}); err != nil {
 		t.Fatal(err)
 	}
-	if ok, _ := m.HasSession(ctx, "epcp"); !ok {
+	if ok, _ := m.HasSession(ctx, "atlas"); !ok {
 		t.Fatal("HasSession false after NewSession")
 	}
-	if err := m.NewSession(ctx, tmux.NewSessionOpts{Name: "epcp"}); !errors.Is(err, errs.ErrSessionExists) {
+	if err := m.NewSession(ctx, tmux.NewSessionOpts{Name: "atlas"}); !errors.Is(err, errs.ErrSessionExists) {
 		t.Fatalf("expected ErrSessionExists, got %v", err)
 	}
 	sessions, _ := m.ListSessions(ctx)
-	if len(sessions) != 1 || sessions[0].Name != "epcp" {
+	if len(sessions) != 1 || sessions[0].Name != "atlas" {
 		t.Fatalf("ListSessions: %+v", sessions)
 	}
-	if err := m.KillSession(ctx, "epcp"); err != nil {
+	if err := m.KillSession(ctx, "atlas"); err != nil {
 		t.Fatal(err)
 	}
-	if ok, _ := m.HasSession(ctx, "epcp"); ok {
+	if ok, _ := m.HasSession(ctx, "atlas"); ok {
 		t.Fatal("HasSession true after KillSession")
 	}
 }
