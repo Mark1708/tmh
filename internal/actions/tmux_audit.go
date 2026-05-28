@@ -88,7 +88,7 @@ func auditBaseline(ctx context.Context, r tmux.Runner) []AuditFinding {
 
 func auditRecommended(ctx context.Context, r tmux.Runner) []AuditFinding {
 	f1 := auditOption(ctx, r, AuditWarn, CatRecommended, "base-index", "1", equals("1"),
-		"1-based index matches the convention used by tmh attach epcp:1",
+		"1-based index matches the convention used by tmh attach atlas:1",
 		`set -g base-index 1`)
 	f1.Apply = applySetOption("base-index", "1", false)
 

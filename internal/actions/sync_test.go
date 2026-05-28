@@ -80,22 +80,22 @@ sessions:
 
 func TestPull_AddsNewWindowFromLive(t *testing.T) {
 	m := tmuxtest.New()
-	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "epcp", Dir: "/tmp/lk", WindowName: "lk", Detached: true})
-	_, _ = m.NewWindow(context.Background(), tmux.NewWindowOpts{SessionTarget: "epcp:", Name: "preview", Dir: "/tmp/preview"})
+	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "atlas", Dir: "/tmp/web", WindowName: "web", Detached: true})
+	_, _ = m.NewWindow(context.Background(), tmux.NewWindowOpts{SessionTarget: "atlas:", Name: "preview", Dir: "/tmp/preview"})
 
 	cfg := parseConfig(t, `
 version: 1
 sessions:
-  epcp:
+  atlas:
     windows:
-      lk: /tmp/lk
+      web: /tmp/web
 `)
 	rep, err := Pull(context.Background(), m, cfg, SyncOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rep.Created) != 1 || rep.Created[0] != "epcp/preview" {
-		t.Fatalf("expected epcp/preview, got %+v", rep)
+	if len(rep.Created) != 1 || rep.Created[0] != "atlas/preview" {
+		t.Fatalf("expected atlas/preview, got %+v", rep)
 	}
 }
 

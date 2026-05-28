@@ -11,9 +11,9 @@ import (
 
 func TestAttach_OutsideTmux(t *testing.T) {
 	m := tmuxtest.New()
-	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "epcp", Detached: true})
+	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "atlas", Detached: true})
 	m.Reset()
-	if err := Attach(context.Background(), m, "epcp"); err != nil {
+	if err := Attach(context.Background(), m, "atlas"); err != nil {
 		t.Fatal(err)
 	}
 	names := m.MethodNames()
@@ -25,9 +25,9 @@ func TestAttach_OutsideTmux(t *testing.T) {
 func TestAttach_InsideTmux_SwitchesClient(t *testing.T) {
 	m := tmuxtest.New()
 	m.SetInTmux(true)
-	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "epcp", Detached: true})
+	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "atlas", Detached: true})
 	m.Reset()
-	if err := Attach(context.Background(), m, "epcp"); err != nil {
+	if err := Attach(context.Background(), m, "atlas"); err != nil {
 		t.Fatal(err)
 	}
 	names := m.MethodNames()
@@ -123,10 +123,10 @@ sessions:
 
 func TestKillMatching_Substring(t *testing.T) {
 	m := tmuxtest.New()
-	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "epcp", Detached: true})
-	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "epcp-preview", Detached: true})
+	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "atlas", Detached: true})
+	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "atlas-preview", Detached: true})
 	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "kb", Detached: true})
-	killed, err := KillMatching(context.Background(), m, "epcp")
+	killed, err := KillMatching(context.Background(), m, "atlas")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,14 +141,14 @@ func TestKillMatching_Substring(t *testing.T) {
 
 func TestBuildListing_MergesConfigAndLive(t *testing.T) {
 	m := tmuxtest.New()
-	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "epcp", Detached: true})
+	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "atlas", Detached: true})
 	_ = m.NewSession(context.Background(), tmux.NewSessionOpts{Name: "scratch", Detached: true})
 	src := `
 version: 1
 sessions:
-  epcp:
+  atlas:
     windows:
-      lk: /tmp/lk
+      web: /tmp/web
   kb:
     windows:
       root: /tmp/kb
@@ -162,8 +162,8 @@ sessions:
 	for _, s := range listing.Sessions {
 		byName[s.Name] = s
 	}
-	if !byName["epcp"].Live || !byName["epcp"].Configured {
-		t.Fatalf("epcp should be both live and configured: %+v", byName["epcp"])
+	if !byName["atlas"].Live || !byName["atlas"].Configured {
+		t.Fatalf("atlas should be both live and configured: %+v", byName["atlas"])
 	}
 	if byName["kb"].Live || !byName["kb"].Configured {
 		t.Fatalf("kb should be configured-only: %+v", byName["kb"])
