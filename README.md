@@ -201,7 +201,7 @@ tmh ls
 tmh diff
 
 # Switch windows.
-tmh attach epcp:lk             # outside tmux → attach-session
+tmh attach atlas:web             # outside tmux → attach-session
                                # inside tmux  → switch-client
 
 # Sync dotfiles into live sessions (a killer feature).
@@ -313,25 +313,25 @@ discover:
 
 # Declared sessions.
 sessions:
-  epcp:
+  atlas:
     group: [work, orgA]
     root:  work
-    path:  products/epcp/repos
+    path:  products/atlas/repos
     env:
-      KUBE_CONTEXT: epcp-dev
-      AWS_PROFILE:  epcp
+      KUBE_CONTEXT: atlas-dev
+      AWS_PROFILE:  atlas
     on_attach:
       - mise use
     windows:
       # shorthand: bare string = {dir: <value>}, relative to root
-      lk:      lk-mosru-epcp
-      mdr:     mdr
-      filings: filings
+      web:      web-frontend
+      api:     api
+      reports: reports
       # full form with template + command
       kb:
         extends: kb_base
         root:    kb
-        path:    epcp
+        path:    atlas
         # window-scoped hooks fire in addition to session-scoped ones
         on_create:
           - make deps
@@ -527,9 +527,9 @@ tmh                             picker first; dashboard on fall-through
 ```
 ┌─ tmh · ~/.config/tmh/config.yml ──── ⚠ drift:2 ──────────────────┐
 │  SESSIONS                   │  DETAIL                             │
-│  ▼ ● epcp   7w   ok         │  session: epcp                      │
-│    ├─ ● lk   3p   ok        │  live     ✓                         │
-│    ├─   mdr  3p   ok        │  attached ✓                         │
+│  ▼ ● atlas   7w   ok         │  session: atlas                      │
+│    ├─ ● web   3p   ok        │  live     ✓                         │
+│    ├─   api  3p   ok        │  attached ✓                         │
 │    ├─ ! jr   3p   drift     │  windows  7                         │
 │    └─ …                     │  status   ok                        │
 │  ▼ ● kb     8w              │                                     │
@@ -819,8 +819,8 @@ a window `extends:` a template.
 
 ```
 ⚠  config.yml contains shell hooks:
-    sessions.epcp.on_attach: mise use
-    sessions.epcp.windows.db.on_create: docker compose up -d
+    sessions.atlas.on_attach: mise use
+    sessions.atlas.windows.db.on_create: docker compose up -d
 
 Trust and run? [y/N]
 ```

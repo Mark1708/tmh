@@ -153,7 +153,7 @@ reference.
 - JSON persistence через `MarksStore`
 
 **4.3 Undo visibility в футере**
-- `↶ kill session epcp` в футере после destructive-действия
+- `↶ kill session atlas` в футере после destructive-действия
 - `u` очищает hint при успешном undo
 
 **4.4 Context-sensitive `?` help**
