@@ -12,17 +12,28 @@ import (
 	"github.com/mark1708/tmh/internal/xdg"
 )
 
-// Version is set at build time via -ldflags "-X main.Version=...".
-var Version = "dev"
+// Version, Commit, and Date are set at build time via GoReleaser ldflags.
+var (
+	Version = "dev"
+	Commit  = ""
+	Date    = ""
+)
 
 func main() {
 	slogx.Init()
 	initLang()
-	root := cmd.NewRoot(Version)
+	root := cmd.NewRoot(buildVersion())
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "tmh:", errrender.Render(err))
 		os.Exit(1)
 	}
+}
+
+func buildVersion() string {
+	if Version == "dev" || Commit == "" || Date == "" {
+		return Version
+	}
+	return fmt.Sprintf("%s (commit %s, built %s)", Version, Commit, Date)
 }
 
 // initLang resolves the UI language and installs the i18n localizer before
