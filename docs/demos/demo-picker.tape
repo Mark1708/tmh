@@ -2,7 +2,7 @@
 # Render via `make demo` (uses scripts/render-demos.sh which sandboxes
 # HOME and TMUX_TMPDIR so your real tmux server / config.yml stay safe).
 
-Output docs/demo-picker.gif
+Output docs/demos/demo-picker.gif
 
 Set FontSize 14
 Set Width 1280

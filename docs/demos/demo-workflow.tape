@@ -3,7 +3,7 @@
 # inside its own body so the typed `card "..."` command never leaks into
 # the captured frames.
 
-Output docs/demo-workflow.gif
+Output docs/demos/demo-workflow.gif
 
 Set FontSize 14
 Set Width 1280

@@ -3,7 +3,7 @@
 # clears the screen inside its own invocation, so the typed `card`
 # command never surfaces when `Show` fires.
 
-Output docs/demo-tour.gif
+Output docs/demos/demo-tour.gif
 
 Set FontSize 14
 Set Width 1280

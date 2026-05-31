@@ -1,5 +1,5 @@
 #!/bin/sh
-# scripts/render-demos.sh — render docs/demo-*.tape into GIFs without
+# scripts/render-demos.sh — render docs/demos/demo-*.tape into GIFs without
 # touching the host's tmux server, ~/.config/tmh, or ~/work.
 #
 # Every demo tape mutates HOME-relative state (~/.config/tmh, ~/work/*)
@@ -48,9 +48,9 @@ export TMUX_TMPDIR="$SANDBOX"
 echo "→ building tmh into sandbox"
 GOBIN="$SANDBOX/.local/bin" go install ./cmd/tmh
 
-for tape in docs/demo-picker.tape docs/demo-tour.tape docs/demo-workflow.tape; do
+for tape in docs/demos/demo-picker.tape docs/demos/demo-tour.tape docs/demos/demo-workflow.tape; do
   echo "→ rendering $tape"
   vhs "$REPO_ROOT/$tape"
 done
 
-echo "✓ done — GIFs written to docs/demo-*.gif"
+echo "✓ done — GIFs written to docs/demos/demo-*.gif"
