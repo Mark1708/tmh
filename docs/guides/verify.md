@@ -53,10 +53,12 @@ tmh version
 
 ## Homebrew users
 
-Homebrew computes its own SHA-256 on download and refuses to install if
-the digest doesn't match the formula's expected value. You can still
-manually re-verify the signed checksums file from the release page if
-you'd like belt-and-braces assurance.
+The `mark1708/tap/tmh` formula is generated and published by GoReleaser
+to `Mark1708/homebrew-tap` on every tagged release. Homebrew computes its
+own SHA-256 on download and refuses to install if the digest doesn't
+match the formula's expected value. You can still manually re-verify the
+signed checksums file from the release page if you'd like belt-and-braces
+assurance.
 
 ## If verification fails
 
@@ -64,6 +66,6 @@ you'd like belt-and-braces assurance.
    and incomplete downloads are the most common culprits.
 2. Confirm the fingerprint you imported matches the release-note
    fingerprint exactly (copy-paste only, never retype).
-3. Open a SECURITY advisory (see [SECURITY.md](../SECURITY.md)) — do
+3. Open a SECURITY advisory (see [SECURITY.md](../../SECURITY.md)) — do
    **not** discuss the discrepancy in a public issue until we've
    confirmed whether it's a compromise or a build-pipeline bug.

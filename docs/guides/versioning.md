@@ -55,7 +55,8 @@ migrates automatically and is not part of the versioning contract.
   settings file remain supported.
 - Error **messages** (wording). `errors.Is` against the sentinel
   constants in `internal/errors` is part of the internal contract only.
-- Generated artefacts (`docs/man/*.1`, `docs/completions/*`, the JSON
+- Generated artefacts (`docs/generated/man/*.1`,
+  `docs/generated/completions/*`, the JSON
   schema file) — these are generated from the API surface and will
   re-generate automatically per release. Don't hand-edit.
 
@@ -73,7 +74,7 @@ point and the removal target (e.g., "deprecated in 1.3, removed in 2.0").
   subcommands, new TUI screens. `tmh --help` and `tmh doctor` surface
   what's new.
 - **Major** (`x.0.0`): breaking changes. A migration guide lives under
-  `docs/migrate-<oldver>-to-<newver>.md` and is referenced from the
+  `docs/guides/migrate-<oldver>-to-<newver>.md` and is referenced from the
   CHANGELOG entry.
 
 There is no fixed schedule — releases happen when a coherent batch of
@@ -84,3 +85,7 @@ changes has baked on `main`.
 `tmh version` prints `<semver> (commit <short-sha>, built <date>)`. The
 commit hash and build date are injected via goreleaser `-ldflags`; a
 `go build` without ldflags prints `dev`.
+
+GoReleaser also publishes the Homebrew formula to
+`Mark1708/homebrew-tap`, so formula checksums are release artifacts rather
+than hand-edited files in this repository.
