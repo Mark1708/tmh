@@ -9,8 +9,8 @@
 // Produces:
 //
 //	schemas/tmh.schema.json
-//	docs/man/tmh*.1
-//	docs/completions/{bash,zsh,fish}/tmh
+//	docs/generated/man/tmh*.1
+//	docs/generated/completions/{bash,zsh,fish}/tmh
 //
 // The Makefile target `make docs` is the canonical entry point.
 package main
@@ -66,7 +66,7 @@ func writeSchema(root string) error {
 
 func writeMan(root string) error {
 	cmd := tmhcmd.NewRoot("dev")
-	out := filepath.Join(root, "docs", "man")
+	out := filepath.Join(root, "docs", "generated", "man")
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func writeMan(root string) error {
 
 func writeCompletions(root string) error {
 	cmd := tmhcmd.NewRoot("dev")
-	base := filepath.Join(root, "docs", "completions")
+	base := filepath.Join(root, "docs", "generated", "completions")
 
 	for _, sh := range []string{"bash", "zsh", "fish"} {
 		dir := filepath.Join(base, sh)
