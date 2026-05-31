@@ -27,11 +27,13 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a
         with:
           distribution: goreleaser
-          version: "~> v2"
+          version: "v2.16.0"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           GPG_FINGERPRINT: ${{ secrets.GPG_FINGERPRINT }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

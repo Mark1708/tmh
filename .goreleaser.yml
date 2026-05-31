@@ -38,8 +38,8 @@ archives:
       - LICENSE
       - SECURITY.md
       - examples/*
-      - docs/man/*.1
-      - docs/completions/**/*
+      - docs/generated/man/*.1
+      - docs/generated/completions/**/*
       - schemas/tmh.schema.json
 
 checksum:
@@ -51,12 +51,39 @@ signs:
     artifacts: checksum
     args:
       - "--batch"
+      - "--pinentry-mode"
+      - "loopback"
+      - "--passphrase"
+      - "{{ .Env.GPG_PASSPHRASE }}"
       - "--local-user"
       - "{{ .Env.GPG_FINGERPRINT }}"
       - "--output"
       - "${signature}"
       - "--detach-sign"
       - "${artifact}"
+
+homebrew_casks:
+  - name: tmh
+    ids:
+      - tmh
+    binaries:
+      - tmh
+    manpages:
+      - docs/generated/man/tmh.1
+    completions:
+      bash: docs/generated/completions/bash/tmh
+      zsh: docs/generated/completions/zsh/tmh
+      fish: docs/generated/completions/fish/tmh
+    repository:
+      owner: mark1708
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/mark1708/tmh"
+    description: "Declarative tmux session manager with drift detection and dotfile reload"
+    license: "MIT"
+    dependencies:
+      - formula: tmux
 
 snapshot:
   version_template: "{{ incpatch .Version }}-snapshot"
@@ -71,5 +98,4 @@ changelog:
       - "Merge pull request"
 
 release:
-  draft: true
   prerelease: auto
