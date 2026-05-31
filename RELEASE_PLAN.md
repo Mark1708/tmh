@@ -21,9 +21,9 @@ tarballs. Everything else depends on this.
 ### 1.1 Create the repo
 
 1. Open <https://github.com/new>.
-2. Owner: **mark1708** (or your chosen GitHub org — if different, **stop
-   and come back to this plan after** updating `go.mod`,
-   `homebrew/tmh.rb`, and README install snippets).
+2. Owner: **Mark1708** (or your chosen GitHub org — if different, **stop
+   and come back to this plan after** updating `go.mod`, README install
+   snippets, and `.goreleaser.yml` Homebrew settings).
 3. Repository name: **tmh**.
 4. Visibility: **Public**.
 5. **Do NOT** initialise with README, .gitignore, or LICENSE — the local
@@ -34,36 +34,17 @@ tarballs. Everything else depends on this.
 
 ```sh
 cd /Users/mark/Documents/Projects/me/products/terminal/repos/tmh
-git remote add github git@github.com:mark1708/tmh.git
+git remote add github git@github.com:Mark1708/tmh.git
 git push github main
 git push github --tags   # no tags yet, harmless
 ```
 
-### 1.3 Configure the self-hosted mirror to keep pushing to GitHub
+### 1.3 Keep both remotes explicit
 
-Two options; pick one.
-
-**Option A — Gitea/Forgejo native mirror UI (recommended):**
-
-1. Open your self-hosted repo settings at
-   `https://github.com/Mark1708/tmh/settings`.
-2. Enable "Push mirror" → add `https://github.com/mark1708/tmh.git`,
-   sync every 8h, push on every event.
-3. Auth: create a GitHub personal access token with `repo` scope and
-   paste it as the mirror's HTTPS password. Username can be anything.
-
-**Option B — a local git hook:**
-
-```sh
-cat > .git/hooks/post-push <<'EOF'
-#!/bin/sh
-git push github "$@"
-EOF
-chmod +x .git/hooks/post-push
-```
-
-Option A survives laptop reimage; Option B needs to be re-set on every
-clone. Prefer A.
+Do not rely on push mirrors or local hooks for release tags. The release
+contract is explicit: `make release TAG=vX.Y.Z` creates one annotated tag and
+pushes it to both `origin` and `github`. That keeps the self-hosted remote and
+the public GitHub release workflow in sync without hidden automation.
 
 ### Verify
 
@@ -77,44 +58,36 @@ git ls-remote https://github.com/mark1708/tmh HEAD
 ## Step 2 — Homebrew distribution
 
 **Why:** the README's second install snippet is `brew install
-mark1708/tap/tmh`. That command only resolves if a tap repo with the
-name `homebrew-tap` exists under your GitHub account and contains
-`Formula/tmh.rb`.
+mark1708/tap/tmh`. That command resolves when GoReleaser can publish the
+formula to `Mark1708/homebrew-tap` during the tagged GitHub release.
 
-### 2.1 Create the tap repository
+### 2.1 Confirm the tap repository
 
 1. Open <https://github.com/new>.
-2. Owner: **mark1708**.
+2. Owner: **Mark1708**.
 3. Repository name: **homebrew-tap** (the `homebrew-` prefix is
    mandatory — that's how `brew install owner/tap/formula` maps to a
    GitHub URL).
 4. Visibility: **Public**.
 5. Initialise with a README (optional — a placeholder is fine).
 
-### 2.2 Copy the formula into the tap
+### 2.2 Confirm GoReleaser Homebrew settings
 
 ```sh
-cd /tmp
-git clone git@github.com:mark1708/homebrew-tap.git
-cd homebrew-tap
-mkdir -p Formula
-cp /Users/mark/Documents/Projects/me/products/terminal/repos/tmh/homebrew/tmh.rb Formula/tmh.rb
-git add Formula/tmh.rb
-git commit -m "add tmh formula"
-git push
+grep -A30 '^brews:' /Users/mark/Documents/Projects/me/products/terminal/repos/tmh/.goreleaser.yml
 ```
 
-After step 5 below produces a release with real checksums, you will come
-back and update `Formula/tmh.rb` in this tap — see **Step 6** near the
-end of this document.
+The block must target `owner: mark1708`, `name: homebrew-tap`,
+`directory: Formula`, and use `{{ .Env.HOMEBREW_TAP_TOKEN }}`. Do not copy
+or hand-edit a formula from this repository; GoReleaser owns the formula
+contents and checksums.
 
 ### Verify
 
 ```sh
 brew tap mark1708/tap
 brew info mark1708/tap/tmh
-# prints the formula version + sha256 placeholders (they'll be real
-# after step 6)
+# prints the latest formula after the first GoReleaser-published release
 ```
 
 ### 2.3 Homebrew core (deferred)
@@ -130,7 +103,7 @@ repo requires > 50 GitHub stars plus a month of stable releases (see
 **Why:** `.goreleaser.yml` has a `signs:` block that invokes `gpg
 --detach-sign` on `checksums.txt`. If the signing key isn't available to
 the CI runner, the goreleaser step fails and no release is published.
-Users who follow `docs/verify.md` depend on this signature.
+Users who follow `docs/guides/verify.md` depend on this signature.
 
 ### 4.1 Ensure a signing key exists locally
 
@@ -154,7 +127,7 @@ gpg --list-secret-keys --keyid-format=long
 
 ### 4.2 Publish the public key
 
-Push the public half to a keyserver so `docs/verify.md` users can fetch
+Push the public half to a keyserver so `docs/guides/verify.md` users can fetch
 it:
 
 ```sh
@@ -169,7 +142,7 @@ gpg --fingerprint <LONG_KEYID>
 ```
 
 Paste the fingerprint into the first release note — users reference it
-in `docs/verify.md`.
+in `docs/guides/verify.md`.
 
 ### 4.3 Export the key for GitHub Actions
 
@@ -184,10 +157,13 @@ paste it into a GitHub secret and then delete it locally.
 
 1. Open <https://github.com/mark1708/tmh/settings/secrets/actions>.
 2. Click **New repository secret**.
-3. Add two secrets, each a single value:
+3. Add four secrets, each a single value:
    - Name `GPG_PRIVATE_KEY` — paste the **entire content** of
      `/tmp/tmh-signing-key.asc` including the BEGIN/END lines.
    - Name `GPG_FINGERPRINT` — paste the 40-char fingerprint (no spaces).
+   - Name `GPG_PASSPHRASE` — paste the passphrase for the exported signing key.
+   - Name `HOMEBREW_TAP_TOKEN` — GitHub token with write access to
+     `Mark1708/homebrew-tap`.
 
 4. Delete the armored key from disk:
    ```sh
@@ -205,7 +181,7 @@ open "https://github.com/mark1708/tmh/settings/secrets/actions"
 Also confirm the workflow references them correctly:
 
 ```sh
-grep -E "GPG_PRIVATE_KEY|GPG_FINGERPRINT" \
+grep -E "GPG_PRIVATE_KEY|GPG_FINGERPRINT|GPG_PASSPHRASE|HOMEBREW_TAP_TOKEN" \
   /Users/mark/Documents/Projects/me/products/terminal/repos/tmh/.github/workflows/release.yml
 ```
 
@@ -227,15 +203,13 @@ make docs                  # regenerate man/completions/schema to be safe
 git diff --stat            # if `make docs` produced anything, commit it
 ```
 
-### 5.2 Create the annotated tag
+### 5.2 Prepare the annotated tag
 
-Annotated (`-a`) so the tag itself carries a message:
+The Makefile release target creates an annotated (`-a`) tag so the tag
+itself carries a message, then pushes that tag to both remotes.
 
-```sh
-git tag -a v1.0.0 -m "tmh 1.0.0 — first public release"
-```
-
-Sign it if you want (optional; the release artefacts are already GPG-
+If you need a signed tag instead of the Makefile's annotated tag, do it
+manually before pushing (optional; the release artefacts are already GPG-
 signed via goreleaser):
 
 ```sh
@@ -245,13 +219,11 @@ git tag -s v1.0.0 -m "tmh 1.0.0 — first public release"
 ### 5.3 Push the tag to both remotes
 
 ```sh
-git push origin v1.0.0     # self-hosted — triggers .gitea workflow
-git push github v1.0.0     # public — triggers .github workflow
+make release TAG=v1.0.0    # annotated tag + pushes to origin and github
 ```
 
-If you set up the push-mirror in 1.3 Option A, pushing to `origin` alone
-is enough — but pushing explicitly to `github` is safer for the first
-release.
+Do not push only one remote for release tags. Both remotes must receive the
+same tag so the internal repository and the public GitHub release stay aligned.
 
 ### 5.4 Watch the release workflow
 
@@ -262,20 +234,21 @@ If it fails:
 
 - **`gpg: signing failed: No secret key`** → Step 4.4 secrets aren't
   set or `GPG_FINGERPRINT` doesn't match the imported key.
+- **`gpg: signing failed: Inappropriate ioctl for device`** →
+  `GPG_PASSPHRASE` is missing or does not match the imported key.
 - **`goreleaser: config must be in...`** → `.goreleaser.yml` has a
   typo; fix on `main`, delete the tag with
   `git tag -d v1.0.0 && git push origin :refs/tags/v1.0.0`, re-tag.
 - **`go: module not found`** → module path mismatch; the tag points at
-  a commit where `go.mod` still says `github.com/Mark1708/tmh`. Re-tag after
-  fixing.
+  a commit where `go.mod` does not say `github.com/mark1708/tmh`. Re-tag
+  after fixing.
 
-### 5.5 Publish the release
+### 5.5 Verify the published release
 
-The workflow creates a **draft** release (see `.goreleaser.yml`:
-`release.draft: true`). Open
-<https://github.com/mark1708/tmh/releases>, click the draft, paste the
-GPG **fingerprint** from step 4.2 into the notes body, and click
-**Publish release**.
+The workflow publishes the GitHub release directly. Open
+<https://github.com/mark1708/tmh/releases> and confirm the assets,
+`checksums.txt`, `checksums.txt.sig`, and release notes are present.
+GoReleaser also opens or updates the formula in `Mark1708/homebrew-tap`.
 
 ### Verify
 
@@ -290,7 +263,7 @@ Also download and verify a binary tarball as a user would:
 
 ```sh
 cd /tmp
-gh release download v1.0.0 --repo mark1708/tmh
+gh release download v1.0.0 --repo Mark1708/tmh
 gpg --verify checksums.txt.sig checksums.txt
 shasum -a 256 -c checksums.txt --ignore-missing
 ```
@@ -301,22 +274,15 @@ shasum -a 256 -c checksums.txt --ignore-missing
 
 The following are handled (or prepared) by Claude Code in this PR:
 
-- **GIF demos:** `make demo` was run locally; `docs/demo-*.gif` are
+- **GIF demos:** `make demo` was run locally; `docs/demos/demo-*.gif` are
   committed and referenced from README. No action needed.
-- **Homebrew formula sha256:** the post-release update is scripted in
-  `scripts/update-formula-sha256.sh`. Run it once the GitHub release
-  has assets:
-  ```sh
-  bash scripts/update-formula-sha256.sh v1.0.0
-  ```
-  This fetches `checksums.txt` from the release, rewrites the
-  `REPLACE_WITH_*_SHA256` placeholders in `homebrew/tmh.rb`, and
-  prints a diff to review before you commit to both the main repo and
-  the `homebrew-tap` repo.
-- **Launch posts:** ready-to-paste drafts live in
-  `docs/launch-posts.md`. Posting them to HN / r/tmux / r/golang /
-  lobste.rs is an action you take from your own accounts — Claude
-  Code can't authenticate as you, and shouldn't.
+- **Homebrew formula:** GoReleaser publishes it to
+  `Mark1708/homebrew-tap` during the release workflow. Verify with
+  `brew update && brew reinstall mark1708/tap/tmh`; do not run a manual
+  checksum script or edit a formula in this repository.
+- **Launch posts:** Posting to HN / r/tmux / r/golang / lobste.rs is an
+  action you take from your own accounts — Claude Code can't authenticate
+  as you, and shouldn't.
 
 When all of Steps 1–5 are green, Step 6 runs in two minutes, and you're
 free to post whenever you're ready.
