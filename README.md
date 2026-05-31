@@ -12,17 +12,17 @@
 Русская версия — [README.ru.md](./README.ru.md).
 
 <p align="center">
-  <img src="./docs/demo-picker.gif" alt="tmh picker — bare tmh opens a fuzzy session picker" width="760">
+  <img src="./docs/demos/demo-picker.gif" alt="tmh picker — bare tmh opens a fuzzy session picker" width="760">
   <br><sub><b>picker</b> — bare <code>tmh</code> opens a fuzzy session picker</sub>
 </p>
 
 <p align="center">
-  <img src="./docs/demo-tour.gif" alt="tmh dashboard tour — help, palette, settings, create, kill, undo" width="760">
+  <img src="./docs/demos/demo-tour.gif" alt="tmh dashboard tour — help, palette, settings, create, kill, undo" width="760">
   <br><sub><b>tour</b> — full TUI: help overlay, tree navigation, palette, new-session wizard, settings, theme cycle, kill + undo, history</sub>
 </p>
 
 <p align="center">
-  <img src="./docs/demo-workflow.gif" alt="tmh drift workflow — config → live → diff → freeze" width="760">
+  <img src="./docs/demos/demo-workflow.gif" alt="tmh drift workflow — config → live → diff → freeze" width="760">
   <br><sub><b>workflow</b> — declare in YAML, <code>tmh init</code>, introduce drift, <code>tmh diff</code> detects it, <code>tmh freeze</code> captures it back</sub>
 </p>
 
@@ -45,7 +45,7 @@ live session instantly — no manual re-sourcing after dotfile changes.
 | Config | `~/.config/tmh/config.yml`, JSON Schema in [`schemas/tmh.schema.json`](./schemas/tmh.schema.json) |
 | Main modes | fuzzy picker, full TUI dashboard, scripted CLI |
 | Core workflow | declare YAML → `tmh init` → `tmh diff` → `tmh freeze` |
-| Generated docs | man pages and shell completions under [`docs/`](./docs/) |
+| Generated docs | man pages and shell completions under [`docs/generated/`](./docs/generated/) |
 | Contributor checks | `make build`, `make test`, `make test-race`, `make lint`, `make docs`, `make schema` |
 
 ## Status
@@ -53,9 +53,8 @@ live session instantly — no manual re-sourcing after dotfile changes.
 Actively maintained personal CLI tool. Public issues and improvements are welcome, but the project is primarily maintained around the author's own tmux workflow.
 
 Useful next reads: [examples](./examples/README.md),
-[migration from zsh aliases](./docs/migrate-from-zsh.md),
-[versioning and public API](./docs/versioning.md), and
-[architecture notes](./docs/architecture.md).
+[versioning and public API](./docs/guides/versioning.md), and
+[architecture notes](./docs/guides/architecture.md).
 
 ---
 
@@ -145,7 +144,7 @@ tmh doctor
 
 Binary-release downloads include a GPG-signed `checksums.txt`; verify
 via `gpg --verify checksums.txt.sig checksums.txt` — full guide in
-[docs/verify.md](./docs/verify.md).
+[docs/guides/verify.md](./docs/guides/verify.md).
 
 ---
 
@@ -422,7 +421,7 @@ tmh version                  print the version
 tmh doctor                   environment + tmux-integration audit
 ```
 
-Shell completions are generated artifacts in `docs/completions/{bash,zsh,fish}/tmh`
+Shell completions are generated artifacts in `docs/generated/completions/{bash,zsh,fish}/tmh`
 and are installed by the Homebrew formula. Regenerate them with `make docs`.
 
 ### Sessions
@@ -1128,9 +1127,8 @@ Design rules:
   localised text via `i18n.T("drift.reason." + code)`.
 
 Deeper notes — [CONTRIBUTING.md](./CONTRIBUTING.md),
-[examples](./examples/README.md), [docs/architecture.md](./docs/architecture.md),
-[docs/versioning.md](./docs/versioning.md),
-[docs/migrate-from-zsh.md](./docs/migrate-from-zsh.md), and [docs/](./docs/).
+[examples](./examples/README.md), [docs/guides/architecture.md](./docs/guides/architecture.md),
+[docs/guides/versioning.md](./docs/guides/versioning.md), and [docs/](./docs/).
 
 ---
 

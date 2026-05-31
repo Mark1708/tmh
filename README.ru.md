@@ -12,17 +12,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
 <p align="center">
-  <img src="./docs/demo-picker.gif" alt="tmh picker — голый tmh открывает fuzzy picker" width="760">
+  <img src="./docs/demos/demo-picker.gif" alt="tmh picker — голый tmh открывает fuzzy picker" width="760">
   <br><sub><b>picker</b> — голый <code>tmh</code> открывает fuzzy picker сессий</sub>
 </p>
 
 <p align="center">
-  <img src="./docs/demo-tour.gif" alt="tmh dashboard tour — help, palette, settings, create, kill, undo" width="760">
+  <img src="./docs/demos/demo-tour.gif" alt="tmh dashboard tour — help, palette, settings, create, kill, undo" width="760">
   <br><sub><b>tour</b> — полный TUI: help overlay, навигация по дереву, палитра, мастер создания сессии, settings, смена темы, kill + undo, история</sub>
 </p>
 
 <p align="center">
-  <img src="./docs/demo-workflow.gif" alt="tmh drift workflow — config → live → diff → freeze" width="760">
+  <img src="./docs/demos/demo-workflow.gif" alt="tmh drift workflow — config → live → diff → freeze" width="760">
   <br><sub><b>workflow</b> — объяви в YAML, <code>tmh init</code>, сломай live, <code>tmh diff</code> ловит drift, <code>tmh freeze</code> захватывает назад</sub>
 </p>
 
@@ -48,15 +48,14 @@ single-binary замена: один `config.yml`, один тул, и `tmh diff
 | Проверки для разработки | `make build`, `make test`, `make test-race`, `make lint`, `make docs`, `make schema` |
 
 Что читать дальше: [примеры](./examples/README.md),
-[миграция с zsh-алиасов](./docs/migrate-from-zsh.md),
-[versioning и публичный API](./docs/versioning.md),
-[архитектурные заметки](./docs/architecture.md).
+[versioning и публичный API](./docs/guides/versioning.md),
+[архитектурные заметки](./docs/guides/architecture.md).
 
 ---
 
 ## Статус
 
-Активно поддерживаемый CLI/TUI-инструмент. Публичный API, формат конфигурации и правила версионирования описаны в [docs/versioning.md](./docs/versioning.md); изменения в конфигурации проходят через schema validation и generated docs.
+Активно поддерживаемый CLI/TUI-инструмент. Публичный API, формат конфигурации и правила версионирования описаны в [docs/guides/versioning.md](./docs/guides/versioning.md); изменения в конфигурации проходят через schema validation и generated docs.
 
 ---
 
@@ -144,7 +143,7 @@ tmh doctor
 
 Бинарники релизов подписываются GPG (`checksums.txt.sig`); проверка
 через `gpg --verify checksums.txt.sig checksums.txt` —
-см. [docs/verify.md](./docs/verify.md).
+см. [docs/guides/verify.md](./docs/guides/verify.md).
 
 ---
 
@@ -421,7 +420,7 @@ tmh doctor                   проверка окружения + tmux-инте
 ```
 
 Shell completions — это сгенерированные артефакты в
-`docs/completions/{bash,zsh,fish}/tmh`; Homebrew-формула устанавливает их
+`docs/generated/completions/{bash,zsh,fish}/tmh`; Homebrew-формула устанавливает их
 автоматически. Для регенерации используйте `make docs`.
 
 ### Сессии
@@ -1121,9 +1120,8 @@ internal/
   локализованный текст через `i18n.T("drift.reason." + code)`.
 
 Подробности — [CONTRIBUTING.md](./CONTRIBUTING.md),
-[примеры](./examples/README.md), [docs/architecture.md](./docs/architecture.md),
-[docs/versioning.md](./docs/versioning.md),
-[docs/migrate-from-zsh.md](./docs/migrate-from-zsh.md) и [docs/](./docs/).
+[примеры](./examples/README.md), [docs/guides/architecture.md](./docs/guides/architecture.md),
+[docs/guides/versioning.md](./docs/guides/versioning.md) и [docs/](./docs/).
 
 ---
 
