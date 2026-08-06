@@ -84,6 +84,11 @@ homebrew_casks:
     license: "MIT"
     dependencies:
       - formula: tmux
+    hooks:
+      post:
+        install: |
+          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tmh"]
+          system_command "/usr/bin/codesign", args: ["--force", "--sign", "-", "#{staged_path}/tmh"]
 
 snapshot:
   version_template: "{{ incpatch .Version }}-snapshot"
