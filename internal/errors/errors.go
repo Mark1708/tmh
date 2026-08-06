@@ -15,14 +15,19 @@ var (
 	ErrPermission       = errors.New("tmux: permission denied")
 
 	// config-layer errors.
-	ErrConfigInvalid   = errors.New("config: invalid")
-	ErrConfigNotFound  = errors.New("config: not found")
-	ErrSchemaViolation = errors.New("config: schema violation")
-	ErrUnknownRoot     = errors.New("config: unknown root reference")
-	ErrUnknownTemplate = errors.New("config: unknown template")
-	ErrUnknownLayout   = errors.New("config: unknown layout")
-	ErrTemplateChain   = errors.New("config: template extends depth > 1")
-	ErrLayoutMismatch  = errors.New("config: panes count doesn't match layout")
+	ErrConfigInvalid          = errors.New("config: invalid")
+	ErrConfigNotFound         = errors.New("config: not found")
+	ErrSchemaViolation        = errors.New("config: schema violation")
+	ErrUnknownRoot            = errors.New("config: unknown root reference")
+	ErrUnknownTemplate        = errors.New("config: unknown template")
+	ErrUnknownLayout          = errors.New("config: unknown layout")
+	ErrTemplateChain          = errors.New("config: template extends depth > 1")
+	ErrLayoutMismatch         = errors.New("config: panes count doesn't match layout")
+	ErrInvalidTTL             = errors.New("config: invalid active session TTL")
+	ErrReservedSessionName    = errors.New("config: reserved session name 'active'")
+	ErrActiveSessionDisabled  = errors.New("active windows: feature disabled")
+	ErrActiveSessionCollision = errors.New("active windows: session ownership collision")
+	ErrUnsafeActiveWindow     = errors.New("active windows: operation would remove the last link")
 
 	// hooks-layer errors.
 	ErrHookDenied = errors.New("hooks: user denied trust")

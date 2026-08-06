@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	errs "github.com/mark1708/tmh/internal/errors"
 )
@@ -56,6 +57,8 @@ func Validate(c *Config) error {
 		}
 	}
 
+	violations = append(violations, validateActiveSessionConfig(c)...)
+
 	if len(violations) == 0 {
 		return nil
 	}
@@ -99,6 +102,37 @@ func validateWindow(c *Config, sname, wname string, w Window) []error {
 			}
 		}
 	}
+	return violations
+}
+
+func validateActiveSessionConfig(c *Config) []error {
+	var violations []error
+	active := c.Defaults.TmuxIntegration.Active
+
+	ttl := active.TTL
+	if ttl != "" {
+		d, err := time.ParseDuration(ttl)
+		if err != nil {
+			violations = append(violations,
+				fmt.Errorf("%w: malformed duration %q", errs.ErrInvalidTTL, ttl))
+			return violations
+		}
+		if d <= 0 {
+			violations = append(violations,
+				fmt.Errorf("%w: TTL must be positive, got %q", errs.ErrInvalidTTL, ttl))
+		}
+		if d > MaxActiveTTL {
+			violations = append(violations,
+				fmt.Errorf("%w: TTL must not exceed 720h, got %q", errs.ErrInvalidTTL, ttl))
+		}
+	}
+
+	if active.Enabled {
+		if _, exists := c.Sessions["active"]; exists {
+			violations = append(violations, fmt.Errorf("%w", errs.ErrReservedSessionName))
+		}
+	}
+
 	return violations
 }
 

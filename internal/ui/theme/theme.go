@@ -18,23 +18,23 @@ type Palette struct {
 
 // Mocha is the default Catppuccin Mocha palette.
 var Mocha = Palette{
-	Name:      "mocha",
-	Bg:        "#1e1e2e",
-	BgSubtle:  "#181825",
-	BgOverlay: "#313244",
-	Text:      "#cdd6f4",
-	TextDim:   "#a6adc8",
+	Name:       "mocha",
+	Bg:         "#1e1e2e",
+	BgSubtle:   "#181825",
+	BgOverlay:  "#313244",
+	Text:       "#cdd6f4",
+	TextDim:    "#a6adc8",
 	TextSubtle: "#7f849c",
-	Border:    "#45475a",
-	Accent:    "#89b4fa",
-	AccentDim: "#74c7ec",
-	OK:        "#a6e3a1",
-	Warn:      "#f9e2af",
-	Bad:       "#f38ba8",
-	Info:      "#89dceb",
-	New:       "#a6e3a1",
-	Drift:     "#f9e2af",
-	Gone:      "#f38ba8",
+	Border:     "#45475a",
+	Accent:     "#89b4fa",
+	AccentDim:  "#74c7ec",
+	OK:         "#a6e3a1",
+	Warn:       "#f9e2af",
+	Bad:        "#f38ba8",
+	Info:       "#89dceb",
+	New:        "#a6e3a1",
+	Drift:      "#f9e2af",
+	Gone:       "#f38ba8",
 }
 
 // Macchiato — slightly warmer.
@@ -107,15 +107,15 @@ var Available = []Palette{Mocha, Macchiato, Frappe, Latte}
 type Styles struct {
 	Palette Palette
 
-	Background, Header, Footer, Tab            lipgloss.Style
-	Panel, PanelFocus                          lipgloss.Style
-	Title, Subtitle, Hint, Selected            lipgloss.Style
+	Background, Header, Footer, Tab              lipgloss.Style
+	Panel, PanelFocus                            lipgloss.Style
+	Title, Subtitle, Hint, Selected              lipgloss.Style
 	StatusOK, StatusDrift, StatusNew, StatusGone lipgloss.Style
 	// Toast is the default (info) style; ToastSuccess and ToastError are
 	// kind-specific variants used when the message carries a known severity.
 	Toast, ToastSuccess, ToastError lipgloss.Style
 	Modal                           lipgloss.Style
-	KeyBinding                                 lipgloss.Style
+	KeyBinding                      lipgloss.Style
 }
 
 // New builds a Styles tree from a palette.

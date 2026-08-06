@@ -86,6 +86,6 @@ changes has baked on `main`.
 commit hash and build date are injected via goreleaser `-ldflags`; a
 `go build` without ldflags prints `dev`.
 
-GoReleaser also publishes the Homebrew formula to
-`Mark1708/homebrew-tap`, so formula checksums are release artifacts rather
+GoReleaser also publishes the Homebrew cask to
+`Mark1708/homebrew-tap`, so cask checksums are release artifacts rather
 than hand-edited files in this repository.

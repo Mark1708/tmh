@@ -138,6 +138,10 @@ func (d *dashboardModel) formatRow(r dashboardRow, width int) string {
 		main := fmt.Sprintf("%s%d  %-10s  %s", prefix, r.PaneIdx,
 			truncate(cmd, 10), d.st.Hint.Render(cwd))
 		return main
+	case levelActiveHeader:
+		return d.formatActiveHeader(width)
+	case levelActiveWindow:
+		return d.formatActiveWindow(r, width)
 	}
 	return ""
 }
@@ -174,6 +178,8 @@ func (d *dashboardModel) renderDetail(width int) string {
 	}
 	var b strings.Builder
 	switch r.Level {
+	case levelActiveHeader, levelActiveWindow:
+		return d.renderActiveDetail(r, width)
 	case levelSession:
 		title := i18n.Tf("tui.dashboard.session_label", map[string]any{"name": r.Session})
 		b.WriteString(d.st.Title.Render(title) + "\n\n")

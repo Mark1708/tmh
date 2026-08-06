@@ -44,9 +44,9 @@ type UIKeymap struct {
 
 	SectionNav, SectionActions, SectionSync, SectionOther string
 
-	NavUpdown, NavCollapse, NavTopBottom, NavPage string
-	ActionAttach, ActionNew, ActionKill, ActionUndo string
-	SyncRefresh, SyncReload, SyncPush, SyncDiff     string
+	NavUpdown, NavCollapse, NavTopBottom, NavPage     string
+	ActionAttach, ActionNew, ActionKill, ActionUndo   string
+	SyncRefresh, SyncReload, SyncPush, SyncDiff       string
 	OtherPalette, OtherSettings, OtherHelp, OtherQuit string
 }
 
@@ -73,7 +73,7 @@ type UISettings struct {
 	HintDiscard    string
 
 	// Action feedback.
-	Saved   string
+	Saved           string
 	TmuxConfWritten string
 }
 

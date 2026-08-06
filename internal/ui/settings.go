@@ -23,15 +23,16 @@ type fieldKind int
 
 const (
 	fieldKindSelect   fieldKind = iota // ←→ cycles through options
-	fieldKindToggle                     // ←→ / space flips bool
-	fieldKindButton                     // enter executes action
-	fieldKindReadOnly                   // display only
+	fieldKindToggle                    // ←→ / space flips bool
+	fieldKindButton                    // enter executes action
+	fieldKindReadOnly                  // display only
+	fieldKindDuration
 )
 
 // settingsField is one row in the right panel.
 type settingsField struct {
-	label   string
-	kind    fieldKind
+	label string
+	kind  fieldKind
 	// select state
 	choices []string
 	chosen  int
@@ -41,6 +42,7 @@ type settingsField struct {
 	activate func() tea.Cmd
 	// read-only display value
 	display string
+	text    string
 }
 
 const numSettingsCats = 7
@@ -57,8 +59,8 @@ const (
 
 // settingsModel is the master-detail settings overlay.
 //
-//   focusCategories — left panel; ↑↓ picks category, Enter/Tab enters fields
-//   focusFields     — right panel; ↑↓ picks field, ←→ changes select/toggle
+//	focusCategories — left panel; ↑↓ picks category, Enter/Tab enters fields
+//	focusFields     — right panel; ↑↓ picks field, ←→ changes select/toggle
 type settingsModel struct {
 	keys          Keys
 	st            theme.Styles
@@ -155,7 +157,6 @@ func (s *settingsModel) Update(msg tea.Msg) (*settingsModel, tea.Cmd) {
 	// Ctrl+S saves regardless of focus level.
 	if k.String() == "ctrl+s" {
 		cmd := s.saveCmd()
-		s.dirty = false
 		return s, cmd
 	}
 
@@ -227,8 +228,34 @@ func (s *settingsModel) updateFields(k tea.KeyMsg) (*settingsModel, tea.Cmd) {
 		case fieldKindSelect:
 			return s, s.changeField(+1)
 		}
+	default:
+		if s.editDurationField(k) {
+			s.dirty = true
+		}
 	}
 	return s, nil
+}
+
+func (s *settingsModel) editDurationField(k tea.KeyMsg) bool {
+	f := &s.fields[s.catIdx][s.fieldIdx]
+	if f.kind != fieldKindDuration {
+		return false
+	}
+	switch k.String() {
+	case "backspace", "ctrl+h":
+		runes := []rune(f.text)
+		if len(runes) == 0 {
+			return false
+		}
+		f.text = string(runes[:len(runes)-1])
+		return true
+	default:
+		if k.Type != tea.KeyRunes || len(k.Runes) == 0 {
+			return false
+		}
+		f.text += string(k.Runes)
+		return true
+	}
 }
 
 // changeField moves a select/toggle field by delta (-1 or +1) and handles
@@ -241,7 +268,7 @@ func (s *settingsModel) changeField(delta int) tea.Cmd {
 		if n == 0 {
 			return nil
 		}
-		f.chosen = ((f.chosen + delta) % n + n) % n
+		f.chosen = ((f.chosen+delta)%n + n) % n
 	case fieldKindToggle:
 		f.on = !f.on
 	default:

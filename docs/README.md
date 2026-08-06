@@ -6,6 +6,7 @@ and recorded demos.
 ## Hand-written guides
 
 - [Architecture](./guides/architecture.md)
+- [Active session (optional)](./guides/active-session.md) — real tmux session with linked windows
 - [Release verification](./guides/verify.md)
 - [Versioning policy](./guides/versioning.md)
 

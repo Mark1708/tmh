@@ -51,4 +51,24 @@ type Runner interface {
 	ShowHook(ctx context.Context, name string) (string, error)
 	// UnsetHook removes a global hook binding.
 	UnsetHook(ctx context.Context, name string) error
+
+	// Active windows primitives (window linking for active session feature).
+
+	// WindowID returns the stable @N window_id for a target window.
+	WindowID(ctx context.Context, target string) (string, error)
+	// ListWindowLinks returns all linked windows across all sessions using one
+	// list-windows -a command, preserving duplicate physical IDs.
+	ListWindowLinks(ctx context.Context) ([]WindowLink, error)
+	// LinkWindow links a window by its ID into a destination session using
+	// link-window -d (without -k). Destination index is chosen from free indices.
+	LinkWindow(ctx context.Context, sourceWindowID, destination string) error
+	// UnlinkWindow removes a window link by exact session:@ID target (without -k).
+	UnlinkWindow(ctx context.Context, session, windowID string) error
+	// ServerEpoch returns the server identity: socket_path, start_time, pid
+	// canonicalized into a single value.
+	ServerEpoch(ctx context.Context) (ServerEpoch, error)
+	// ShowSessionOption returns the value of a session-scoped option.
+	ShowSessionOption(ctx context.Context, session, name string) (string, error)
+	// SetSessionOption sets a session-scoped option.
+	SetSessionOption(ctx context.Context, session, name, value string) error
 }

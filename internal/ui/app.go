@@ -44,9 +44,11 @@ type Model struct {
 
 	width, height int
 
-	cfg     *config.Config
-	listing *actions.Listing
-	drift   []config.Drift
+	cfg          *config.Config
+	listing      *actions.Listing
+	drift        []config.Drift
+	activeStatus actions.ActiveStatusReport
+	activeSeq    uint64
 
 	current     Screen
 	prev        Screen

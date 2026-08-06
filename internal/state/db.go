@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"path/filepath"
 	"os"
+	"path/filepath"
 
 	_ "modernc.org/sqlite"
 )
@@ -87,6 +87,32 @@ CREATE TABLE IF NOT EXISTS reload_queue (
   action      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_reload_expires ON reload_queue(expires_at);
+
+-- active_windows tracks physical tmux windows linked into the runtime
+-- "active" session. The table is additive (CREATE IF NOT EXISTS) so existing
+-- state DBs gain it on the next Open without a destructive migration. Rows
+-- are keyed by (server_epoch, window_id): window_id is stable only for the
+-- life of one tmux server, so a fresh epoch invalidates stale IDs. The active
+-- lifecycle never writes to the generic events table and is excluded from
+-- undo payloads.
+CREATE TABLE IF NOT EXISTS active_windows (
+  server_key          TEXT NOT NULL,
+  server_epoch        TEXT NOT NULL,
+  window_id           TEXT NOT NULL,
+  source_session_id   TEXT NOT NULL,
+  source_session_name TEXT NOT NULL,
+  window_name         TEXT NOT NULL,
+  promoted_at         INTEGER NOT NULL,
+  last_selected_at    INTEGER NOT NULL,
+  expires_at          INTEGER NOT NULL,
+  state               TEXT NOT NULL CHECK (state IN ('tracked', 'orphaned')),
+  orphaned_at         INTEGER,
+  PRIMARY KEY (server_epoch, window_id)
+);
+CREATE INDEX IF NOT EXISTS idx_active_windows_expiry
+  ON active_windows(server_epoch, expires_at);
+CREATE INDEX IF NOT EXISTS idx_active_windows_server
+  ON active_windows(server_key, server_epoch);
 `
 
 func (d *DB) migrate() error {

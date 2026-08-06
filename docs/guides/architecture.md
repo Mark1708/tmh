@@ -11,16 +11,19 @@ cmd/tmh              Cobra CLI entry points — thin wrappers, no business logic
 cmd/tmh-gen          Build-time generator (schema, man pages, completions)
 
 internal/actions     Stateful side effects: attach, sync, reload, freeze, init,
-                     kill, import, export, snapshot, undo, hooks, tmux_audit
+                     kill, import, export, snapshot, undo, hooks, tmux_audit,
+                     active session promotion/touch/prune/recover
 internal/config      YAML parsing + validation + resolver (profiles, templates,
                      inheritance), JSON schema, comment-preserving writer,
                      discover rules (glob + optional zoxide)
 internal/tmux        Runner interface + CLI implementation (spawning `tmux`).
                      `tmuxtest` is a pure-Go MockRunner used across tests.
 internal/state       SQLite store: history, snapshots, marks, trust-hashes,
-                     reload queue. Pure-Go driver (modernc.org/sqlite) — no CGO.
+                     reload queue, active windows tracking. Pure-Go driver
+                     (modernc.org/sqlite) — no CGO.
 internal/ui          Bubble Tea TUI: dashboard, palette, picker, settings,
-                     diff/confirm/history screens, theming, i18n strings.
+                     diff/confirm/history screens, theming, i18n strings,
+                     active session runtime section and palette.
 internal/i18n        go-i18n v2 bundle + English + Russian locales.
 internal/errors      Typed sentinel errors (tmux-layer, config-layer, hooks).
 internal/shell       $SHELL → rc-file resolution.
@@ -85,6 +88,7 @@ See `internal/state/db.go` for the authoritative DDL. Tables:
 | `trust`            | `(config_path, config_hash)` — hook trust decisions  |
 | `reload_queue`     | Panes queued for shell re-source while busy          |
 | `marks`            | Named target bookmarks for TUI                       |
+| `active_windows`   | Optional active session tracking (window links, TTL)  |
 
 Both CLI and TUI open the same DB. WAL + `busy_timeout=5s` + `foreign_keys=on`
 are applied on every connect.

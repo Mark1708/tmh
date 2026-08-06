@@ -57,16 +57,16 @@ git ls-remote https://github.com/mark1708/tmh HEAD
 
 ## Step 2 — Homebrew distribution
 
-**Why:** the README's second install snippet is `brew install
+**Why:** the README's second install snippet is `brew install --cask
 mark1708/tap/tmh`. That command resolves when GoReleaser can publish the
-formula to `Mark1708/homebrew-tap` during the tagged GitHub release.
+cask to `Mark1708/homebrew-tap` during the tagged GitHub release.
 
 ### 2.1 Confirm the tap repository
 
 1. Open <https://github.com/new>.
 2. Owner: **Mark1708**.
 3. Repository name: **homebrew-tap** (the `homebrew-` prefix is
-   mandatory — that's how `brew install owner/tap/formula` maps to a
+   mandatory — that's how `brew install --cask owner/tap/cask` maps to a
    GitHub URL).
 4. Visibility: **Public**.
 5. Initialise with a README (optional — a placeholder is fine).
@@ -74,20 +74,19 @@ formula to `Mark1708/homebrew-tap` during the tagged GitHub release.
 ### 2.2 Confirm GoReleaser Homebrew settings
 
 ```sh
-grep -A30 '^brews:' /Users/mark/Documents/Projects/me/products/terminal/repos/tmh/.goreleaser.yml
+grep -A30 '^homebrew_casks:' /Users/mark/Documents/Projects/me/products/terminal/repos/tmh/.goreleaser.yml
 ```
 
-The block must target `owner: mark1708`, `name: homebrew-tap`,
-`directory: Formula`, and use `{{ .Env.HOMEBREW_TAP_TOKEN }}`. Do not copy
-or hand-edit a formula from this repository; GoReleaser owns the formula
-contents and checksums.
+The block must target `owner: mark1708`, `name: homebrew-tap`, and use
+`{{ .Env.HOMEBREW_TAP_TOKEN }}`. Do not copy or hand-edit a cask from this
+repository; GoReleaser owns the cask contents and checksums.
 
 ### Verify
 
 ```sh
 brew tap mark1708/tap
-brew info mark1708/tap/tmh
-# prints the latest formula after the first GoReleaser-published release
+brew info --cask mark1708/tap/tmh
+# prints the latest cask after the first GoReleaser-published release
 ```
 
 ### 2.3 Homebrew core (deferred)
@@ -248,7 +247,7 @@ If it fails:
 The workflow publishes the GitHub release directly. Open
 <https://github.com/mark1708/tmh/releases> and confirm the assets,
 `checksums.txt`, `checksums.txt.sig`, and release notes are present.
-GoReleaser also opens or updates the formula in `Mark1708/homebrew-tap`.
+GoReleaser also opens or updates the cask in `Mark1708/homebrew-tap`.
 
 ### Verify
 
@@ -276,10 +275,10 @@ The following are handled (or prepared) by Claude Code in this PR:
 
 - **GIF demos:** `make demo` was run locally; `docs/demos/demo-*.gif` are
   committed and referenced from README. No action needed.
-- **Homebrew formula:** GoReleaser publishes it to
+- **Homebrew cask:** GoReleaser publishes it to
   `Mark1708/homebrew-tap` during the release workflow. Verify with
-  `brew update && brew reinstall mark1708/tap/tmh`; do not run a manual
-  checksum script or edit a formula in this repository.
+  `brew update && brew reinstall --cask mark1708/tap/tmh`; do not run a manual
+  checksum script or edit a cask in this repository.
 - **Launch posts:** Posting to HN / r/tmux / r/golang / lobste.rs is an
   action you take from your own accounts — Claude Code can't authenticate
   as you, and shouldn't.

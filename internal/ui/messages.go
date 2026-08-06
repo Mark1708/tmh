@@ -90,3 +90,11 @@ type historyClearedMsg struct {
 	ArchivePath string
 	Err         error
 }
+
+type settingsSavedMsg struct{ Err error }
+
+type activeStatusLoadedMsg struct {
+	Seq    uint64
+	Report actions.ActiveStatusReport
+	Err    error
+}

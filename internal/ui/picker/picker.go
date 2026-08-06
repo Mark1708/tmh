@@ -31,6 +31,9 @@ type Result struct {
 	// FallThroughToDashboard is true when the user explicitly requested
 	// the full dashboard from the picker (`?` or `d`).
 	FallThroughToDashboard bool
+	// NavigateTarget, when non-empty, is the resolved navigation target
+	// including active-aware alias mapping. Empty for discovered sessions.
+	NavigateTarget string
 }
 
 type item struct {

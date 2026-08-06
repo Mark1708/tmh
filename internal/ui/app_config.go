@@ -125,9 +125,14 @@ func (m *Model) paletteActions() []PaletteAction {
 			out = append(out, PaletteAction{
 				Title:    i18n.Tf("tui.palette.action.attach.title", map[string]any{"name": s.Name}),
 				Subtitle: subtitle,
-				Run:      func() tea.Cmd { return tea.Sequence(attachCmd(m.deps.Runner, m.deps.Runner.InTmux(), s.Name), m.loadDataCmd()) },
+				Run: func() tea.Cmd {
+					return tea.Sequence(m.attachTargetCmd(s.Name), m.loadDataCmd())
+				},
 			})
 		}
+	}
+	for _, activeAction := range m.activePaletteActions() {
+		out = append(out, activeAction.PaletteAction)
 	}
 	return out
 }

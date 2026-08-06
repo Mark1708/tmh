@@ -24,13 +24,14 @@ type dashboardModel struct {
 
 	width, height int
 
-	rows      []dashboardRow
-	collapsed map[string]bool // session name → collapsed (Level 0)
-	expanded  map[string]bool // "session:window" → panes expanded (Level 1→2)
-	cursor    int             // index into rows when not filtered
+	rows       []dashboardRow
+	collapsed  map[string]bool // session name → collapsed (Level 0)
+	expanded   map[string]bool // "session:window" → panes expanded (Level 1→2)
+	cursor     int             // index into rows when not filtered
 	listing    *actions.Listing
 	driftIndex map[string]config.DriftStatus // "session" or "session/window" → status
 	driftFull  map[string]config.Drift       // same key → full Drift (for command drift detail)
+	active     actions.ActiveStatusReport
 
 	// process visibility (Variant 4)
 	paneProvider *pane.Provider
@@ -56,9 +57,11 @@ type dashboardModel struct {
 
 // Level constants for dashboardRow.
 const (
-	levelSession = 0
-	levelWindow  = 1
-	levelPane    = 2
+	levelSession      = 0
+	levelWindow       = 1
+	levelPane         = 2
+	levelActiveHeader = 3
+	levelActiveWindow = 4
 )
 
 type dashboardRow struct {
@@ -78,6 +81,7 @@ type dashboardRow struct {
 	// For windows: non-shell commands in this window's panes.
 	// For pane rows: single command from the pane cache (nil if idle shell).
 	Commands []string
+	Active   *actions.ActiveWindowStatus
 }
 
 // IsSession reports whether this row represents a session.
@@ -181,6 +185,10 @@ func (d *dashboardModel) currentTargetKey() string {
 		return r.Session + ":" + r.Window
 	case levelPane:
 		return fmt.Sprintf("%s:%s.%d", r.Session, r.Window, r.PaneIdx)
+	case levelActiveHeader:
+		return "active-runtime"
+	case levelActiveWindow:
+		return r.Active.WindowID
 	}
 	return ""
 }
@@ -290,6 +298,7 @@ func (d *dashboardModel) rebuildRows() {
 			}
 		}
 	}
+	d.appendActiveRows()
 	// Rebuild filtered view if a filter is active.
 	if d.filterText != "" {
 		d.applyFilter()
@@ -339,6 +348,9 @@ func rowMatchesFilter(r dashboardRow, query string) bool {
 	if strings.Contains(strings.ToLower(r.Window), query) {
 		return true
 	}
+	if r.Active != nil && activeRowMatches(*r.Active, query) {
+		return true
+	}
 	for _, cmd := range r.Commands {
 		if strings.Contains(strings.ToLower(cmd), query) {
 			return true
@@ -374,6 +386,10 @@ func (d *dashboardModel) rowID(r *dashboardRow) string {
 		return r.Session + ":" + r.Window
 	case levelPane:
 		return fmt.Sprintf("%s:%s.%d", r.Session, r.Window, r.PaneIdx)
+	case levelActiveHeader:
+		return "active-runtime"
+	case levelActiveWindow:
+		return r.Active.WindowID
 	}
 	return ""
 }
@@ -596,6 +612,8 @@ func (d *dashboardModel) SelectedTarget() string {
 		return r.Session
 	case levelPane:
 		return fmt.Sprintf("%s:%d.%d", r.Session, r.WindowIdx, r.PaneIdx)
+	case levelActiveHeader, levelActiveWindow:
+		return ""
 	}
 	return r.Session + ":" + r.Window
 }

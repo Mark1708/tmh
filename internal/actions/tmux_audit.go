@@ -2,10 +2,18 @@ package actions
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
+	"github.com/mark1708/tmh/internal/config"
 	"github.com/mark1708/tmh/internal/tmux"
 )
+
+// ActiveHookSlot is the exact hook slot used for the active session feature.
+const ActiveHookSlot = "session-window-changed[1708]"
+
+// ActiveHookCommand is the exact command bound to the hook slot.
+const ActiveHookCommand = `run-shell "tmh active touch #{window_id}"`
 
 // AuditLevel classifies findings from AuditTmuxConfig.
 type AuditLevel string
@@ -20,10 +28,10 @@ const (
 type AuditCategory string
 
 const (
-	CatBaseline    AuditCategory = "baseline"     // tmh depends on this
-	CatRecommended AuditCategory = "recommended"  // UX nicety
-	CatConflict    AuditCategory = "conflict"     // creates races with tmh
-	CatIntegration AuditCategory = "integration"  // tmh bindings / status segment
+	CatBaseline    AuditCategory = "baseline"    // tmh depends on this
+	CatRecommended AuditCategory = "recommended" // UX nicety
+	CatConflict    AuditCategory = "conflict"    // creates races with tmh
+	CatIntegration AuditCategory = "integration" // tmh bindings / status segment
 )
 
 // AuditFinding is one row in the audit report.
@@ -53,11 +61,26 @@ type AuditFinding struct {
 // against the live server state accessed through r. The result is a flat
 // list suitable for rendering as a table.
 func AuditTmuxConfig(ctx context.Context, r tmux.Runner) []AuditFinding {
+	return AuditTmuxConfigWithActiveConfig(ctx, r, nil)
+}
+
+// AuditTmuxConfigWithActiveConfig checks whether tmux is configured
+// correctly for tmh. The check list is derived from the architecture docs
+// against the live server state accessed through r. When cfg is non-nil and
+// active integration is enabled, the active session hook check is included.
+// When disabled or cfg is nil, the active hook is omitted from findings.
+func AuditTmuxConfigWithActiveConfig(ctx context.Context, r tmux.Runner, cfg *config.Config) []AuditFinding {
 	var out []AuditFinding
 	out = append(out, auditBaseline(ctx, r)...)
 	out = append(out, auditRecommended(ctx, r)...)
 	out = append(out, auditConflicts(ctx, r)...)
 	out = append(out, auditIntegration(ctx, r)...)
+
+	// Only audit active hook when enabled in config
+	if cfg != nil && cfg.Defaults.TmuxIntegration.Active.Enabled {
+		out = append(out, auditActiveHook(ctx, r)...)
+	}
+
 	return out
 }
 
@@ -221,6 +244,54 @@ func numLE(limit int) func(string) bool {
 func applySetOption(name, value string, window bool) func(context.Context, tmux.Runner) error {
 	return func(ctx context.Context, r tmux.Runner) error {
 		return r.SetOption(ctx, name, value, window)
+	}
+}
+
+// auditActiveHook checks the active session hook slot and returns findings.
+func auditActiveHook(ctx context.Context, r tmux.Runner) []AuditFinding {
+	activeHook, _ := r.ShowHook(ctx, ActiveHookSlot)
+	if activeHook == "" {
+		// Hook slot is empty - this is a problem when enabled
+		return []AuditFinding{
+			{
+				Level:      AuditWarn,
+				Category:   CatIntegration,
+				Check:      "active session hook",
+				Current:    "(unset)",
+				Expected:   ActiveHookCommand,
+				Message:    "active session hook not configured",
+				MessageKey: "audit.msg.active-hook-missing",
+				FixHint:    "tmh tmux setup --append",
+				FixKey:     "audit.fix.active-hook-missing",
+			},
+		}
+	} else if activeHook == ActiveHookCommand {
+		// Exact match - OK
+		return []AuditFinding{
+			{
+				Level:      AuditOK,
+				Category:   CatIntegration,
+				Check:      "active session hook",
+				Current:    activeHook,
+				Message:    "active session hook configured correctly",
+				MessageKey: "audit.msg.active-hook-ok",
+			},
+		}
+	} else {
+		// Foreign hook - error
+		return []AuditFinding{
+			{
+				Level:      AuditError,
+				Category:   CatConflict,
+				Check:      "active session hook",
+				Current:    activeHook,
+				Expected:   ActiveHookCommand,
+				Message:    "hook slot occupied by foreign command",
+				MessageKey: "audit.msg.active-hook-conflict",
+				FixHint:    fmt.Sprintf("tmux set-hook -gu %s", ActiveHookSlot),
+				FixKey:     "audit.fix.active-hook-conflict",
+			},
+		}
 	}
 }
 

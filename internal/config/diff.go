@@ -156,16 +156,16 @@ func Diff(resolved *Resolved, live LiveSnapshot) []Drift {
 			// Process drift: command declared in config differs from running command.
 			if cw.Command != "" && lw.Command != "" && cw.Command != lw.Command {
 				out = append(out, Drift{
-					Status:         StatusDrift,
-					Session:        cs.Name,
-					Window:         cw.Name,
-					ConfigDir:      cw.Dir,
-					LiveDir:        lw.Dir,
-					ConfigEntry:    entry,
-					Reason:         "command differs: expected " + cw.Command + ", got " + lw.Command,
-					ReasonCode:     ReasonCommandDiffers,
-					ConfigCommand:  cw.Command,
-					LiveCommand:    lw.Command,
+					Status:        StatusDrift,
+					Session:       cs.Name,
+					Window:        cw.Name,
+					ConfigDir:     cw.Dir,
+					LiveDir:       lw.Dir,
+					ConfigEntry:   entry,
+					Reason:        "command differs: expected " + cw.Command + ", got " + lw.Command,
+					ReasonCode:    ReasonCommandDiffers,
+					ConfigCommand: cw.Command,
+					LiveCommand:   lw.Command,
 				})
 				continue
 			}

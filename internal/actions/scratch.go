@@ -78,6 +78,9 @@ func SweepExpiredScratch(ctx context.Context, r tmux.Runner, db *state.DB) (kill
 		}
 		exists, _ := r.HasSession(ctx, e.Target)
 		if exists {
+			if err := CleanupActiveAliasesBeforeKill(ctx, r, e.Target, ""); err != nil {
+				continue
+			}
 			if err := r.KillSession(ctx, e.Target); err != nil {
 				continue
 			}

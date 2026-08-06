@@ -114,6 +114,12 @@ func BuildListing(ctx context.Context, r tmux.Runner, cfg *config.Config, profil
 		if seen[ls.Name] {
 			continue
 		}
+
+		// Exclude owned active session when feature enabled
+		if isOwnedActiveSession(ctx, r, cfg, ls.Name) {
+			continue
+		}
+
 		sess := ListedSession{Name: ls.Name, Live: true, Attached: ls.Attached}
 		liveWindows, _ := r.ListWindows(ctx, ls.Name)
 		for _, lw := range liveWindows {
@@ -141,4 +147,16 @@ func BuildListing(ctx context.Context, r tmux.Runner, cfg *config.Config, profil
 	}
 
 	return out, nil
+}
+
+func isOwnedActiveSession(ctx context.Context, r tmux.Runner, cfg *config.Config, sessionName string) bool {
+	if sessionName != ActiveSessionName || !cfg.Defaults.TmuxIntegration.Active.Enabled {
+		return false
+	}
+
+	marker, err := r.ShowSessionOption(ctx, ActiveSessionName, ActiveOwnerOption)
+	if err != nil {
+		return false
+	}
+	return marker == ActiveOwnerValue
 }

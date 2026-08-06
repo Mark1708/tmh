@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mark1708/tmh/internal/config"
-	"github.com/mark1708/tmh/internal/i18n"
-	"github.com/mark1708/tmh/internal/ui/toast"
+	errs "github.com/mark1708/tmh/internal/errors"
 	"github.com/mark1708/tmh/internal/xdg"
 
 	"github.com/charmbracelet/lipgloss"
@@ -35,17 +35,17 @@ func (s *settingsModel) saveCmd() tea.Cmd {
 		}
 
 		if ferrs := applyFieldsToConfig(cfg.Node, fields); len(ferrs) > 0 {
-			return toastMsg{Kind: toast.KindError, Text: "save: " + ferrs[0].Error()}
+			return settingsSavedMsg{Err: ferrs[0]}
 		}
 		if err := config.Write(cfg, cfgPath, config.WriteOptions{PreserveBlanks: true}); err != nil {
-			return toastMsg{Kind: toast.KindError, Text: "save: " + err.Error()}
+			return settingsSavedMsg{Err: err}
 		}
 
 		if err := writeTmuxConf(fields[catTmux]); err != nil {
-			return toastMsg{Kind: toast.KindError, Text: "tmux.conf: " + err.Error()}
+			return settingsSavedMsg{Err: err}
 		}
 
-		return toastMsg{Kind: toast.KindSuccess, Text: i18n.T("tui.settings.saved")}
+		return settingsSavedMsg{}
 	}
 }
 
@@ -90,13 +90,23 @@ func applyFieldsToConfig(root *yaml.Node, fields [numSettingsCats][]settingsFiel
 	}
 
 	// Tmux
-	if tf := fields[catTmux]; len(tf) >= 6 {
+	if tf := fields[catTmux]; len(tf) >= 8 {
 		pset("defaults.tmux_integration.default_terminal", tf[0].choices[tf[0].chosen])
 		pint("defaults.tmux_integration.escape_time_ms", atoi(tf[1].choices[tf[1].chosen]))
 		pbool("defaults.tmux_integration.mouse_mode", tf[2].on)
 		pbool("defaults.tmux_integration.status_right_integration", tf[3].on)
 		pint("defaults.tmux_integration.base_index", atoi(tf[4].choices[tf[4].chosen]))
 		pint("defaults.tmux_integration.pane_base_index", atoi(tf[5].choices[tf[5].chosen]))
+		pbool("defaults.tmux_integration.active.enabled", tf[6].on)
+		if err := validateActiveTTLField(tf[7].text); err != nil {
+			errs = append(errs, err)
+		} else {
+			ttl := tf[7].text
+			if ttl == "" {
+				ttl = config.DefaultActiveTTL
+			}
+			pset("defaults.tmux_integration.active.ttl", ttl)
+		}
 	}
 
 	// Behaviour
@@ -108,6 +118,17 @@ func applyFieldsToConfig(root *yaml.Node, fields [numSettingsCats][]settingsFiel
 	}
 
 	return errs
+}
+
+func validateActiveTTLField(value string) error {
+	if value == "" {
+		return nil
+	}
+	ttl, err := time.ParseDuration(value)
+	if err != nil || ttl <= 0 || ttl > config.MaxActiveTTL {
+		return fmt.Errorf("%w: %q", errs.ErrInvalidTTL, value)
+	}
+	return nil
 }
 
 // writeTmuxConf atomically writes the tmh-managed tmux include-file.
@@ -334,6 +355,13 @@ func (s *settingsModel) renderFieldValueRaw(f settingsField, selected bool, w in
 
 	case fieldKindReadOnly:
 		return truncate(f.display, w)
+
+	case fieldKindDuration:
+		text := truncate(f.text, w-1)
+		if selected {
+			return text + "█"
+		}
+		return text
 	}
 	return ""
 }

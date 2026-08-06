@@ -19,9 +19,9 @@ type Keys struct {
 	Refresh, Settings, History             key.Binding
 
 	// Marks / last-location (4.1 + 4.2)
-	PrevLoc   key.Binding // '' — pop last location
-	MarkSet   key.Binding // m — begin set-mark two-step
-	MarkJump  key.Binding // ' — begin jump-to-mark two-step
+	PrevLoc  key.Binding // '' — pop last location
+	MarkSet  key.Binding // m — begin set-mark two-step
+	MarkJump key.Binding // ' — begin jump-to-mark two-step
 }
 
 // DefaultKeys returns the default key bindings.

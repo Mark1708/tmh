@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"errors"
 	"time"
 
+	errs "github.com/mark1708/tmh/internal/errors"
 	"github.com/mark1708/tmh/internal/i18n"
 	"github.com/mark1708/tmh/internal/ui/errrender"
 	"github.com/mark1708/tmh/internal/ui/refresh"
@@ -82,7 +84,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.dashboard != nil {
 			m.dashboard.SetData(msg.Listing, msg.Drift)
 		}
-		return m, m.maybeLoadPreview()
+		return m, tea.Batch(m.maybeLoadPreview(), m.nextActiveStatusCmd())
+
+	case activeStatusLoadedMsg:
+		if msg.Seq != m.activeSeq {
+			return m, nil
+		}
+		if msg.Err != nil {
+			return m, m.showToast(toast.KindError, errrender.Render(msg.Err))
+		}
+		m.activeStatus = msg.Report
+		if m.dashboard != nil {
+			m.dashboard.SetActiveStatus(msg.Report)
+		}
+		return m, nil
 
 	case previewLoadedMsg:
 		if m.dashboard != nil && msg.Err == nil {
@@ -173,6 +188,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.history = nil
 		return m, m.showToast(toast.KindSuccess, i18n.T("tui.toast.history_cleared"))
+
+	case settingsSavedMsg:
+		if msg.Err != nil {
+			if !errors.Is(msg.Err, errs.ErrInvalidTTL) {
+				return m, m.showToast(toast.KindError, errrender.Render(msg.Err))
+			}
+			return m, m.showToast(toast.KindError,
+				i18n.Tf("tui.settings.error.active_ttl", map[string]any{"msg": errrender.Render(msg.Err)}))
+		}
+		if m.settings != nil {
+			m.settings.dirty = false
+		}
+		toastCmd := m.showToast(toast.KindSuccess, i18n.T("tui.settings.saved"))
+		return m, tea.Batch(toastCmd, m.loadDataCmd())
 
 	case switchScreenMsg:
 		m.prev = m.current
@@ -376,7 +405,7 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.marksStore.PushLocation(target, m.dashboard.effectiveCursor())
 		}
 		return m, tea.Sequence(
-			attachCmd(m.deps.Runner, m.deps.Runner.InTmux(), target),
+			m.attachTargetCmd(target),
 			m.loadDataCmd(),
 		)
 

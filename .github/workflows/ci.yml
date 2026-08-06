@@ -47,3 +47,23 @@ jobs:
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: run govulncheck
         run: govulncheck ./...
+
+  tmux-3-2-integration:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+      - name: verify tmux version
+        run: |
+          TMUX_VERSION="$(tmux -V)"
+          echo "tmux version: $TMUX_VERSION"
+          if [ "$TMUX_VERSION" != "tmux 3.2a" ]; then
+            echo "Error: unexpected tmux version: $TMUX_VERSION (expected tmux 3.2a)"
+            exit 1
+          fi
+      - name: run tmux 3.2a integration tests
+        run: go test -tags=tmuxintegration ./internal/tmux -run TestActiveTmux32 -count=1

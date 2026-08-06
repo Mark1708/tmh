@@ -32,7 +32,10 @@ func newDoctorCmd() *cobra.Command {
 			}
 			// tmux integration audit — separate block so the user can see
 			// option-level findings distinctly from environment checks.
-			findings := actions.AuditTmuxConfig(context.Background(), tmux.NewCLIRunner())
+			findings, err := tmuxAuditFindings(context.Background(), tmux.NewCLIRunner())
+			if err != nil {
+				return err
+			}
 			if len(findings) > 0 {
 				fmt.Fprintln(c.OutOrStdout(), "\n"+i18n.T("doctor.tmux_integration_header"))
 				for _, f := range findings {

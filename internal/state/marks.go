@@ -26,9 +26,9 @@ type Location struct {
 
 // marksFile is the serialised form of MarksStore.
 type marksFile struct {
-	Marks         map[string]Mark  `json:"marks"`           // letter string → Mark
-	LastLocations []Location       `json:"last_locations"`  // ring, newest first
-	SavedAt       time.Time        `json:"saved_at"`
+	Marks         map[string]Mark `json:"marks"`          // letter string → Mark
+	LastLocations []Location      `json:"last_locations"` // ring, newest first
+	SavedAt       time.Time       `json:"saved_at"`
 }
 
 const lastLocationRingSize = 10

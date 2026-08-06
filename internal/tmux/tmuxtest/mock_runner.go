@@ -7,6 +7,7 @@ package tmuxtest
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,42 +26,28 @@ type Call struct {
 // MockRunner is a Runner backed by in-memory maps. Safe for concurrent
 // access within a single test goroutine tree (protected by a mutex).
 type MockRunner struct {
-	mu         sync.Mutex
-	server     bool
-	nested     bool
-	calls      []Call
-	sessions   map[string]*mockSession
-	order      []string // session creation order, for stable listing
-	paneSerial int
-	options    map[string]string // server option table used by ShowOption/SetOption
-	hooks      map[string]string // hook name → bound command
-}
-
-type mockSession struct {
-	name     string
-	attached bool
-	windows  []*mockWindow
-}
-
-type mockWindow struct {
-	index   int
-	name    string
-	layout  string
-	panes   []*mockPane
-	active  bool
-	autoRen bool
-}
-
-type mockPane struct {
-	id      string
-	command string
-	path    string
-	active  bool
+	mu             sync.Mutex
+	server         bool
+	nested         bool
+	calls          []Call
+	sessions       map[string]*mockSession
+	order          []string // session creation order, for stable listing
+	paneSerial     int
+	physWins       map[string]*mockPhysicalWindow // window_id -> physical window
+	winSerial      int                            // for generating @N IDs
+	options        map[string]string              // server option table used by ShowOption/SetOption
+	hooks          map[string]string              // hook name → bound command
+	sessionOptions map[string]map[string]string   // session -> option -> value
 }
 
 // New returns an empty MockRunner with the tmux server already running.
 func New() *MockRunner {
-	return &MockRunner{server: true, sessions: map[string]*mockSession{}}
+	return &MockRunner{
+		server:         true,
+		sessions:       map[string]*mockSession{},
+		physWins:       map[string]*mockPhysicalWindow{},
+		sessionOptions: map[string]map[string]string{},
+	}
 }
 
 // SetInTmux toggles whether InTmux() returns true.
@@ -147,8 +134,10 @@ func (m *MockRunner) HasSession(_ context.Context, name string) (bool, error) {
 func (m *MockRunner) NewSession(_ context.Context, opts tmux.NewSessionOpts) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	recordedOptions := cloneStringMap(opts.SessionOptions)
 	m.record("NewSession", map[string]any{
 		"name": opts.Name, "dir": opts.Dir, "windowName": opts.WindowName,
+		"sessionOptions": recordedOptions,
 	})
 	if !m.server {
 		return fmt.Errorf("%w", errs.ErrServerNotRunning)
@@ -160,10 +149,25 @@ func (m *MockRunner) NewSession(_ context.Context, opts tmux.NewSessionOpts) err
 	if winName == "" {
 		winName = opts.Name
 	}
+	winID := m.nextWindowID()
 	pane := &mockPane{id: m.nextPaneID(), path: opts.Dir, active: true}
-	win := &mockWindow{index: 1, name: winName, panes: []*mockPane{pane}, active: true}
+	win := &mockWindow{id: winID, index: 1, name: winName, panes: []*mockPane{pane}, active: true}
 	m.sessions[opts.Name] = &mockSession{name: opts.Name, windows: []*mockWindow{win}}
 	m.order = append(m.order, opts.Name)
+
+	if _, exists := m.physWins[winID]; !exists {
+		m.physWins[winID] = &mockPhysicalWindow{
+			id:    winID,
+			links: map[string]*mockWindowLink{},
+		}
+	}
+	m.physWins[winID].links[opts.Name] = &mockWindowLink{
+		session: opts.Name,
+		index:   1,
+		name:    winName,
+		active:  true,
+	}
+	m.sessionOptions[opts.Name] = cloneStringMap(opts.SessionOptions)
 	return nil
 }
 
@@ -171,7 +175,8 @@ func (m *MockRunner) AttachSession(_ context.Context, name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.record("AttachSession", map[string]any{"name": name})
-	s, ok := m.sessions[name]
+	sessionName, _, _ := strings.Cut(name, ":")
+	s, ok := m.sessions[sessionName]
 	if !ok {
 		return fmt.Errorf("%w: %s", errs.ErrSessionNotFound, name)
 	}
@@ -193,7 +198,11 @@ func (m *MockRunner) KillSession(_ context.Context, name string) error {
 	if _, ok := m.sessions[name]; !ok {
 		return fmt.Errorf("%w: %s", errs.ErrSessionNotFound, name)
 	}
+	for _, window := range m.sessions[name].windows {
+		m.deletePhysicalLink(window.id, name)
+	}
 	delete(m.sessions, name)
+	delete(m.sessionOptions, name)
 	for i, n := range m.order {
 		if n == name {
 			m.order = append(m.order[:i], m.order[i+1:]...)
@@ -278,9 +287,23 @@ func (m *MockRunner) NewWindow(_ context.Context, opts tmux.NewWindowOpts) (tmux
 	for _, w := range s.windows {
 		w.active = false
 	}
+	winID := m.nextWindowID()
 	pane := &mockPane{id: m.nextPaneID(), path: opts.Dir, active: true}
-	win := &mockWindow{index: idx, name: opts.Name, panes: []*mockPane{pane}, active: true}
+	win := &mockWindow{id: winID, index: idx, name: opts.Name, panes: []*mockPane{pane}, active: true}
 	s.windows = append(s.windows, win)
+
+	if _, exists := m.physWins[winID]; !exists {
+		m.physWins[winID] = &mockPhysicalWindow{
+			id:    winID,
+			links: map[string]*mockWindowLink{},
+		}
+	}
+	m.physWins[winID].links[sessName] = &mockWindowLink{
+		session: sessName,
+		index:   idx,
+		name:    opts.Name,
+		active:  true,
+	}
 	return tmux.Window{Session: sessName, Index: idx, Name: opts.Name}, nil
 }
 
@@ -288,17 +311,20 @@ func (m *MockRunner) KillWindow(_ context.Context, target string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.record("KillWindow", map[string]any{"target": target})
-	sess, idx, err := parseWindowTarget(target)
-	if err != nil {
-		return err
+	parts := strings.SplitN(target, ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return fmt.Errorf("invalid target %q", target)
 	}
+	sess := parts[0]
+	suffix := parts[1]
 	s, ok := m.sessions[sess]
 	if !ok {
 		return fmt.Errorf("%w: %s", errs.ErrSessionNotFound, sess)
 	}
 	for i, w := range s.windows {
-		if w.index == idx || w.name == fmt.Sprintf("%d", idx) {
+		if w.id == suffix || w.name == suffix || strconv.Itoa(w.index) == suffix {
 			s.windows = append(s.windows[:i], s.windows[i+1:]...)
+			m.deletePhysicalLink(w.id, sess)
 			return nil
 		}
 	}
@@ -412,7 +438,7 @@ func (m *MockRunner) CapturePane(_ context.Context, target string, lines int) ([
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.record("CapturePane", map[string]any{"target": target, "lines": lines})
-	return []byte(fmt.Sprintf("mock capture of %s", target)), nil
+	return fmt.Appendf(nil, "mock capture of %s", target), nil
 }
 
 func (m *MockRunner) SendKeys(_ context.Context, target string, keys ...string) error {
@@ -521,55 +547,231 @@ func (m *MockRunner) UnsetHook(_ context.Context, name string) error {
 	return nil
 }
 
-// --- helpers ---
+func (m *MockRunner) WindowID(_ context.Context, target string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("WindowID", map[string]any{"target": target})
 
-func (m *MockRunner) nextPaneID() string {
-	m.paneSerial++
-	return fmt.Sprintf("%%%d", m.paneSerial)
+	w, err := m.findWindow(target)
+	if err != nil {
+		return "", err
+	}
+	return w.id, nil
 }
 
-// findWindow locates a window by "session:index" or "session:name" target.
-func (m *MockRunner) findWindow(target string) (*mockWindow, error) {
-	parts := strings.SplitN(target, ":", 2)
-	if len(parts) != 2 || parts[0] == "" {
-		return nil, fmt.Errorf("%w: %s", errs.ErrWindowNotFound, target)
+func (m *MockRunner) ListWindowLinks(_ context.Context) ([]tmux.WindowLink, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("ListWindowLinks", nil)
+
+	if !m.server {
+		return nil, nil
 	}
-	s, ok := m.sessions[parts[0]]
+
+	var links []tmux.WindowLink
+	for _, sessName := range m.order {
+		sess, ok := m.sessions[sessName]
+		if !ok {
+			continue
+		}
+		for _, w := range sess.windows {
+			links = append(links, tmux.WindowLink{
+				SessionID:   sessName,
+				SessionName: sessName,
+				WindowID:    w.id,
+				WindowIndex: w.index,
+				WindowName:  w.name,
+				Active:      w.active,
+			})
+		}
+	}
+	return links, nil
+}
+
+func (m *MockRunner) LinkWindow(_ context.Context, sourceWindowID, destination string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("LinkWindow", map[string]any{"sourceWindowID": sourceWindowID, "destination": destination})
+
+	if !m.server {
+		return fmt.Errorf("%w", errs.ErrServerNotRunning)
+	}
+
+	phys, ok := m.physWins[sourceWindowID]
 	if !ok {
-		return nil, fmt.Errorf("%w: %s", errs.ErrSessionNotFound, parts[0])
+		return fmt.Errorf("%w: %s", errs.ErrWindowNotFound, sourceWindowID)
 	}
-	suffix := parts[1]
-	// suffix may be "index[.pane]" or "name"
-	if dot := strings.IndexByte(suffix, '.'); dot >= 0 {
-		suffix = suffix[:dot]
+
+	destinationSession, explicitIndex, err := parseLinkDestination(destination)
+	if err != nil {
+		return err
 	}
-	if idx, err := strconv.Atoi(suffix); err == nil {
-		for _, w := range s.windows {
+	dest, ok := m.sessions[destinationSession]
+	if !ok {
+		return fmt.Errorf("%w: %s", errs.ErrSessionNotFound, destinationSession)
+	}
+
+	idx := 1
+	if explicitIndex != nil {
+		idx = *explicitIndex
+		for _, w := range dest.windows {
 			if w.index == idx {
-				return w, nil
+				return fmt.Errorf("index in use: %s:%d", destinationSession, idx)
+			}
+		}
+	} else {
+		for _, w := range dest.windows {
+			if w.index >= idx {
+				idx = w.index + 1
 			}
 		}
 	}
-	for _, w := range s.windows {
-		if w.name == suffix {
-			return w, nil
-		}
+
+	for _, w := range dest.windows {
+		w.active = false
 	}
-	return nil, fmt.Errorf("%w: %s", errs.ErrWindowNotFound, target)
+
+	_, hasLink := phys.links[destinationSession]
+	if hasLink {
+		return fmt.Errorf("window %s already linked to %s", sourceWindowID, destinationSession)
+	}
+	var linkName string
+	for _, sourceLink := range phys.links {
+		linkName = sourceLink.name
+		break
+	}
+	if linkName == "" {
+		linkName = fmt.Sprintf("linked-%s", sourceWindowID)
+	}
+
+	win := &mockWindow{
+		id:     sourceWindowID,
+		index:  idx,
+		name:   linkName,
+		panes:  []*mockPane{},
+		active: true,
+	}
+	dest.windows = append(dest.windows, win)
+
+	m.physWins[sourceWindowID].links[destinationSession] = &mockWindowLink{
+		session: destinationSession,
+		index:   idx,
+		name:    linkName,
+		active:  true,
+	}
+
+	return nil
 }
 
-func parseWindowTarget(target string) (session string, index int, err error) {
-	parts := strings.SplitN(target, ":", 2)
-	if len(parts) != 2 {
-		return "", 0, fmt.Errorf("invalid target %q", target)
+// RenumberWindows is a test helper that simulates tmux renumber-windows while
+// preserving physical window IDs.
+func (m *MockRunner) RenumberWindows(session string, baseIndex int) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	sess, ok := m.sessions[session]
+	if !ok {
+		return fmt.Errorf("%w: %s", errs.ErrSessionNotFound, session)
 	}
-	suffix := parts[1]
-	if dot := strings.IndexByte(suffix, '.'); dot >= 0 {
-		suffix = suffix[:dot]
+	for offset, window := range sortedMockWindows(sess.windows) {
+		window.index = baseIndex + offset
+		if physical, exists := m.physWins[window.id]; exists {
+			if link, linked := physical.links[session]; linked {
+				link.index = window.index
+			}
+		}
 	}
-	idx, err := strconv.Atoi(suffix)
-	if err != nil {
-		return parts[0], 0, err
+	return nil
+}
+
+func (m *MockRunner) UnlinkWindow(_ context.Context, session, windowID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("UnlinkWindow", map[string]any{"session": session, "windowID": windowID})
+
+	sess, ok := m.sessions[session]
+	if !ok {
+		return fmt.Errorf("%w: %s", errs.ErrSessionNotFound, session)
 	}
-	return parts[0], idx, nil
+
+	phys, physOk := m.physWins[windowID]
+	if physOk && len(phys.links) <= 1 {
+		return fmt.Errorf("cannot unlink last link of window %s", windowID)
+	}
+
+	for i, w := range sess.windows {
+		if w.id == windowID {
+			sess.windows = append(sess.windows[:i], sess.windows[i+1:]...)
+			break
+		}
+	}
+
+	if physOk {
+		delete(phys.links, session)
+	}
+
+	return nil
+}
+
+func (m *MockRunner) ServerEpoch(_ context.Context) (tmux.ServerEpoch, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("ServerEpoch", nil)
+
+	if !m.server {
+		return tmux.ServerEpoch{}, fmt.Errorf("%w", errs.ErrServerNotRunning)
+	}
+
+	serverKey := "/tmp/tmux-test-socket"
+	startTime := "1234567890"
+	pid := "12345"
+	value := fmt.Sprintf("%s:%s:%s", serverKey, startTime, pid)
+
+	return tmux.ServerEpoch{
+		ServerKey: serverKey,
+		Value:     value,
+	}, nil
+}
+
+func (m *MockRunner) ShowSessionOption(_ context.Context, session, name string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("ShowSessionOption", map[string]any{"session": session, "name": name})
+
+	if m.sessionOptions == nil {
+		return "", nil
+	}
+	if opts, ok := m.sessionOptions[session]; ok {
+		return opts[name], nil
+	}
+	return "", nil
+}
+
+func (m *MockRunner) SetSessionOption(_ context.Context, session, name, value string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.record("SetSessionOption", map[string]any{"session": session, "name": name, "value": value})
+
+	if m.sessionOptions == nil {
+		m.sessionOptions = map[string]map[string]string{}
+	}
+	if m.sessionOptions[session] == nil {
+		m.sessionOptions[session] = map[string]string{}
+	}
+	m.sessionOptions[session][name] = value
+	return nil
+}
+
+func (m *MockRunner) deletePhysicalLink(windowID, session string) {
+	physical, ok := m.physWins[windowID]
+	if !ok {
+		return
+	}
+	delete(physical.links, session)
+	if len(physical.links) == 0 {
+		delete(m.physWins, windowID)
+	}
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	return maps.Clone(values)
 }

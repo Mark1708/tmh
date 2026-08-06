@@ -82,6 +82,7 @@ Useful next reads: [examples](./examples/README.md),
 - [Process visibility](#process-visibility)
 - [Marks and last-location](#marks-and-last-location)
 - [tmux integration](#tmux-integration)
+- [Active session (optional)](#active-session-optional)
 - [Hooks and trust](#hooks-and-trust)
 - [Snapshots and undo](#snapshots-and-undo)
 - [Sharing with a teammate](#sharing-with-a-teammate)
@@ -109,11 +110,10 @@ floor).
 ### Homebrew
 
 ```sh
-brew install mark1708/tap/tmh
+brew install --cask mark1708/tap/tmh
 ```
 
-The formula installs the binary, man pages, and bash/zsh/fish
-completions.
+The cask installs the binary, man pages, and bash/zsh/fish completions.
 
 ### From source
 
@@ -422,7 +422,7 @@ tmh doctor                   environment + tmux-integration audit
 ```
 
 Shell completions are generated artifacts in `docs/generated/completions/{bash,zsh,fish}/tmh`
-and are installed by the Homebrew formula. Regenerate them with `make docs`.
+and are installed by the Homebrew cask. Regenerate them with `make docs`.
 
 ### Sessions
 
@@ -793,6 +793,91 @@ Recommended bind for `~/.tmux.conf`:
 bind R run-shell "tmh reload --all"          # prefix R → dotfiles reload
 set -ag status-right ' #(tmh status)'        # drift/reload badges
 ```
+
+---
+
+## Active session (optional)
+
+The active session feature creates a real tmux session named `active` that temporarily links recently selected windows from your declared sessions. This lets you use native tmux navigation (`prefix n`, `prefix p`, `prefix 1`, `prefix l`) across all sessions while keeping each window anchored in its original declarative structure.
+
+**Key concepts:**
+
+- **Opt-in:** Feature is disabled by default. Enable explicitly in `config.yml`.
+- **Physical window preservation:** Windows are linked via `tmux link-window`, not moved.
+- **Identity:** Windows are tracked by physical `@ID` (like `@123`), stable for the tmux server lifetime.
+- **Interaction-driven expiry:** TTL slides on each window selection. Not a wall-clock timer.
+- **Orphan safety:** Last link cannot be removed automatically. Window becomes orphaned, not deleted.
+- **Collision fail-closed:** Ownership marker prevents overwriting user-created `active` sessions.
+
+### Configuration
+
+Add to `~/.config/tmh/config.yml`:
+
+```yaml
+defaults:
+  tmux_integration:
+    active:
+      enabled: true   # default: false
+      ttl: 5h         # optional; default when omitted: 5h
+```
+
+**Configuration rules:**
+
+- `enabled` defaults to `false`. Omit the block entirely to keep the feature disabled.
+- `ttl` is a duration string (e.g., `5h`, `2h30m`, `30m`).
+- TTL range: `(0, 720h]` — must be positive and at most 30 days.
+- If `enabled: true` and `ttl` is omitted, the effective TTL is `5h`.
+- Explicit `ttl` is validated even when `enabled: false` to catch misconfiguration early.
+
+### Setup and enable
+
+After enabling the feature in `config.yml`, run the setup command to install the managed tmux hook:
+
+```sh
+tmh tmux setup --append
+tmux source-file ~/.tmux.conf
+```
+
+This adds a managed hook to `~/.tmux.conf` that extends the TTL on each native navigation.
+
+### Commands
+
+```sh
+tmh active status [--json]  # show current state (JSON stable for scripts)
+tmh active prune            # remove expired tracked windows
+tmh active remove @ID       # remove an active alias safely
+tmh active recover @ID --to session  # recover an orphaned window
+```
+
+**Safety:** All operations verify at least one non-active link exists before removing aliases. Physical windows are never destroyed.
+
+### Limitations
+
+- **No background daemon:** Expiry is checked on next relevant `tmh` invocation, not by a wall-clock timer.
+- **Interaction-driven TTL:** TTL slides only when you navigate (`prefix n`, `prefix p`, etc.) or use `tmh attach`.
+- **Fixed session name:** The runtime session is always named `active` for safety and simplicity.
+- **Collision fail-closed:** If you manually create a session named `active`, tmh will fail closed and not interfere.
+
+### Safety guarantees
+
+- **Never destroys physical windows:** All remove operations verify non-active links exist.
+- **Source kill cleanup:** Before killing a source session, aliases are removed. Abort if cleanup fails.
+- **Ownership marker:** The `active` session is marked with `@tmh-active-owner = tmh/v1` to prevent conflicts.
+- **Orphan recovery:** Last-link expiry marks windows as orphaned, requiring explicit recovery.
+
+### Disable and rollback
+
+To disable the feature:
+
+```sh
+tmh active status                      # check current state
+tmh active recover @ID --to session   # recover orphans (for each)
+tmh active prune                      # remove safe unlinks
+```
+
+Then set `defaults.tmux_integration.active.enabled: false` in `config.yml`, run `tmh tmux setup --append`, and source your tmux conf.
+
+For detailed documentation, see [Active session guide](./docs/guides/active-session.md).
 
 ---
 

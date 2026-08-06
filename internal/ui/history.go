@@ -49,4 +49,3 @@ func (m *Model) renderHistory() string {
 	b.WriteString(modalRow(m.st.Palette, rowW, hint.Render(i18n.T("tui.history.back_hint"))))
 	return placeMiddle(m.width, m.height, m.st.Modal.Render(b.String()), m.st.Palette)
 }
-

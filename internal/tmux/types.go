@@ -31,11 +31,12 @@ type Pane struct {
 
 // NewSessionOpts parameterises a session creation call.
 type NewSessionOpts struct {
-	Name       string
-	Dir        string
-	WindowName string
-	Env        map[string]string
-	Detached   bool
+	Name           string
+	Dir            string
+	WindowName     string
+	Env            map[string]string
+	SessionOptions map[string]string
+	Detached       bool
 }
 
 // NewWindowOpts parameterises a window creation call.
@@ -62,4 +63,22 @@ type PopupOpts struct {
 	Env     map[string]string
 	Command string
 	Close   bool // -E: close when command exits
+}
+
+// WindowLink represents a linked window across sessions. Multiple links of
+// the same physical window (same WindowID) can exist simultaneously.
+type WindowLink struct {
+	SessionID   string
+	SessionName string
+	WindowID    string
+	WindowIndex int
+	WindowName  string
+	Active      bool
+}
+
+// ServerEpoch uniquely identifies a tmux server instance for a given socket.
+// The Value is a canonicalized string derived from (socket_path, start_time, pid).
+type ServerEpoch struct {
+	ServerKey string
+	Value     string
 }

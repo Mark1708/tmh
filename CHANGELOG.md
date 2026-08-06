@@ -12,6 +12,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) from
 Internal Go packages (`internal/...`) are explicitly **not** part of the
 public API.
 
+## [Unreleased]
+
+### Added
+
+- **Optional active session:** New feature that creates a real tmux session named `active` which temporarily links recently selected windows from declared sessions, enabling native tmux navigation (`prefix n`, `prefix p`, `prefix 1`, `prefix l`) across all sessions. Requires explicit opt-in via `defaults.tmux_integration.active.enabled: true` in `config.yml`. Windows are linked via `tmux link-window` (not moved), tracked by physical `@ID` identity, with interaction-driven expiry (configurable TTL in `(0, 720h]` range, default `5h`). Includes public commands `tmh active status [--json]`, `tmh active prune`, `tmh active remove @ID`, `tmh active recover @ID --to session`, with orphan-safe recovery, collision fail-closed via ownership marker, and SQLite persistence in additive `active_windows` table. See [Active session guide](./docs/guides/active-session.md) for complete documentation, safety guarantees, setup, disable/rollback, and troubleshooting.
+
 ## [1.0.0] — 2026-05-XX (upcoming)
 
 First public release. Highlights (English summary):

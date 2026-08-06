@@ -30,7 +30,11 @@ func TestGenerateSchema_ContainsExpectedFields(t *testing.T) {
 		"\"sessions\"",
 		"\"templates\"",
 		"\"defaults\"",
-		"\"on_create\"", // hooks should be reflected
+		"\"on_create\"",        // hooks should be reflected
+		"\"tmux_integration\"", // active session config parent
+		"\"active\"",           // active session config
+		"\"enabled\"",          // active session enabled field
+		"\"ttl\"",              // active session TTL field
 		SchemaID,
 	}
 	for _, w := range wants {

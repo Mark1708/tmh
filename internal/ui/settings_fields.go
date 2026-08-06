@@ -142,6 +142,10 @@ func buildTmuxFields(d config.Defaults) []settingsField {
 	if d.TmuxIntegration.PaneBaseIndex != nil {
 		paneBaseIdx = *d.TmuxIntegration.PaneBaseIndex
 	}
+	activeTTL := d.TmuxIntegration.Active.TTL
+	if activeTTL == "" {
+		activeTTL = config.DefaultActiveTTL
+	}
 	return []settingsField{
 		{label: i18n.T("tui.settings.field.default_terminal"), kind: fieldKindSelect, choices: termChoices, chosen: termIdx},
 		{label: i18n.T("tui.settings.field.escape_time"), kind: fieldKindSelect, choices: escChoices, chosen: escIdx},
@@ -149,6 +153,8 @@ func buildTmuxFields(d config.Defaults) []settingsField {
 		{label: i18n.T("tui.settings.field.status_right"), kind: fieldKindToggle, on: statusRight},
 		{label: i18n.T("tui.settings.field.base_index"), kind: fieldKindSelect, choices: idxChoices, chosen: choiceIdx(idxChoices, fmt.Sprintf("%d", baseIdx))},
 		{label: i18n.T("tui.settings.field.pane_base_index"), kind: fieldKindSelect, choices: idxChoices, chosen: choiceIdx(idxChoices, fmt.Sprintf("%d", paneBaseIdx))},
+		{label: i18n.T("tui.settings.field.active_enabled"), kind: fieldKindToggle, on: d.TmuxIntegration.Active.Enabled},
+		{label: i18n.T("tui.settings.field.active_ttl"), kind: fieldKindDuration, text: activeTTL},
 	}
 }
 

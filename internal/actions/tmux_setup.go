@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mark1708/tmh/internal/config"
 	"github.com/mark1708/tmh/internal/tmux"
 )
 
@@ -29,14 +30,22 @@ type Snippet struct {
 // applied (via --audit finding OK) are marked Already=true so callers can
 // filter them out in suggestion output.
 func Setup(ctx context.Context, r tmux.Runner) []Snippet {
-	findings := AuditTmuxConfig(ctx, r)
+	return SetupWithActiveConfig(ctx, r, nil)
+}
+
+// SetupWithActiveConfig computes the list of tmux.conf snippets needed for
+// ideal tmh integration given current server state and configuration. The
+// active hook is only included when cfg is non-nil and active integration
+// is enabled.
+func SetupWithActiveConfig(ctx context.Context, r tmux.Runner, cfg *config.Config) []Snippet {
+	findings := AuditTmuxConfigWithActiveConfig(ctx, r, cfg)
 	findingByCheck := make(map[string]AuditFinding, len(findings))
 	for _, f := range findings {
 		findingByCheck[f.Check] = f
 	}
 	ok := func(check string) bool { return findingByCheck[check].Level == AuditOK }
 
-	return []Snippet{
+	snippets := []Snippet{
 		{`set -g default-terminal "tmux-256color"`, "truecolor for lipgloss", ok("default-terminal")},
 		{`set -as terminal-features ",xterm-256color:RGB"`, "RGB capability", false},
 		{`set -g mouse on`, "required by bubbletea mouse mode", ok("mouse")},
@@ -49,6 +58,29 @@ func Setup(ctx context.Context, r tmux.Runner) []Snippet {
 		{`unbind R`, "prefix R → tmh reload --all", false},
 		{`bind R run-shell "tmh reload --all"`, "", false},
 	}
+
+	// Include active hook when:
+	// 1. cfg is non-nil AND enabled (config-aware path), OR
+	// 2. cfg is nil AND slot is unset (legacy behavior)
+	var includeActiveHook bool
+	if cfg != nil {
+		includeActiveHook = cfg.Defaults.TmuxIntegration.Active.Enabled
+	} else {
+		// Legacy behavior: include hook when slot is unset
+		includeActiveHook = true
+	}
+
+	if includeActiveHook {
+		if check, exists := findingByCheck["active session hook"]; exists && (check.Level == AuditOK || check.Current == "(unset)") {
+			snippets = append(snippets, Snippet{
+				Line:    fmt.Sprintf("set-hook -g '%s' '%s'", ActiveHookSlot, ActiveHookCommand),
+				Reason:  "active session window tracking",
+				Already: check.Current != "(unset)",
+			})
+		}
+	}
+
+	return snippets
 }
 
 // PrintSetup renders the snippet list to the writer; skips lines that are
@@ -68,11 +100,10 @@ func PrintSetup(snippets []Snippet, w *os.File, onlyMissing bool) {
 	}
 }
 
-// AppendToConfig writes the managed block into path, skipping lines that
-// already appear anywhere in the file verbatim. Returns the number of
-// lines actually appended. If the block already exists (detected by
-// setupHeader) the call is a no-op.
-func AppendToConfig(path string, snippets []Snippet) (appended int, err error) {
+// AppendToConfig writes or updates the managed block in path. It only
+// replaces content between setupHeader and setupFooter, preserving all other
+// content. Returns the number of lines added/modified.
+func AppendToConfig(path string, snippets []Snippet) (int, error) {
 	existing := ""
 	if data, err := os.ReadFile(path); err == nil {
 		existing = string(data)
@@ -80,41 +111,78 @@ func AppendToConfig(path string, snippets []Snippet) (appended int, err error) {
 		return 0, err
 	}
 
-	if strings.Contains(existing, setupHeader) {
-		return 0, nil
-	}
+	// Find or create managed block
+	before, managed, after := splitManagedBlock(existing)
 
-	var block strings.Builder
-	if existing != "" && !strings.HasSuffix(existing, "\n") {
-		block.WriteString("\n")
-	}
-	block.WriteString("\n")
-	block.WriteString(setupHeader + "\n")
+	// Build new managed block content
+	var newBlock strings.Builder
 	for _, s := range snippets {
-		if strings.Contains(existing, s.Line) {
-			continue // don't duplicate what user already has
+		// Skip duplicates within snippets list
+		blockContent := newBlock.String()
+		if strings.Contains(blockContent, s.Line) {
+			continue
 		}
 		if s.Reason != "" {
-			block.WriteString("# " + s.Reason + "\n")
+			newBlock.WriteString("# " + s.Reason + "\n")
 		}
-		block.WriteString(s.Line + "\n")
-		appended++
+		newBlock.WriteString(s.Line + "\n")
 	}
-	block.WriteString(setupFooter + "\n")
 
-	if appended == 0 {
+	// If block content unchanged, no modifications needed
+	if strings.TrimSpace(managed) == strings.TrimSpace(newBlock.String()) {
 		return 0, nil
 	}
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
+	// Rebuild full file content
+	var result strings.Builder
+	result.WriteString(before)
+	if existing != "" && !strings.HasSuffix(before, "\n") {
+		result.WriteString("\n")
+	}
+	result.WriteString("\n")
+	result.WriteString(setupHeader + "\n")
+	result.WriteString(newBlock.String())
+	result.WriteString(setupFooter + "\n")
+	result.WriteString(after)
+
+	// Write atomically
+	if err := os.WriteFile(path+".tmp", []byte(result.String()), 0o644); err != nil {
 		return 0, err
 	}
-	defer f.Close()
-	if _, err := f.WriteString(block.String()); err != nil {
+	if err := os.Rename(path+".tmp", path); err != nil {
 		return 0, err
 	}
-	return appended, nil
+
+	return strings.Count(newBlock.String(), "\n"), nil
+}
+
+// splitManagedBlock splits existing content into before, managed block, and after.
+// If no managed block exists, returns (existing, "", "").
+func splitManagedBlock(content string) (before, managed, after string) {
+	beforeIdx := strings.Index(content, setupHeader)
+	if beforeIdx == -1 {
+		return content, "", ""
+	}
+	afterHeader := content[beforeIdx:]
+
+	footerIdx := strings.Index(afterHeader, setupFooter)
+	if footerIdx == -1 {
+		// Malformed block - treat as no block
+		return content, "", ""
+	}
+
+	footerEndIdx := footerIdx + len(setupFooter) + 1
+	// Find the end of the line containing footer
+	if footerEndIdx < len(afterHeader) {
+		newlineIdx := strings.Index(afterHeader[footerEndIdx:], "\n")
+		if newlineIdx != -1 {
+			footerEndIdx += newlineIdx + 1
+		} else {
+			footerEndIdx = len(afterHeader)
+		}
+	}
+
+	return content[:beforeIdx], strings.TrimSpace(content[beforeIdx+len(setupHeader) : footerIdx]), afterHeader[footerEndIdx:]
 }
 
 // ApplyRuntime invokes the Apply hook for every non-OK finding that has one.

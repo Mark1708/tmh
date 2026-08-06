@@ -2,8 +2,14 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	DefaultActiveTTL = "5h"
+	MaxActiveTTL     = 720 * time.Hour
 )
 
 // Config is the top-level tmh configuration document.
@@ -106,12 +112,25 @@ type MarksConfig struct {
 // include-file (~/.config/tmh/tmux.conf). These take effect only after the
 // user adds `source-file ~/.config/tmh/tmux.conf` to their ~/.tmux.conf.
 type TmuxIntegrationConfig struct {
-	DefaultTerminal        string `yaml:"default_terminal,omitempty"`
-	EscapeTimeMs           *int   `yaml:"escape_time_ms,omitempty"`
-	MouseMode              *bool  `yaml:"mouse_mode,omitempty"`
-	StatusRightIntegration *bool  `yaml:"status_right_integration,omitempty"`
-	BaseIndex              *int   `yaml:"base_index,omitempty"`
-	PaneBaseIndex          *int   `yaml:"pane_base_index,omitempty"`
+	DefaultTerminal        string              `yaml:"default_terminal,omitempty"`
+	EscapeTimeMs           *int                `yaml:"escape_time_ms,omitempty"`
+	MouseMode              *bool               `yaml:"mouse_mode,omitempty"`
+	StatusRightIntegration *bool               `yaml:"status_right_integration,omitempty"`
+	BaseIndex              *int                `yaml:"base_index,omitempty"`
+	PaneBaseIndex          *int                `yaml:"pane_base_index,omitempty"`
+	Active                 ActiveSessionConfig `yaml:"active,omitempty"`
+}
+
+type ActiveSessionConfig struct {
+	Enabled bool   `yaml:"enabled,omitempty"`
+	TTL     string `yaml:"ttl,omitempty"`
+}
+
+func (a *ActiveSessionConfig) EffectiveTTL() string {
+	if a.Enabled && a.TTL == "" {
+		return DefaultActiveTTL
+	}
+	return a.TTL
 }
 
 // HistoryConfig controls the append-only JSONL action history.

@@ -53,10 +53,10 @@ tmh version
 
 ## Homebrew users
 
-The `mark1708/tap/tmh` formula is generated and published by GoReleaser
+The `mark1708/tap/tmh` cask is generated and published by GoReleaser
 to `Mark1708/homebrew-tap` on every tagged release. Homebrew computes its
 own SHA-256 on download and refuses to install if the digest doesn't
-match the formula's expected value. You can still manually re-verify the
+match the cask's expected value. You can still manually re-verify the
 signed checksums file from the release page if you'd like belt-and-braces
 assurance.
 

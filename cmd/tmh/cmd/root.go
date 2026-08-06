@@ -3,19 +3,21 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
-	osexec "os/exec"
+	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/mark1708/tmh/internal/actions"
 	"github.com/mark1708/tmh/internal/config"
+	errs "github.com/mark1708/tmh/internal/errors"
 	"github.com/mark1708/tmh/internal/i18n"
 	"github.com/mark1708/tmh/internal/state"
 	"github.com/mark1708/tmh/internal/tmux"
 	"github.com/mark1708/tmh/internal/ui"
 	"github.com/mark1708/tmh/internal/ui/picker"
 	"github.com/mark1708/tmh/internal/xdg"
-
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 )
@@ -83,6 +85,7 @@ func NewRoot(version string) *cobra.Command {
 		newExportCmd(),
 		newImportCmd(),
 		newTmuxCmd(),
+		newActiveCmd(),
 		newVersionCmd(version),
 		newDoctorCmd(),
 	)
@@ -103,7 +106,7 @@ func loadConfig(missingOK bool) (*config.Config, error) {
 	path := resolveConfigPath()
 	c, err := config.Load(path)
 	if err != nil {
-		if missingOK {
+		if missingOK && errors.Is(err, errs.ErrConfigNotFound) {
 			return config.Parse([]byte("version: 1\n"))
 		}
 		return nil, err
@@ -116,6 +119,17 @@ func loadConfig(missingOK bool) (*config.Config, error) {
 
 // newRunner returns the production Runner.
 func newRunner() tmux.Runner { return tmux.NewCLIRunner() }
+
+func openStateForConfig(cfg *config.Config) (*state.DB, error) {
+	db, err := state.Open(xdg.StateDBPath())
+	if err != nil {
+		if cfg != nil && cfg.Defaults.TmuxIntegration.Active.Enabled {
+			return nil, fmt.Errorf("open state db: %w", err)
+		}
+		return nil, nil
+	}
+	return db, nil
+}
 
 // ctxFromCmd returns the cobra command's context (unused placeholder today).
 func ctxFromCmd(c *cobra.Command) context.Context { return c.Context() }
@@ -132,15 +146,16 @@ func bareTmh(c *cobra.Command) error {
 	if !isatty.IsTerminal(os.Stdout.Fd()) || !isatty.IsTerminal(os.Stdin.Fd()) {
 		return launchTUI()
 	}
-	// If tmux isn't running we can't attach to anything anyway; let the
-	// dashboard walk the user through init/bootstrap.
 	r := newRunner()
 	ok, err := r.ServerRunning(context.Background())
 	if err != nil || !ok {
 		return launchTUI()
 	}
 
-	cfg, _ := loadConfig(true)
+	cfg, err := loadConfig(true)
+	if err != nil {
+		return err
+	}
 	res, err := picker.Run(context.Background(), r, cfg, flags.Profile)
 	if err != nil {
 		return fmt.Errorf("picker: %w", err)
@@ -154,39 +169,55 @@ func bareTmh(c *cobra.Command) error {
 	return attachPicked(c, r, res)
 }
 
-// attachPicked hands the controlling TTY over to tmux for the target
-// chosen in the picker. The picker can also return a brand-new
-// discovered-directory path; in that case we create the session first.
 func attachPicked(c *cobra.Command, r tmux.Runner, res picker.Result) error {
 	ctx := context.Background()
+
+	target := res.Target
+	if res.NavigateTarget != "" {
+		target = res.NavigateTarget
+	}
+
+	cfg, err := loadConfig(true)
+	if err != nil {
+		return err
+	}
+	db, err := openStateForConfig(cfg)
+	if err != nil {
+		return err
+	}
+	var store actions.ActiveWindowStore
+	if db != nil {
+		store = db
+		defer db.Close()
+	}
+
 	exists, err := r.HasSession(ctx, res.Target)
 	if err != nil {
 		return err
 	}
 	if !exists && res.Dir != "" {
-		// Discovered candidate — materialise it before attaching.
 		if err := r.NewSession(ctx, tmux.NewSessionOpts{
 			Name: res.Target, Dir: res.Dir, Detached: true,
 		}); err != nil {
 			return fmt.Errorf("create %q: %w", res.Target, err)
 		}
 	}
-	if inside := os.Getenv("TMUX") != ""; inside {
-		return r.SwitchClient(ctx, res.Target)
-	}
-	// Outside tmux: hand the TTY over to `tmux attach-session`.
-	cmd := osexec.Command("tmux", "attach-session", "-t", res.Target)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+
+	now := time.Now()
+	return actions.NavigateWithActive(ctx, r, cfg, store, target, now)
 }
 
-// launchTUI runs the bubbletea dashboard. Reads config lazily via deps so a
-// missing or invalid config still lets the user reach the empty/error state
-// inside the TUI rather than failing at startup.
+// launchTUI runs the bubbletea dashboard. Missing config remains pass-through;
+// malformed config or unavailable state with active enabled fails before model startup.
 func launchTUI() error {
-	db, _ := state.Open(xdg.StateDBPath())
+	cfg, err := loadConfig(true)
+	if err != nil {
+		return err
+	}
+	db, err := openStateForConfig(cfg)
+	if err != nil {
+		return err
+	}
 	if db != nil {
 		defer db.Close()
 	}
@@ -199,6 +230,6 @@ func launchTUI() error {
 	}
 	model := ui.New(deps)
 	prog := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(os.Stderr))
-	_, err := prog.Run()
+	_, err = prog.Run()
 	return err
 }

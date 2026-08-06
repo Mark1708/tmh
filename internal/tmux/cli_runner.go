@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -13,8 +15,13 @@ import (
 )
 
 // sep is an ASCII Unit Separator — safe inside tmux format strings and not
-// present in paths, session names, or command lines.
+// present in paths, session names, or command lines. Used for the persisted
+// canonical ServerEpoch.Value.
 const sep = "\x1f"
+
+// epochTransportSep is a printable colon used for tmux transport format.
+// tmux 3.2a replaces literal control separators with printable characters.
+const epochTransportSep = ":"
 
 // CLIRunner shells out to `tmux` for every operation. It's the production
 // Runner implementation.
@@ -135,6 +142,18 @@ func (r *CLIRunner) HasSession(ctx context.Context, name string) (bool, error) {
 }
 
 func (r *CLIRunner) NewSession(ctx context.Context, opts NewSessionOpts) error {
+	args, err := newSessionArgs(opts)
+	if err != nil {
+		return err
+	}
+	_, err = r.run(ctx, args...)
+	return err
+}
+
+func newSessionArgs(opts NewSessionOpts) ([]string, error) {
+	if err := validateSession(opts.Name); err != nil {
+		return nil, fmt.Errorf("new session: %w", err)
+	}
 	args := []string{"new-session"}
 	if opts.Detached {
 		args = append(args, "-d")
@@ -146,11 +165,17 @@ func (r *CLIRunner) NewSession(ctx context.Context, opts NewSessionOpts) error {
 	if opts.Dir != "" {
 		args = append(args, "-c", opts.Dir)
 	}
-	for k, v := range opts.Env {
+	for _, k := range sortedMapKeys(opts.Env) {
+		v := opts.Env[k]
 		args = append(args, "-e", fmt.Sprintf("%s=%s", k, v))
 	}
-	_, err := r.run(ctx, args...)
-	return err
+	for _, name := range sortedMapKeys(opts.SessionOptions) {
+		if err := validateSessionOptionName(name); err != nil {
+			return nil, err
+		}
+		args = append(args, ";", "set-option", "-t", opts.Name, name, opts.SessionOptions[name])
+	}
+	return args, nil
 }
 
 func (r *CLIRunner) AttachSession(ctx context.Context, name string) error {
@@ -451,30 +476,261 @@ func (r *CLIRunner) ShowHook(ctx context.Context, name string) (string, error) {
 		return "", err
 	}
 	for _, line := range splitLines(out) {
-		l := strings.TrimSpace(line)
-		if !strings.HasPrefix(l, name) {
-			continue
+		if command, ok := hookCommandFromLine(name, line); ok {
+			return command, nil
 		}
-		rest := strings.TrimPrefix(l, name)
-		if rest == "" {
-			return "", nil // unbound
-		}
-		if !strings.HasPrefix(rest, "[") {
-			continue // same prefix but different hook (e.g. after-new-window-foo)
-		}
-		closeIdx := strings.IndexByte(rest, ']')
-		if closeIdx < 0 {
-			continue
-		}
-		return strings.TrimSpace(rest[closeIdx+1:]), nil
 	}
 	return "", nil
+}
+
+func hookCommandFromLine(name string, line string) (string, bool) {
+	l := strings.TrimSpace(line)
+	if l == name {
+		return "", true
+	}
+	if strings.HasPrefix(l, name+" ") {
+		return strings.TrimSpace(l[len(name):]), true
+	}
+	if !strings.HasPrefix(l, name) {
+		return "", false
+	}
+	rest := strings.TrimPrefix(l, name)
+	if !strings.HasPrefix(rest, "[") {
+		return "", false // same prefix but different hook (e.g. after-new-window-foo)
+	}
+	closeIdx := strings.IndexByte(rest, ']')
+	if closeIdx < 0 {
+		return "", false
+	}
+	return strings.TrimSpace(rest[closeIdx+1:]), true
 }
 
 // UnsetHook removes a global hook binding (`tmux set-hook -gu NAME`).
 func (r *CLIRunner) UnsetHook(ctx context.Context, name string) error {
 	_, err := r.run(ctx, "set-hook", "-gu", name)
 	return err
+}
+
+// WindowID returns the stable @N window_id for a target window.
+func (r *CLIRunner) WindowID(ctx context.Context, target string) (string, error) {
+	out, err := r.run(ctx, "display-message", "-p", "-t", target, "#{window_id}")
+	if err != nil {
+		return "", err
+	}
+	return parseWindowID(out)
+}
+
+// ListWindowLinks returns all linked windows across all sessions.
+func (r *CLIRunner) ListWindowLinks(ctx context.Context) ([]WindowLink, error) {
+	format := strings.Join([]string{
+		"#{session_id}",
+		"#{session_name}",
+		"#{window_id}",
+		"#{window_index}",
+		"#{window_name}",
+		"#{window_active}",
+	}, sep)
+	out, err := r.run(ctx, "list-windows", "-a", "-F", format)
+	if err != nil {
+		if strings.Contains(err.Error(), errs.ErrServerNotRunning.Error()) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return parseWindowLinks(out)
+}
+
+// LinkWindow links a window by its ID into a destination session.
+func (r *CLIRunner) LinkWindow(ctx context.Context, sourceWindowID, destination string) error {
+	if err := validateWindowID(sourceWindowID); err != nil {
+		return err
+	}
+	if err := validateDestination(destination); err != nil {
+		return err
+	}
+	_, err := r.run(ctx, "link-window", "-d", "-s", sourceWindowID, "-t", destination)
+	return err
+}
+
+// UnlinkWindow removes a window link by exact session:@ID target.
+func (r *CLIRunner) UnlinkWindow(ctx context.Context, session, windowID string) error {
+	if err := validateSession(session); err != nil {
+		return err
+	}
+	if err := validateWindowID(windowID); err != nil {
+		return err
+	}
+	_, err := r.run(ctx, "unlink-window", "-t", fmt.Sprintf("%s:%s", session, windowID))
+	return err
+}
+
+// ServerEpoch returns the server identity: socket_path, start_time, pid.
+// Uses printable ':' as the transport separator (tmux 3.2a replaces control chars).
+func (r *CLIRunner) ServerEpoch(ctx context.Context) (ServerEpoch, error) {
+	format := strings.Join([]string{
+		"#{socket_path}",
+		"#{start_time}",
+		"#{pid}",
+	}, epochTransportSep)
+	out, err := r.run(ctx, "display-message", "-p", format)
+	if err != nil {
+		return ServerEpoch{}, err
+	}
+	return parseServerEpoch(out)
+}
+
+// ShowSessionOption returns the value of a session-scoped option.
+func (r *CLIRunner) ShowSessionOption(ctx context.Context, session, name string) (string, error) {
+	out, err := r.run(ctx, "show-options", "-t", session, "-v", name)
+	if err != nil {
+		msg := strings.ToLower(err.Error())
+		if strings.Contains(msg, "unknown option") || strings.Contains(msg, "not set") || strings.Contains(msg, "not found") {
+			return "", nil
+		}
+		return "", err
+	}
+	return parseSessionOption(out)
+}
+
+// SetSessionOption sets a session-scoped option.
+func (r *CLIRunner) SetSessionOption(ctx context.Context, session, name, value string) error {
+	_, err := r.run(ctx, "set-option", "-t", session, name, value)
+	return err
+}
+
+var windowIDRegexp = regexp.MustCompile(`^@[0-9]+$`)
+var sessionOptionRegexp = regexp.MustCompile(`^@[A-Za-z0-9][A-Za-z0-9_-]*$`)
+
+func validateWindowID(windowID string) error {
+	if windowID == "" {
+		return fmt.Errorf("window_id cannot be empty")
+	}
+	if !windowIDRegexp.MatchString(windowID) {
+		return fmt.Errorf("invalid window_id %q: must match ^@[0-9]+$", windowID)
+	}
+	return nil
+}
+
+func validateSession(session string) error {
+	if session == "" {
+		return fmt.Errorf("session cannot be empty")
+	}
+	if strings.Contains(session, ":") {
+		return fmt.Errorf("invalid session name %q: contains colon (ambiguous target)", session)
+	}
+	return nil
+}
+
+func validateSessionOptionName(name string) error {
+	if !sessionOptionRegexp.MatchString(name) {
+		return fmt.Errorf("invalid session user option %q", name)
+	}
+	return nil
+}
+
+func validateDestination(destination string) error {
+	if destination == "" {
+		return fmt.Errorf("destination cannot be empty")
+	}
+	return nil
+}
+
+func parseWindowID(output []byte) (string, error) {
+	s := strings.TrimSpace(string(output))
+	if s == "" {
+		return "", fmt.Errorf("empty window_id from tmux")
+	}
+	if !windowIDRegexp.MatchString(s) {
+		return "", fmt.Errorf("malformed window_id %q from tmux", s)
+	}
+	return s, nil
+}
+
+func parseWindowLinks(output []byte) ([]WindowLink, error) {
+	var links []WindowLink
+	for _, line := range splitLines(output) {
+		parts := strings.Split(line, sep)
+		if len(parts) < 6 {
+			continue
+		}
+		idx, err := strconv.Atoi(parts[3])
+		if err != nil {
+			return nil, fmt.Errorf("invalid window_index %q: %w", parts[3], err)
+		}
+		active, err := strconv.Atoi(parts[5])
+		if err != nil {
+			return nil, fmt.Errorf("invalid window_active %q: %w", parts[5], err)
+		}
+		links = append(links, WindowLink{
+			SessionID:   parts[0],
+			SessionName: parts[1],
+			WindowID:    parts[2],
+			WindowIndex: idx,
+			WindowName:  parts[4],
+			Active:      active > 0,
+		})
+	}
+	return links, nil
+}
+
+func parseServerEpoch(output []byte) (ServerEpoch, error) {
+	s := strings.TrimSpace(string(output))
+	if s == "" {
+		return ServerEpoch{}, fmt.Errorf("empty epoch output from tmux")
+	}
+
+	// Parse from right-to-left to handle socket paths that may contain ':'.
+	// Expected format: socket_path:start_time:pid
+	lastColon := strings.LastIndexByte(s, ':')
+	if lastColon == -1 {
+		return ServerEpoch{}, fmt.Errorf("malformed epoch output: %q (want 3 ':'-separated fields)", s)
+	}
+
+	pid := strings.TrimSpace(s[lastColon+1:])
+	if pid == "" {
+		return ServerEpoch{}, fmt.Errorf("epoch pid is empty")
+	}
+
+	secondLastColon := strings.LastIndexByte(s[:lastColon], ':')
+	if secondLastColon == -1 {
+		return ServerEpoch{}, fmt.Errorf("malformed epoch output: %q (want 3 ':'-separated fields)", s)
+	}
+
+	startTime := strings.TrimSpace(s[secondLastColon+1 : lastColon])
+	if startTime == "" {
+		return ServerEpoch{}, fmt.Errorf("epoch start_time is empty")
+	}
+
+	socketPath := strings.TrimSpace(s[:secondLastColon])
+	if socketPath == "" {
+		return ServerEpoch{}, fmt.Errorf("epoch socket_path is empty")
+	}
+
+	// Validate that startTime and pid are parseable as integers and non-negative.
+	startTimeInt, err := strconv.ParseInt(startTime, 10, 64)
+	if err != nil {
+		return ServerEpoch{}, fmt.Errorf("epoch start_time %q is not a valid integer: %w", startTime, err)
+	}
+	if startTimeInt < 0 {
+		return ServerEpoch{}, fmt.Errorf("epoch start_time %q must be non-negative", startTime)
+	}
+
+	pidInt, err := strconv.Atoi(pid)
+	if err != nil {
+		return ServerEpoch{}, fmt.Errorf("epoch pid %q is not a valid integer: %w", pid, err)
+	}
+	if pidInt < 0 {
+		return ServerEpoch{}, fmt.Errorf("epoch pid %q must be non-negative", pid)
+	}
+
+	// Canonical persisted value uses sep ('\x1f'), not the transport separator.
+	value := fmt.Sprintf("%s%s%s%s%s", socketPath, sep, startTime, sep, pid)
+	return ServerEpoch{ServerKey: socketPath, Value: value}, nil
+}
+
+func parseSessionOption(output []byte) (string, error) {
+	s := strings.TrimSpace(string(output))
+	return s, nil
 }
 
 // --- helpers ---
@@ -485,4 +741,13 @@ func splitLines(b []byte) []string {
 		return nil
 	}
 	return strings.Split(s, "\n")
+}
+
+func sortedMapKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }

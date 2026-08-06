@@ -22,7 +22,9 @@ import (
 
 	tmhcmd "github.com/mark1708/tmh/cmd/tmh/cmd"
 	"github.com/mark1708/tmh/internal/config"
+	"github.com/mark1708/tmh/internal/i18n"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 )
 
@@ -65,7 +67,10 @@ func writeSchema(root string) error {
 }
 
 func writeMan(root string) error {
-	cmd := tmhcmd.NewRoot("dev")
+	cmd, err := docsRoot()
+	if err != nil {
+		return err
+	}
 	out := filepath.Join(root, "docs", "generated", "man")
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		return err
@@ -75,7 +80,10 @@ func writeMan(root string) error {
 }
 
 func writeCompletions(root string) error {
-	cmd := tmhcmd.NewRoot("dev")
+	cmd, err := docsRoot()
+	if err != nil {
+		return err
+	}
 	base := filepath.Join(root, "docs", "generated", "completions")
 
 	for _, sh := range []string{"bash", "zsh", "fish"} {
@@ -102,4 +110,11 @@ func writeCompletions(root string) error {
 		}
 	}
 	return nil
+}
+
+func docsRoot() (*cobra.Command, error) {
+	if err := i18n.Init(i18n.DefaultLang); err != nil {
+		return nil, err
+	}
+	return tmhcmd.NewRoot("dev"), nil
 }

@@ -41,7 +41,8 @@ func snapshotSaveCmd() *cobra.Command {
 			}
 			defer db.Close()
 			r := newRunner()
-			if err := actions.SaveSnapshot(context.Background(), r, db, args[0]); err != nil {
+			cfg, _ := loadConfig(true)
+			if err := actions.SaveSnapshot(context.Background(), r, db, args[0], cfg); err != nil {
 				return err
 			}
 			fmt.Fprintln(c.OutOrStdout(), "saved:", args[0])

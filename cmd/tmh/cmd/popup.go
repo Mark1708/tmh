@@ -12,9 +12,9 @@ import (
 
 func newPopupCmd() *cobra.Command {
 	var (
-		width, height       string
-		noEnv, noCwd        bool
-		sessionN, windowN   string
+		width, height     string
+		noEnv, noCwd      bool
+		sessionN, windowN string
 	)
 	c := &cobra.Command{
 		Use:   "popup [-- command...]",

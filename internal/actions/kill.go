@@ -28,7 +28,7 @@ func KillMatching(ctx context.Context, r tmux.Runner, pattern string) ([]string,
 		if !sessionMatch(s.Name, pattern) {
 			continue
 		}
-		if err := r.KillSession(ctx, s.Name); err != nil {
+		if err := KillSession(ctx, r, s.Name); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", s.Name, err))
 			continue
 		}
@@ -38,6 +38,80 @@ func KillMatching(ctx context.Context, r tmux.Runner, pattern string) ([]string,
 		return killed, joinErrs(errs)
 	}
 	return killed, nil
+}
+
+func KillSession(ctx context.Context, r tmux.Runner, session string) error {
+	if err := CleanupActiveAliasesBeforeKill(ctx, r, session, ""); err != nil {
+		return fmt.Errorf("cleanup active aliases: %w", err)
+	}
+	if err := r.KillSession(ctx, session); err != nil {
+		return err
+	}
+	return nil
+}
+
+func KillWindow(ctx context.Context, r tmux.Runner, target string) error {
+	if err := CleanupActiveAliasBeforeWindowKill(ctx, r, target); err != nil {
+		return fmt.Errorf("cleanup active alias: %w", err)
+	}
+	if err := r.KillWindow(ctx, target); err != nil {
+		return err
+	}
+	return nil
+}
+
+func KillPane(ctx context.Context, r tmux.Runner, target string) error {
+	windowTarget := paneWindowTarget(target)
+	panes, err := r.ListPanes(ctx, windowTarget)
+	if err != nil {
+		return err
+	}
+	if len(panes) <= 1 {
+		if err := CleanupActiveAliasBeforeWindowKill(ctx, r, windowTarget); err != nil {
+			return fmt.Errorf("cleanup active alias: %w", err)
+		}
+	}
+	if err := r.KillPane(ctx, target); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CleanupActiveAliasBeforeWindowKill(ctx context.Context, r tmux.Runner, target string) error {
+	ownership, err := inspectActiveOwnership(ctx, r)
+	if err != nil {
+		return fmt.Errorf("inspect active ownership: %w", err)
+	}
+	if ownership.collision {
+		return activeCollisionError(ownership)
+	}
+	if !ownership.exists || !ownership.owned {
+		return nil
+	}
+	windowID, err := r.WindowID(ctx, target)
+	if err != nil {
+		return fmt.Errorf("resolve window target %q: %w", target, err)
+	}
+	snapshot, err := loadActiveSnapshot(ctx, r)
+	if err != nil {
+		return err
+	}
+	if !snapshot.forWindow(windowID).hasActive {
+		return nil
+	}
+	if _, err := unlinkVerifiedActiveAlias(ctx, r, windowID, snapshot); err != nil {
+		return err
+	}
+	return nil
+}
+
+func paneWindowTarget(target string) string {
+	colon := strings.LastIndexByte(target, ':')
+	dot := strings.LastIndexByte(target, '.')
+	if dot > colon && dot >= 0 {
+		return target[:dot]
+	}
+	return target
 }
 
 func sessionMatch(name, pattern string) bool {

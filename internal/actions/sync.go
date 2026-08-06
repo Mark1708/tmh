@@ -96,7 +96,7 @@ func Push(ctx context.Context, r tmux.Runner, cfg *config.Config, opts SyncOptio
 // Write the returned Config back to disk via config.Write to persist.
 func Pull(ctx context.Context, r tmux.Runner, cfg *config.Config, opts SyncOptions) (*SyncReport, error) {
 	rep := &SyncReport{}
-	live, err := collectLive(ctx, r)
+	live, err := collectLive(ctx, r, cfg)
 	if err != nil {
 		return rep, err
 	}
@@ -154,7 +154,7 @@ func Pull(ctx context.Context, r tmux.Runner, cfg *config.Config, opts SyncOptio
 // by longest-common-prefix across first-pane paths. Intended for first-run
 // when config.yml is empty.
 func Bootstrap(ctx context.Context, r tmux.Runner, cfg *config.Config) (*SyncReport, error) {
-	live, err := collectLive(ctx, r)
+	live, err := collectLive(ctx, r, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func Bootstrap(ctx context.Context, r tmux.Runner, cfg *config.Config) (*SyncRep
 // `tmux list-panes -t SESSION` only returns panes in the session's currently
 // active window; to get every pane we call list-panes with an empty target
 // (which translates to `-a` inside the runner) and filter client-side.
-func collectLive(ctx context.Context, r tmux.Runner) (config.LiveSnapshot, error) {
+func collectLive(ctx context.Context, r tmux.Runner, cfg *config.Config) (config.LiveSnapshot, error) {
 	var snap config.LiveSnapshot
 	sessions, err := r.ListSessions(ctx)
 	if err != nil {
@@ -230,6 +230,9 @@ func collectLive(ctx context.Context, r tmux.Runner) (config.LiveSnapshot, error
 		}
 	}
 	for _, s := range sessions {
+		if filterOwnedActiveSession(ctx, r, cfg, s.Name) {
+			continue
+		}
 		wins, err := r.ListWindows(ctx, s.Name)
 		if err != nil {
 			return snap, err
@@ -246,6 +249,20 @@ func collectLive(ctx context.Context, r tmux.Runner) (config.LiveSnapshot, error
 		snap.Sessions = append(snap.Sessions, ls)
 	}
 	return snap, nil
+}
+
+func filterOwnedActiveSession(ctx context.Context, r tmux.Runner, cfg *config.Config, sessionName string) bool {
+	if cfg == nil || !cfg.Defaults.TmuxIntegration.Active.Enabled {
+		return false
+	}
+	if sessionName != ActiveSessionName {
+		return false
+	}
+	marker, err := r.ShowSessionOption(ctx, ActiveSessionName, ActiveOwnerOption)
+	if err != nil {
+		return false
+	}
+	return marker == ActiveOwnerValue
 }
 
 // inferRoots finds the shallowest fork point in the trie of session paths

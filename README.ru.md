@@ -83,6 +83,7 @@ single-binary замена: один `config.yml`, один тул, и `tmh diff
 - [Видимость процессов](#видимость-процессов)
 - [Marks и last-location](#marks-и-last-location)
 - [tmux-интеграция](#tmux-интеграция)
+- [Active session (опционально)](#active-session-опционально)
 - [Hooks и trust](#hooks-и-trust)
 - [Snapshots и undo](#snapshots-и-undo)
 - [Обмен конфигурацией с коллегой](#обмен-конфигурацией-с-коллегой)
@@ -109,10 +110,10 @@ go install github.com/mark1708/tmh/cmd/tmh@latest
 ### Homebrew
 
 ```sh
-brew install mark1708/tap/tmh
+brew install --cask mark1708/tap/tmh
 ```
 
-Формула ставит бинарь, man-страницы и bash/zsh/fish completions.
+Homebrew cask ставит бинарь, man-страницы и bash/zsh/fish completions.
 
 ### Из исходников
 
@@ -420,7 +421,7 @@ tmh doctor                   проверка окружения + tmux-инте
 ```
 
 Shell completions — это сгенерированные артефакты в
-`docs/generated/completions/{bash,zsh,fish}/tmh`; Homebrew-формула устанавливает их
+`docs/generated/completions/{bash,zsh,fish}/tmh`; Homebrew cask устанавливает их
 автоматически. Для регенерации используйте `make docs`.
 
 ### Сессии
@@ -791,6 +792,91 @@ tmh tmux setup --append # дописать managed-блок в ~/.tmux.conf, п�
 bind R run-shell "tmh reload --all"          # prefix R → dotfiles reload
 set -ag status-right ' #(tmh status)'        # drift/reload badges в статус-баре
 ```
+
+---
+
+## Active session (опционально)
+
+Функция active session создаёт реальную tmux-сессию с именем `active`, которая временно связывает недавно выбранные окна из декларативных сессий. Это позволяет использовать нативную навигацию tmux (`prefix n`, `prefix p`, `prefix 1`, `prefix l`) по всем сессиям, сохраняя каждое окно в его исходной декларативной структуре.
+
+**Ключевые концепты:**
+
+- **Opt-in:** Функция выключена по умолчанию. Включается явно в `config.yml`.
+- **Сохранение физических окон:** Окна связываются через `tmux link-window`, не перемещаются.
+- **Идентичность:** Окна отслеживаются по физическому `@ID` (например `@123`), стабильному в течение жизни tmux-сервера.
+- **Interaction-driven expiry:** TTL скользит при каждом выборе окна. Не таймер по wall-clock.
+- **Orphan safety:** Последнюю ссылку нельзя удалить автоматически. Окно становится orphaned, не удаляется.
+- **Collision fail-closed:** Маркер владения предотвращает перезапись пользовательской `active` сессии.
+
+### Конфигурация
+
+Добавьте в `~/.config/tmh/config.yml`:
+
+```yaml
+defaults:
+  tmux_integration:
+    active:
+      enabled: true   # default: false
+      ttl: 5h         # опционально; default при пропуске: 5h
+```
+
+**Правила конфигурации:**
+
+- `enabled` по умолчанию равен `false`. Полностью пропустите блок, чтобы оставить функцию выключенной.
+- `ttl` — строка длительности (например `5h`, `2h30m`, `30m`).
+- Диапазон TTL: `(0, 720h]` — должен быть положительным и не превышать 30 дней.
+- Если `enabled: true` и `ttl` пропущен, эффективный TTL равен `5h`.
+- Явный `ttl` валидируется даже при `enabled: false`, чтобы заранее обнаружить неверную конфигурацию.
+
+### Включение и настройка
+
+После включения функции в `config.yml` выполните команду настройки для установки управляемого tmux hook:
+
+```sh
+tmh tmux setup --append
+tmux source-file ~/.tmux.conf
+```
+
+Это добавит управляемый hook в `~/.tmux.conf`, который продлевает TTL при каждой нативной навигации.
+
+### Команды
+
+```sh
+tmh active status [--json]  # показать текущее состояние (JSON стабилен для скриптов)
+tmh active prune            # удалить просроченные отслеживаемые окна
+tmh active remove @ID       # безопасно удалить active-алиас
+tmh active recover @ID --to session  # восстановить orphaned-окно
+```
+
+**Безопасность:** Все операции проверяют наличие хотя бы одной non-active ссылки перед удалением алиасов. Физические окна никогда не уничтожаются.
+
+### Ограничения
+
+- **Нет фонового daemon:** Expiry проверяется при следующем вызове `tmh`, не таймером по wall-clock.
+- **Interaction-driven TTL:** TTL скользит только при навигации (`prefix n`, `prefix p` и т.д.) или использовании `tmh attach`.
+- **Фиксированное имя сессии:** Runtime-сессия всегда называется `active` для безопасности и простоты.
+- **Collision fail-closed:** Если вы вручную создали сессию `active`, tmh завершится с ошибкой и не будет вмешиваться.
+
+### Гарантии безопасности
+
+- **Никогда не уничтожает физические окна:** Все операции удаления проверяют наличие non-active ссылок.
+- **Очистка при source kill:** Перед удалением исходной сессии алиасы удаляются. Прерывание при ошибке очистки.
+- **Маркер владения:** Сессия `active` помечена `@tmh-active-owner = tmh/v1` для предотвращения конфликтов.
+- **Orphan recovery:** Expiry последней ссылки помечает окна как orphaned, требуя явного восстановления.
+
+### Отключение и откат
+
+Для отключения функции:
+
+```sh
+tmh active status                      # проверить текущее состояние
+tmh active recover @ID --to session   # восстановить orphaned (для каждого)
+tmh active prune                      # удалить безопасные unlink'и
+```
+
+Затем установите `defaults.tmux_integration.active.enabled: false` в `config.yml`, выполните `tmh tmux setup --append` и source tmux conf.
+
+Подробная документация: [Active session guide](./docs/guides/active-session.md).
 
 ---
 

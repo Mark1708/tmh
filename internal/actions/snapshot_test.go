@@ -22,7 +22,7 @@ func TestSnapshot_SaveAndRestore(t *testing.T) {
 	}
 	defer db.Close()
 
-	if err := SaveSnapshot(context.Background(), m, db, "before"); err != nil {
+	if err := SaveSnapshot(context.Background(), m, db, "before", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -54,7 +54,7 @@ func TestUndo_RestoresKilledSession(t *testing.T) {
 
 	// Capture pre-kill snapshot and record an event mimicking what `tmh kill`
 	// would do.
-	live, _ := CaptureLive(context.Background(), m)
+	live, _ := CaptureLive(context.Background(), m, nil)
 	if len(live) != 1 || live[0].Name != "s" {
 		t.Fatalf("unexpected live snapshot: %+v", live)
 	}

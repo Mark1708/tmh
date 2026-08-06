@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/mark1708/tmh/internal/actions"
 	"github.com/mark1708/tmh/internal/i18n"
@@ -19,14 +20,29 @@ func newAttachCmd() *cobra.Command {
 			if len(args) > 0 {
 				target = args[0]
 			}
-			r := newRunner()
 			if target == "" {
-				// Without a target, list live sessions for fuzzy pickup by the
-				// TUI. Until the TUI lands, error out so scripts get a clear
-				// signal rather than a silent hang.
 				return cmdErr("attach requires a session target until TUI is implemented")
 			}
-			return actions.Attach(context.Background(), r, target)
+
+			runner := newRunner()
+			cfg, err := loadConfig(true)
+			if err != nil {
+				return err
+			}
+
+			db, err := openStateForConfig(cfg)
+			if err != nil {
+				return err
+			}
+			var store actions.ActiveWindowStore
+			if db != nil {
+				store = db
+				defer db.Close()
+			}
+
+			ctx := context.Background()
+			now := time.Now()
+			return actions.NavigateWithActive(ctx, runner, cfg, store, target, now)
 		},
 	}
 }

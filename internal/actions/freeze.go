@@ -8,6 +8,53 @@ import (
 	"github.com/mark1708/tmh/internal/tmux"
 )
 
+func collectLiveDefault(ctx context.Context, r tmux.Runner, cfg *config.Config) (config.LiveSnapshot, error) {
+	var snap config.LiveSnapshot
+	sessions, err := r.ListSessions(ctx)
+	if err != nil {
+		return snap, err
+	}
+	allPanes, err := r.ListPanes(ctx, "")
+	if err != nil {
+		return snap, err
+	}
+	type winKey struct {
+		session string
+		window  int
+	}
+	type firstPane struct {
+		dir string
+		cmd string
+	}
+	firstByWin := make(map[winKey]firstPane, len(allPanes))
+	for _, p := range allPanes {
+		k := winKey{p.Session, p.Window}
+		if _, set := firstByWin[k]; !set {
+			firstByWin[k] = firstPane{dir: p.Path, cmd: p.Command}
+		}
+	}
+	for _, s := range sessions {
+		if isOwnedActiveSession(ctx, r, cfg, s.Name) {
+			continue
+		}
+		wins, err := r.ListWindows(ctx, s.Name)
+		if err != nil {
+			return snap, err
+		}
+		ls := config.LiveSession{Name: s.Name}
+		for _, w := range wins {
+			fp := firstByWin[winKey{s.Name, w.Index}]
+			ls.Windows = append(ls.Windows, config.LiveWindow{
+				Name:    w.Name,
+				Dir:     fp.dir,
+				Command: fp.cmd,
+			})
+		}
+		snap.Sessions = append(snap.Sessions, ls)
+	}
+	return snap, nil
+}
+
 // FreezeOptions tunes Freeze behaviour.
 type FreezeOptions struct {
 	// Session, when non-empty, restricts freeze to the named live session.
@@ -43,7 +90,7 @@ func Freeze(ctx context.Context, r tmux.Runner, cfg *config.Config, opts FreezeO
 	if cfg == nil || cfg.Node == nil {
 		return nil, fmt.Errorf("freeze: nil config (run tmh init first)")
 	}
-	live, err := collectLive(ctx, r)
+	live, err := collectLiveDefault(ctx, r, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("freeze: collect live: %w", err)
 	}

@@ -14,11 +14,12 @@ import (
 	"github.com/mark1708/tmh/internal/i18n"
 	"github.com/mark1708/tmh/internal/shell"
 	appstate "github.com/mark1708/tmh/internal/state"
-	"github.com/mark1708/tmh/internal/tmux"
 	"github.com/mark1708/tmh/internal/ui/toast"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+var execProcess = tea.ExecProcess
 
 // loadHistoryCmd asynchronously reads persistent history from disk.
 func (m *Model) loadHistoryCmd() tea.Cmd {
@@ -109,6 +110,27 @@ func (m *Model) loadDataCmd() tea.Cmd {
 	}
 }
 
+func (m *Model) loadActiveStatusCmd(seq uint64) tea.Cmd {
+	deps := m.deps
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		cfg, err := deps.LoadConfig()
+		if err != nil {
+			return activeStatusLoadedMsg{Seq: seq, Err: err}
+		}
+		report, err := actions.ActiveStatus(
+			ctx, deps.Runner, deps.State, cfg.Defaults.TmuxIntegration.Active, time.Now(),
+		)
+		return activeStatusLoadedMsg{Seq: seq, Report: report, Err: err}
+	}
+}
+
+func (m *Model) nextActiveStatusCmd() tea.Cmd {
+	m.activeSeq++
+	return m.loadActiveStatusCmd(m.activeSeq)
+}
+
 func (m *Model) tickCmd() tea.Cmd {
 	return tea.Tick(m.pollEvery, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
@@ -147,32 +169,49 @@ func (m *Model) syncPushCmd() tea.Cmd {
 	}
 }
 
-// attachCmd hands the controlling terminal over to tmux for an
-// attach/switch-client. tea.ExecProcess properly suspends the bubbletea
-// event loop, restores the alt-screen on return, and gives the child
-// process direct access to stdin/stdout/stderr — without this, tmux
-// receives a useless pipe and the user can't type into the attached
-// session.
-func attachCmd(r tmux.Runner, inTmux bool, target string) tea.Cmd {
-	args := []string{"attach-session", "-t", target}
-	if inTmux {
-		// switch-client doesn't take over the terminal; it sends a tmux
-		// command to the running client, then returns immediately. Run via
-		// runner so the parent process keeps its TTY.
+func (m *Model) attachTargetCmd(target string) tea.Cmd {
+	if !m.deps.Runner.InTmux() {
+		return m.attachTargetProcessCmd(target)
+	}
+	return m.navigateTargetCmd(target)
+}
+
+func (m *Model) navigateTargetCmd(target string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := actions.NavigateWithActive(ctx, m.deps.Runner, m.cfg, m.deps.State, target, time.Now()); err != nil {
+			return errorMsg{Err: fmt.Errorf("attach: %w", err)}
+		}
+		return nil
+	}
+}
+
+func (m *Model) attachTargetProcessCmd(target string) tea.Cmd {
+	exe, err := os.Executable()
+	if err != nil {
 		return func() tea.Msg {
-			if err := r.SwitchClient(context.Background(), target); err != nil {
-				return errorMsg{Err: fmt.Errorf("attach: %w", err)}
-			}
-			return nil
+			return errorMsg{Err: fmt.Errorf("attach: %w", err)}
 		}
 	}
-	cmd := exec.Command("tmux", args...)
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+	cmd := exec.Command(exe, m.attachTargetArgs(target)...)
+	return execProcess(cmd, func(err error) tea.Msg {
 		if err != nil {
 			return errorMsg{Err: fmt.Errorf("attach: %w", err)}
 		}
 		return nil
 	})
+}
+
+func (m *Model) attachTargetArgs(target string) []string {
+	args := make([]string, 0, 6)
+	if m.deps.ConfigPath != "" {
+		args = append(args, "--config", m.deps.ConfigPath)
+	}
+	if m.deps.Profile != "" {
+		args = append(args, "--profile", m.deps.Profile)
+	}
+	return append(args, "attach", target)
 }
 
 func (m *Model) killTargetCmd(target string) tea.Cmd {
@@ -181,7 +220,7 @@ func (m *Model) killTargetCmd(target string) tea.Cmd {
 		defer cancel()
 		// Snapshot before kill so undo can restore.
 		if m.deps.State != nil {
-			if live, err := actions.CaptureLive(ctx, m.deps.Runner); err == nil {
+			if live, err := actions.CaptureLive(ctx, m.deps.Runner, m.cfg); err == nil {
 				for _, s := range live {
 					if s.Name == target {
 						payload, _ := jsonMarshal(s)
@@ -191,7 +230,7 @@ func (m *Model) killTargetCmd(target string) tea.Cmd {
 				}
 			}
 		}
-		if err := m.deps.Runner.KillSession(ctx, target); err != nil {
+		if err := actions.KillSession(ctx, m.deps.Runner, target); err != nil {
 			return errorMsg{Err: err}
 		}
 		// Invalidate any marks that pointed at this target.
@@ -213,7 +252,7 @@ func (m *Model) killWindowCmd(target string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
-		if err := m.deps.Runner.KillWindow(ctx, target); err != nil {
+		if err := actions.KillWindow(ctx, m.deps.Runner, target); err != nil {
 			return errorMsg{Err: err}
 		}
 		if m.marksStore != nil {
@@ -234,7 +273,7 @@ func (m *Model) killPaneCmd(target string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
-		if err := m.deps.Runner.KillPane(ctx, target); err != nil {
+		if err := actions.KillPane(ctx, m.deps.Runner, target); err != nil {
 			return errorMsg{Err: err}
 		}
 		if m.marksStore != nil {
@@ -334,7 +373,7 @@ func (m *Model) snapshotSaveCmd() tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		name := "tmh-" + time.Now().Format("20060102-150405")
-		if err := actions.SaveSnapshot(ctx, m.deps.Runner, m.deps.State, name); err != nil {
+		if err := actions.SaveSnapshot(ctx, m.deps.Runner, m.deps.State, name, m.cfg); err != nil {
 			return errorMsg{Err: err}
 		}
 		return actionDoneMsg{Text: "snapshot: " + name}
@@ -347,7 +386,7 @@ func (m *Model) doctorCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
-		findings := actions.AuditTmuxConfig(ctx, m.deps.Runner)
+		findings := actions.AuditTmuxConfigWithActiveConfig(ctx, m.deps.Runner, m.cfg)
 		var ok, warn, errs int
 		for _, f := range findings {
 			switch f.Level {

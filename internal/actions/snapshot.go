@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/mark1708/tmh/internal/config"
 	"github.com/mark1708/tmh/internal/state"
 	"github.com/mark1708/tmh/internal/tmux"
 )
@@ -31,7 +32,7 @@ type PaneSnapshot struct {
 // CaptureLive snapshots every live session into the SessionSnapshot list.
 // Used as the "before" state for destructive actions and as the payload of
 // named snapshots.
-func CaptureLive(ctx context.Context, r tmux.Runner) ([]SessionSnapshot, error) {
+func CaptureLive(ctx context.Context, r tmux.Runner, cfg *config.Config) ([]SessionSnapshot, error) {
 	sessions, err := r.ListSessions(ctx)
 	if err != nil {
 		return nil, err
@@ -52,6 +53,9 @@ func CaptureLive(ctx context.Context, r tmux.Runner) ([]SessionSnapshot, error) 
 
 	out := make([]SessionSnapshot, 0, len(sessions))
 	for _, s := range sessions {
+		if cfg != nil && isOwnedActiveSession(ctx, r, cfg, s.Name) {
+			continue
+		}
 		wins, err := r.ListWindows(ctx, s.Name)
 		if err != nil {
 			return nil, err
@@ -70,11 +74,11 @@ func CaptureLive(ctx context.Context, r tmux.Runner) ([]SessionSnapshot, error) 
 }
 
 // SaveSnapshot serialises and stores live state under name.
-func SaveSnapshot(ctx context.Context, r tmux.Runner, db *state.DB, name string) error {
+func SaveSnapshot(ctx context.Context, r tmux.Runner, db *state.DB, name string, cfg *config.Config) error {
 	if db == nil {
 		return fmt.Errorf("snapshot: nil db")
 	}
-	live, err := CaptureLive(ctx, r)
+	live, err := CaptureLive(ctx, r, cfg)
 	if err != nil {
 		return err
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/mark1708/tmh/internal/actions"
 	"github.com/mark1708/tmh/internal/i18n"
+	"github.com/mark1708/tmh/internal/tmux"
 
 	"github.com/spf13/cobra"
 )
@@ -22,6 +23,22 @@ func newTmuxCmd() *cobra.Command {
 	return c
 }
 
+func tmuxAuditFindings(ctx context.Context, r tmux.Runner) ([]actions.AuditFinding, error) {
+	cfg, err := loadConfig(true)
+	if err != nil {
+		return nil, err
+	}
+	return actions.AuditTmuxConfigWithActiveConfig(ctx, r, cfg), nil
+}
+
+func tmuxSetupSnippets(ctx context.Context, r tmux.Runner) ([]actions.Snippet, error) {
+	cfg, err := loadConfig(true)
+	if err != nil {
+		return nil, err
+	}
+	return actions.SetupWithActiveConfig(ctx, r, cfg), nil
+}
+
 func newTmuxAuditCmd() *cobra.Command {
 	var jsonOut bool
 	c := &cobra.Command{
@@ -29,7 +46,10 @@ func newTmuxAuditCmd() *cobra.Command {
 		Short: i18n.T("cli.tmux.audit.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			r := newRunner()
-			findings := actions.AuditTmuxConfig(context.Background(), r)
+			findings, err := tmuxAuditFindings(context.Background(), r)
+			if err != nil {
+				return err
+			}
 			if jsonOut {
 				enc := json.NewEncoder(c.OutOrStdout())
 				enc.SetIndent("", "  ")
@@ -50,7 +70,10 @@ func newTmuxSetupCmd() *cobra.Command {
 		Short: i18n.T("cli.tmux.setup.short"),
 		RunE: func(c *cobra.Command, args []string) error {
 			r := newRunner()
-			snippets := actions.Setup(context.Background(), r)
+			snippets, err := tmuxSetupSnippets(context.Background(), r)
+			if err != nil {
+				return err
+			}
 			if !appendToFile {
 				actions.PrintSetup(snippets, os.Stdout, true)
 				return nil

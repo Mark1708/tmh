@@ -22,7 +22,7 @@ type PaletteAction struct {
 	Subtitle    string
 	Run         func() tea.Cmd
 	NeedsParam  bool
-	ParamPrompt string            // shown as placeholder in param mode
+	ParamPrompt string // shown as placeholder in param mode
 	ParamRun    func(string) tea.Cmd
 }
 

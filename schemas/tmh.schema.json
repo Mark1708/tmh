@@ -2,6 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/mark1708/tmh/main/schemas/tmh.schema.json",
   "$defs": {
+    "ActiveSessionConfig": {
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "ttl": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
     "BehaviourConfig": {
       "properties": {
         "auto_refresh_interval": {
@@ -291,6 +303,9 @@
         },
         "pane_base_index": {
           "type": "integer"
+        },
+        "active": {
+          "$ref": "#/$defs/ActiveSessionConfig"
         }
       },
       "additionalProperties": false,
