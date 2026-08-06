@@ -250,6 +250,8 @@ func (d *dashboardModel) rebuildRows() {
 	if d.listing == nil {
 		return
 	}
+	// Active runtime rows stay above declarative sessions for quick switching.
+	d.appendActiveRows()
 	for _, s := range d.listing.Sessions {
 		sessRow := dashboardRow{
 			Level:     levelSession,
@@ -298,7 +300,7 @@ func (d *dashboardModel) rebuildRows() {
 			}
 		}
 	}
-	d.appendActiveRows()
+
 	// Rebuild filtered view if a filter is active.
 	if d.filterText != "" {
 		d.applyFilter()

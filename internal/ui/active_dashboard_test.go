@@ -92,6 +92,25 @@ func TestActiveDashboardAttachTargetUsesWindowIDWithoutChangingDestructiveTarget
 	}
 }
 
+func TestActiveDashboardRendersRuntimeSectionBeforeSessions(t *testing.T) {
+	d := activeDashboardFixture(t)
+	index := 1
+	d.SetActiveStatus(actions.ActiveStatusReport{Enabled: true, Owned: true, Entries: []actions.ActiveWindowStatus{{
+		WindowID: "@13", WindowName: "homelab", State: state.ActiveWindowTracked, ActiveIndex: &index,
+		SourceLinks: []actions.ActiveSourceLink{{SessionName: "infra", WindowIndex: 1}},
+	}}})
+
+	view := d.View()
+	activeAt := strings.Index(view, "ACTIVE (runtime)")
+	sessionAt := strings.Index(view, "work")
+	if activeAt < 0 || sessionAt < 0 {
+		t.Fatalf("missing active or session section:\n%s", view)
+	}
+	if activeAt > sessionAt {
+		t.Fatalf("active section rendered after sessions:\n%s", view)
+	}
+}
+
 func activeDashboardFixture(t *testing.T) *dashboardModel {
 	t.Helper()
 	if err := i18n.Init("en"); err != nil {
