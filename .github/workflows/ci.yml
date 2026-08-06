@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.25.1"
           check-latest: true
       - name: install tmux
         run: sudo apt-get update && sudo apt-get install -y tmux
@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.25.1"
       - run: go build ./...
 
   vuln:
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.25.1"
       - name: install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: run govulncheck
@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.25.1"
       - name: install tmux
         run: sudo apt-get update && sudo apt-get install -y tmux
       - name: verify tmux version
