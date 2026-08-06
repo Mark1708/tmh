@@ -396,7 +396,7 @@ func (m *Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.current = ScreenSettings
 		return m, nil
 	case keyMatches(msg, m.keys.Attach), keyMatches(msg, m.keys.Enter):
-		target := m.dashboard.SelectedTarget()
+		target := m.dashboard.SelectedAttachTarget()
 		if target == "" {
 			return m, nil
 		}

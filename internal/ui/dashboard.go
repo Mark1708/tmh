@@ -600,7 +600,8 @@ func (d *dashboardModel) currentRow() *dashboardRow {
 	return &d.rows[idx]
 }
 
-// SelectedTarget returns the tmux target for the current row.
+// SelectedTarget returns the tmux target for the current row when it is safe to
+// pass to destructive commands.
 // Returns "session", "session:window", or "session:window.pane".
 func (d *dashboardModel) SelectedTarget() string {
 	r := d.currentRow()
@@ -616,6 +617,20 @@ func (d *dashboardModel) SelectedTarget() string {
 		return ""
 	}
 	return r.Session + ":" + r.Window
+}
+
+// SelectedAttachTarget returns the tmux target for attaching to the current row.
+// Active runtime rows use their stable physical window_id so dashboard attach
+// can switch into the active alias without enabling destructive actions.
+func (d *dashboardModel) SelectedAttachTarget() string {
+	r := d.currentRow()
+	if r == nil {
+		return ""
+	}
+	if r.Level == levelActiveWindow && r.Active != nil {
+		return r.Active.WindowID
+	}
+	return d.SelectedTarget()
 }
 
 // SelectedLevel returns the level (levelSession/levelWindow/levelPane) of the

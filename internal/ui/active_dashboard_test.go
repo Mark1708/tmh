@@ -75,6 +75,23 @@ func TestActiveDashboardCursorStableByWindowIDAfterRenumber(t *testing.T) {
 	}
 }
 
+func TestActiveDashboardAttachTargetUsesWindowIDWithoutChangingDestructiveTarget(t *testing.T) {
+	d := activeDashboardFixture(t)
+	index := 1
+	d.SetActiveStatus(actions.ActiveStatusReport{Enabled: true, Owned: true, Entries: []actions.ActiveWindowStatus{{
+		WindowID: "@13", WindowName: "homelab", State: state.ActiveWindowTracked, ActiveIndex: &index,
+		SourceLinks: []actions.ActiveSourceLink{{SessionName: "infra", WindowIndex: 1}},
+	}}})
+	d.restoreCursorByID("@13")
+
+	if got := d.SelectedAttachTarget(); got != "@13" {
+		t.Fatalf("active attach target = %q, want @13", got)
+	}
+	if got := d.SelectedTarget(); got != "" {
+		t.Fatalf("active destructive target = %q, want empty", got)
+	}
+}
+
 func activeDashboardFixture(t *testing.T) *dashboardModel {
 	t.Helper()
 	if err := i18n.Init("en"); err != nil {
