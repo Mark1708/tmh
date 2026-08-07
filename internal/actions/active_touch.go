@@ -19,21 +19,20 @@ func TouchActiveWindow(
 	windowID string,
 	now time.Time,
 ) (bool, error) {
-	// Disabled is a no-op with explicit error
 	if !cfg.Enabled {
 		return false, errs.ErrActiveSessionDisabled
 	}
-
-	// DB nil when enabled is an error
 	if store == nil {
 		return false, fmt.Errorf("active integration enabled but state database unavailable")
 	}
-
+	if err := validateActiveWindowID(windowID); err != nil {
+		return false, err
+	}
 	ttl, err := activeTTL(cfg)
 	if err != nil {
 		return false, err
 	}
-	if err := validateActiveWindowID(windowID); err != nil {
+	if _, err := PruneActiveWindows(ctx, runner, store, cfg, now); err != nil {
 		return false, err
 	}
 	if _, err := requireOwnedActiveSession(ctx, runner); err != nil {
@@ -46,6 +45,9 @@ func TouchActiveWindow(
 	row, found, err := findActiveRow(ctx, store, epoch.Value, windowID)
 	if err != nil || !found {
 		// Absent tracked ID is a successful no-op (not an error)
+		return false, nil
+	}
+	if row.State != state.ActiveWindowTracked || !row.ExpiresAt.After(now) {
 		return false, nil
 	}
 	snapshot, err := loadActiveSnapshot(ctx, runner)

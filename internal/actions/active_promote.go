@@ -40,6 +40,10 @@ func PromoteActiveWindow(
 		return "", fmt.Errorf("active windows feature enabled but state store is nil")
 	}
 
+	if _, err := PruneActiveWindows(ctx, runner, store, cfg, now); err != nil {
+		return "", err
+	}
+
 	promotion, err := prepareActivePromotion(ctx, runner, store, target)
 	if err != nil {
 		return "", err

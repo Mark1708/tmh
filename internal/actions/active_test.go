@@ -297,6 +297,65 @@ func TestTouchActiveWindowRefreshesKnownWithoutPromotingUnknown(t *testing.T) {
 	}
 }
 
+func TestTouchActiveWindowPrunesExpiredBeforeRefresh(t *testing.T) {
+	runner, store, windowID, epoch := promoteActiveFixture(t)
+	expiredNow := activeTestNow.Add(6 * time.Minute)
+	runner.Reset()
+
+	touched, err := TouchActiveWindow(
+		context.Background(), runner, store, activeTestConfig(), windowID, expiredNow,
+	)
+	if err != nil {
+		t.Fatalf("expired touch: %v", err)
+	}
+	if touched {
+		t.Fatal("expired touch refreshed TTL; want prune and no touch")
+	}
+	if rows := listActiveRows(t, store, epoch.Value); len(rows) != 0 {
+		t.Fatalf("expired touch left active rows: %+v", rows)
+	}
+	if _, ok := activeLinkFor(t, runner, windowID, ActiveSessionName); ok {
+		t.Fatalf("expired touch left active alias for %s", windowID)
+	}
+	if _, ok := activeLinkFor(t, runner, windowID, "source"); !ok {
+		t.Fatalf("expired touch removed source link for %s", windowID)
+	}
+}
+
+func TestTouchActiveWindowDoesNotRefreshExpiredOrphan(t *testing.T) {
+	runner, store, windowID, epoch := promoteActiveFixture(t)
+	if err := runner.KillSession(context.Background(), "source"); err != nil {
+		t.Fatalf("remove source link: %v", err)
+	}
+	expiredAt := activeTestNow.Add(5 * time.Minute)
+	expiredNow := activeTestNow.Add(6 * time.Minute)
+	runner.Reset()
+
+	touched, err := TouchActiveWindow(
+		context.Background(), runner, store, activeTestConfig(), windowID, expiredNow,
+	)
+	if err != nil {
+		t.Fatalf("expired orphan touch: %v", err)
+	}
+	if touched {
+		t.Fatal("expired orphan touch refreshed TTL; want orphan no-op")
+	}
+	rows := listActiveRows(t, store, epoch.Value)
+	if len(rows) != 1 {
+		t.Fatalf("expired orphan rows = %+v, want one orphan row", rows)
+	}
+	row := rows[0]
+	if row.State != state.ActiveWindowOrphaned || row.OrphanedAt.IsZero() {
+		t.Fatalf("expired orphan state = %+v", row)
+	}
+	if !row.ExpiresAt.Equal(expiredAt) {
+		t.Fatalf("expires_at = %v, want preserved expired value %v", row.ExpiresAt, expiredAt)
+	}
+	if _, ok := activeLinkFor(t, runner, windowID, ActiveSessionName); !ok {
+		t.Fatalf("expired orphan lost last active link for %s", windowID)
+	}
+}
+
 func TestTouchActiveWindowRejectsInvalidIDAndDisabledFeature(t *testing.T) {
 	runner, _ := newActiveSource(t)
 	store := newActiveTestStore(t)

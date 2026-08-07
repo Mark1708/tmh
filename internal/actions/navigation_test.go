@@ -150,6 +150,48 @@ func TestNavigateWithActiveExistingAliasTargetsActiveLink(t *testing.T) {
 	}
 }
 
+func TestNavigateWithActivePrunesExpiredAliasesBeforePromotion(t *testing.T) {
+	cfg := &config.Config{
+		Defaults: config.Defaults{
+			TmuxIntegration: config.TmuxIntegrationConfig{
+				Active: activeTestConfig(),
+			},
+		},
+	}
+	runner, expiredWindowID := newActiveSource(t)
+	store := newActiveTestStore(t)
+	if _, err := PromoteActiveWindow(context.Background(), runner, store, activeTestConfig(), "source:1", activeTestNow); err != nil {
+		t.Fatalf("promote expired fixture: %v", err)
+	}
+	if _, err := runner.NewWindow(context.Background(), tmux.NewWindowOpts{SessionTarget: "source:", Name: "shell"}); err != nil {
+		t.Fatalf("create fresh source window: %v", err)
+	}
+	freshWindowID, err := runner.WindowID(context.Background(), "source:2")
+	if err != nil {
+		t.Fatalf("fresh source window id: %v", err)
+	}
+	epoch := currentActiveEpoch(t, runner)
+	runner.Reset()
+
+	err = NavigateWithActive(context.Background(), runner, cfg, store, "source:2", activeTestNow.Add(6*time.Minute))
+	if err != nil {
+		t.Fatalf("navigate with expired alias: %v", err)
+	}
+	if _, ok := activeLinkFor(t, runner, expiredWindowID, ActiveSessionName); ok {
+		t.Fatalf("expired active alias %s remained after navigation", expiredWindowID)
+	}
+	if _, ok := activeLinkFor(t, runner, expiredWindowID, "source"); !ok {
+		t.Fatalf("expired source link %s was removed", expiredWindowID)
+	}
+	if _, ok := activeLinkFor(t, runner, freshWindowID, ActiveSessionName); !ok {
+		t.Fatalf("fresh active alias %s was not promoted", freshWindowID)
+	}
+	rows := listActiveRows(t, store, epoch.Value)
+	if len(rows) != 1 || rows[0].WindowID != freshWindowID {
+		t.Fatalf("rows = %+v, want only fresh window %s", rows, freshWindowID)
+	}
+}
+
 func TestPromoteActiveWindowCleanupFailureRollsBack(t *testing.T) {
 	base, windowID := newActiveSource(t)
 	store := newActiveTestStore(t)
