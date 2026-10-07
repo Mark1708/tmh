@@ -215,15 +215,24 @@ func (p *terminalsPage) Update(msg tea.Msg) tea.Cmd {
 	ref := domain.Ref(domain.KindTerminal, t.ID)
 	switch k.String() {
 	case "enter":
+		if t.State != domain.TerminalLive {
+			return toast("Terminal "+t.Name+" has exited; choose a live terminal to attach", "warn")
+		}
 		return execute(domain.Action{Kind: domain.ActionAttach, Target: ref})
 	case "s":
-		return openPrompt("Send to "+t.Name, "input, e.g. make test",
+		if t.State != domain.TerminalLive {
+			return toast("Terminal "+t.Name+" has exited; input is unavailable", "warn")
+		}
+		return openPrompt("Send input to "+t.Name, "input, e.g. make test",
 			func(v string) tea.Cmd { return execute(domain.Action{Kind: domain.ActionSend, Target: ref, Value: v}) })
 	case "l":
 		return openPrompt("Link "+t.Name+" to workspace", "workspace id, e.g. kb",
 			func(v string) tea.Cmd { return execute(domain.Action{Kind: domain.ActionLink, Target: ref, Value: v}) })
 	case "x":
-		return confirm("Kill terminal "+t.Name, "terminal exits; dependent agents detach",
+		if t.State != domain.TerminalLive {
+			return toast("Terminal "+t.Name+" has already exited", "warn")
+		}
+		return confirm("Close terminal pane "+t.Name, "the pane exits and dependent agents detach",
 			domain.Action{Kind: domain.ActionKill, Target: ref})
 	case "h":
 		return pushRoute(ui.Location{Route: ui.RouteHistory, Context: ref}, false)
@@ -297,6 +306,13 @@ func (p *terminalsPage) detailView() string {
 		preview = strings.Join(last.Lines, " ⏎ ")
 	}
 	b.WriteString(p.keyValue("preview", preview))
+	b.WriteString("\n")
+	if t.State == domain.TerminalLive {
+		b.WriteString(p.styles.Accent.Render("ENTER  Attach to Zellij session") + "\n")
+		b.WriteString(p.styles.Dim.Render("tmh-next suspends while Zellij owns the terminal; detach to return."))
+	} else {
+		b.WriteString(p.styles.Warn.Render("This terminal has exited · attach and input are unavailable."))
+	}
 	return p.clip(b.String())
 }
 
@@ -308,13 +324,13 @@ func (p *terminalsPage) Commands() []ui.Command {
 	ref := domain.Ref(domain.KindTerminal, t.ID)
 	live := t.State == domain.TerminalLive
 	return []ui.Command{
-		{ID: "t.attach", Title: "Attach", Description: "mock attach", Shortcut: "enter",
-			Disabled: !live, DisabledReason: "terminal is not live",
+		{ID: "t.attach", Title: "Attach Zellij session", Description: "suspend tmh-next and enter the session containing this pane", Shortcut: "enter",
+			Disabled: !live, DisabledReason: "terminal has exited",
 			Run: func() tea.Cmd { return execute(domain.Action{Kind: domain.ActionAttach, Target: ref}) }},
-		{ID: "t.send", Title: "Send input", Description: "append input to the stream", Shortcut: "s",
-			Disabled: !live, DisabledReason: "terminal is not live",
+		{ID: "t.send", Title: "Send input", Description: "write text to the live pane without attaching", Shortcut: "s",
+			Disabled: !live, DisabledReason: "terminal has exited",
 			Run: func() tea.Cmd {
-				return openPrompt("Send to "+t.Name, "input, e.g. make test",
+				return openPrompt("Send input to "+t.Name, "input, e.g. make test",
 					func(v string) tea.Cmd { return execute(domain.Action{Kind: domain.ActionSend, Target: ref, Value: v}) })
 			}},
 		{ID: "t.link", Title: "Link to workspace", Description: "move the terminal to another workspace", Shortcut: "l",
@@ -322,10 +338,10 @@ func (p *terminalsPage) Commands() []ui.Command {
 				return openPrompt("Link "+t.Name+" to workspace", "workspace id, e.g. kb",
 					func(v string) tea.Cmd { return execute(domain.Action{Kind: domain.ActionLink, Target: ref, Value: v}) })
 			}},
-		{ID: "t.kill", Title: "Kill", Description: "exit the terminal (confirm)", Shortcut: "x",
-			Disabled: !live, DisabledReason: "terminal is not live",
+		{ID: "t.kill", Title: "Close terminal pane", Description: "close the pane after confirmation", Shortcut: "x",
+			Disabled: !live, DisabledReason: "terminal has already exited",
 			Run: func() tea.Cmd {
-				return confirm("Kill terminal "+t.Name, "terminal exits; dependent agents detach",
+				return confirm("Close terminal pane "+t.Name, "the pane exits and dependent agents detach",
 					domain.Action{Kind: domain.ActionKill, Target: ref})
 			}},
 		{ID: "t.history", Title: "History", Description: "scoped history view", Shortcut: "h",
@@ -334,7 +350,7 @@ func (p *terminalsPage) Commands() []ui.Command {
 }
 
 func (p *terminalsPage) Help() []key.Binding {
-	return pageHelp([2]string{"enter", "attach"}, [2]string{"s", "send"}, [2]string{"l", "link"}, [2]string{"x", "kill"}, [2]string{"h", "history"}, [2]string{"tab", "region"})
+	return pageHelp([2]string{"enter", "attach session"}, [2]string{"s", "send input"}, [2]string{"l", "link"}, [2]string{"x", "close pane"}, [2]string{"h", "history"}, [2]string{"tab", "region"})
 }
 
 // agentsPage is the agent state board with prompt/wait/claim.
@@ -527,7 +543,7 @@ func (p *agentsPage) Commands() []ui.Command {
 		{ID: "ag.focus", Title: "Focus", Description: "focus the agent", Shortcut: "enter",
 			Disabled: done, DisabledReason: "agent is done",
 			Run: func() tea.Cmd { return execute(domain.Action{Kind: domain.ActionAgentFocus, Target: ref}) }},
-		{ID: "ag.prompt", Title: "Prompt", Description: "send an instruction (mock)", Shortcut: "p",
+		{ID: "ag.prompt", Title: "Prompt", Description: "send an instruction", Shortcut: "p",
 			Disabled: done, DisabledReason: "agent is done",
 			Run: func() tea.Cmd {
 				return openPrompt("Prompt agent "+a.Name, "instruction, e.g. summarize drift",

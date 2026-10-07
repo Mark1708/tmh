@@ -56,9 +56,12 @@ func (a *Adapter) Discover(ctx context.Context) (*runtimegraph.Graph, error) {
 	if err != nil {
 		return nil, err
 	}
-	rawSessions, err := a.run(ctx, "list sessions", "list-sessions", "--short", "--no-formatting")
+	rawSessions, err := a.runner.Run(ctx, "list-sessions", "--short", "--no-formatting")
 	if err != nil {
-		return nil, err
+		if !strings.Contains(strings.ToLower(string(rawSessions)+" "+err.Error()), "no active zellij sessions found") {
+			return nil, fmt.Errorf("list sessions: %w", err)
+		}
+		rawSessions = nil
 	}
 	sessions := sessionNames(rawSessions)
 

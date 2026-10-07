@@ -145,7 +145,7 @@ func (p *searchPage) View() string {
 	b.WriteString("  " + p.styles.Chip.Render(scope))
 	b.WriteString("\n")
 	if p.input.Value() == "" {
-		b.WriteString(p.styles.Dim.Render("type to query the mock catalog — results group by scope"))
+		b.WriteString(p.styles.Dim.Render("type to query the control-plane catalog — results group by scope"))
 		return p.clip(b.String())
 	}
 	hits := p.grouped()
@@ -372,7 +372,7 @@ func (p *snapshotsPage) Commands() []ui.Command {
 		)
 	}
 	commands = append(commands, ui.Command{
-		ID: "sn.create", Title: "Snapshot workspace", Description: "create a mock snapshot", Shortcut: "n",
+		ID: "sn.create", Title: "Snapshot workspace", Description: "create a durable snapshot", Shortcut: "n",
 		Run: func() tea.Cmd {
 			if s != nil {
 				return execute(domain.Action{Kind: domain.ActionSnapshotCreate, Value: s.WorkspaceID})

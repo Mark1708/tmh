@@ -146,7 +146,11 @@ func (b *base) bodyHeight() int {
 
 // titleBar renders the page title line with optional right-hand metadata.
 func (b *base) titleBar(title string) string {
-	right := []string{b.styles.Mock.Render("MOCK")}
+	badge := b.styles.Mock.Render("MOCK")
+	if b.cat != nil && b.cat.Scenario == domain.Scenario("production") {
+		badge = b.styles.OK.Render("LIVE")
+	}
+	right := []string{badge}
 	if b.mode == ui.ModeFilter {
 		right = append(right, b.styles.Title.Render("filter: "+b.filter+"▏"))
 	}
@@ -159,12 +163,12 @@ func (b *base) titleBar(title string) string {
 // notFoundView renders the in-app not-found state with disabled actions.
 func (b *base) notFoundView(kind domain.ResourceKind, id string) string {
 	return b.styles.Err.Render("Not found "+string(kind)+" "+id) + "\n" +
-		b.styles.Dim.Render("the requested resource does not exist in this scenario — actions are disabled")
+		b.styles.Dim.Render("the requested resource does not exist in the current catalog — actions are disabled")
 }
 
 // emptyView renders an empty-collection state without phantom selection.
 func (b *base) emptyView(what string) string {
-	return b.styles.Dim.Render("No " + what + " in this scenario — nothing to select or act on")
+	return b.styles.Dim.Render("No " + what + " in the current catalog — nothing to select or act on")
 }
 
 // filterIds applies the substring filter over (id, label) pairs.

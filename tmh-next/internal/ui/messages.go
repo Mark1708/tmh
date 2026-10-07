@@ -54,8 +54,12 @@ type ConfirmActionMsg struct {
 	OnAccept func(domain.Action) tea.Cmd
 }
 
-// OpenConfigFormMsg opens the root-owned Huh configuration draft form.
-type OpenConfigFormMsg struct{ Draft domain.Config }
+// OpenConfigFormMsg opens the root-owned Huh editor for one settings section.
+// An empty Section preserves the complete form for compatibility callers.
+type OpenConfigFormMsg struct {
+	Draft   domain.Config
+	Section string
+}
 
 // ShowToastMsg posts a transient notification.
 type ShowToastMsg struct {

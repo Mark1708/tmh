@@ -90,18 +90,25 @@ func (h *realHarness) key(t *testing.T, s string) {
 
 const fastGate = 150000000 // 150ms in ns, kept as int for clarity
 
-// openForm drives the config page into the root-owned Huh draft form.
+// openForm opens the focused General editor through the real page.
 func (h *realHarness) openForm(t *testing.T) {
+	h.openSectionForm(t, 0)
+}
+
+func (h *realHarness) openSectionForm(t *testing.T, section int) {
 	t.Helper()
 	h.key(t, "ctrl+p")
-	// palette: navigate to Config (last nav option = index 14)
+	// palette: navigate to Settings (last navigation option = index 14)
 	for range 14 {
 		h.key(t, "j")
 	}
 	h.key(t, "enter")
-	h.key(t, "e") // config page opens the root-owned draft form
+	for range section {
+		h.key(t, "j")
+	}
+	h.key(t, "enter")
 	if h.root.ov == nil || h.root.ov.kind != ovConfig {
-		t.Fatalf("config form did not open (overlay=%+v)", h.root.ov)
+		t.Fatalf("settings form did not open (overlay=%+v)", h.root.ov)
 	}
 }
 
@@ -138,19 +145,15 @@ func TestConfigSaveDiscardValidation(t *testing.T) {
 	t.Run("invalid draft stays visible without saving", func(t *testing.T) {
 		h := newRealHarness(t, Startup{Scenario: domain.ScenarioDefault, Live: false})
 		_, _ = h.client.Snapshot(t.Context()) // warm
-		h.openForm(t)
+		h.openSectionForm(t, 2)
 
-		// Corrupt the draft: history mode persistent → memory while retention
-		// stays 720 (violates memory ≤ 24h).
-		h.key(t, "enter") // page select →
-		h.key(t, "enter") // leader →
-		h.key(t, "enter") // backend → history mode select
-		h.key(t, "k")     // persistent → memory
+		// Corrupt the History draft: persistent → memory while retention stays
+		// 720 (violates memory ≤ 24h).
+		h.key(t, "k")
 		h.key(t, "enter") // → retention input (720 stays)
-		for range 6 {
-			h.key(t, "enter") // retention → … → save confirm
-		}
-		h.key(t, "y") // save=yes → invalid (memory + 720h)
+		h.key(t, "enter") // → overflow policy
+		h.key(t, "enter") // → save confirm
+		h.key(t, "y")     // save=yes → invalid (memory + 720h)
 
 		f := formOf(t, h)
 		if f.State != huh.StateNormal {
@@ -183,10 +186,9 @@ func TestConfigSaveDiscardValidation(t *testing.T) {
 		h := newRealHarness(t, Startup{Scenario: domain.ScenarioDefault, Live: false})
 		h.openForm(t)
 
-		// Keep the valid baseline; walk to the save confirm and accept.
-		for range 10 {
-			h.key(t, "enter")
-		}
+		// Keep the valid General baseline; walk to Save and accept.
+		h.key(t, "enter")
+		h.key(t, "enter")
 		h.key(t, "y")
 
 		if h.root.ov != nil {
@@ -214,7 +216,7 @@ func TestConfigSaveDiscardValidation(t *testing.T) {
 // dispatches zero config-save actions; valid submit dispatches exactly one.
 func TestHuhInvalidSubmitStaysVisibleAndValidSubmitsOnce(t *testing.T) {
 	h := newRealHarness(t, Startup{Scenario: domain.ScenarioDefault, Live: false})
-	h.openForm(t)
+	h.openSectionForm(t, 2)
 
 	saves := func() int {
 		n := 0
@@ -227,14 +229,10 @@ func TestHuhInvalidSubmitStaysVisibleAndValidSubmitsOnce(t *testing.T) {
 	}
 
 	// Invalid: memory + 720 retention.
-	h.key(t, "enter")
-	h.key(t, "enter")
-	h.key(t, "enter")
 	h.key(t, "k")
 	h.key(t, "enter")
-	for range 6 {
-		h.key(t, "enter")
-	}
+	h.key(t, "enter")
+	h.key(t, "enter")
 	h.key(t, "y")
 
 	if saves() != 0 {
@@ -251,9 +249,8 @@ func TestHuhInvalidSubmitStaysVisibleAndValidSubmitsOnce(t *testing.T) {
 	// A fresh, valid form submits exactly once.
 	h2 := newRealHarness(t, Startup{Scenario: domain.ScenarioDefault, Live: false})
 	h2.openForm(t)
-	for range 10 {
-		h2.key(t, "enter")
-	}
+	h2.key(t, "enter")
+	h2.key(t, "enter")
 	h2.key(t, "y")
 	if h2.root.ov != nil {
 		t.Fatal("form still open after completion")
@@ -409,19 +406,19 @@ func TestDegradedInlineRecoverableErrors(t *testing.T) {
 	}
 	rev := h.root.cat.Revision
 
-	// Probe native → probe_timeout, inline error toast, revision unchanged.
+	// Probe native → timeout, inline error notification, revision unchanged.
 	h.key(t, "p")
 	if h.root.cat.Revision != rev {
 		t.Fatalf("failed probe bumped revision: %d → %d", rev, h.root.cat.Revision)
 	}
 	found := false
 	for _, toast := range h.root.toasts {
-		if strings.Contains(toast.Text, "probe_timeout") {
+		if strings.Contains(toast.Text, "Backend probe timed out") {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("no probe_timeout toast: %+v", h.root.toasts)
+		t.Fatalf("no actionable timeout notification: %+v", h.root.toasts)
 	}
 
 	// Input still works: navigate to machines and ping the offline node.
@@ -444,22 +441,23 @@ func TestDegradedInlineRecoverableErrors(t *testing.T) {
 		t.Fatalf("healthy ping toast missing: %+v", h.root.toasts)
 	}
 
-	// Offline machine: build-01 unreachable without mutation.
+	// Offline machine: a clear connect error appears without mutation.
 	h.key(t, "k")
 	h.key(t, "k") // back to build-01
 	rev = h.root.cat.Revision
-	h.key(t, "c") // connect → unreachable
+	h.key(t, "c")
 	if h.root.cat.Revision != rev {
-		t.Fatal("unreachable connect mutated the catalog")
+		t.Fatal("offline connect mutated the catalog")
 	}
 	seen := false
 	for _, toast := range h.root.toasts {
-		if strings.Contains(toast.Text, "unreachable") {
+		if strings.Contains(toast.Text, "Machine connect unavailable") &&
+			strings.Contains(toast.Text, "build-01 is offline") {
 			seen = true
 		}
 	}
 	if !seen {
-		t.Fatalf("unreachable toast missing: %+v", h.root.toasts)
+		t.Fatalf("offline connect notification missing: %+v", h.root.toasts)
 	}
 	// q quits cleanly from anywhere.
 	if cmd := h.step(keyMsg("q")); cmd == nil {

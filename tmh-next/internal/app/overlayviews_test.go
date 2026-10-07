@@ -25,8 +25,10 @@ func TestOverlayViewsRender(t *testing.T) {
 		t.Fatal("help overlay did not open")
 	}
 	view := h.root.View().Content
-	if !testutil.Contains(view, "global keys") {
-		t.Fatalf("help overlay view missing:\n%s", testutil.Plain(view))
+	for _, want := range []string{"guided help", "Walkthrough · Attach to a session", "PLAYING", "global keys"} {
+		if !testutil.Contains(view, want) {
+			t.Fatalf("help overlay missing %q:\n%s", want, testutil.Plain(view))
+		}
 	}
 	h.fireKey(t, "esc")
 	if h.root.ov != nil {
@@ -104,6 +106,34 @@ func TestOverlayViewsRender(t *testing.T) {
 	}
 	h.fireKey(t, "esc")
 }
+func TestGuidedHelpAnimationAndUseCaseLaunch(t *testing.T) {
+	h := newHarness(t, Startup{Scenario: domain.ScenarioDefault, Live: false})
+	h.boot(t)
+	h.fireKey(t, "?")
+	if len(h.sched.WalkthroughTokens) != 1 || h.root.ov.helpStep != 0 {
+		t.Fatalf("initial walkthrough = %+v tokens=%v", h.root.ov, h.sched.WalkthroughTokens)
+	}
+	token := h.root.ov.helpToken
+	h.fire(t, WalkthroughTickMsg{Token: token})
+	if h.root.ov.helpStep != 1 || len(h.sched.WalkthroughTokens) != 2 {
+		t.Fatalf("animated step = %d tokens=%v", h.root.ov.helpStep, h.sched.WalkthroughTokens)
+	}
+	h.fireKey(t, "l")
+	if h.root.ov.helpCase != 1 || h.root.ov.helpStep != 0 ||
+		!testutil.Contains(h.root.View().Content, "Walkthrough · Create a terminal") {
+		t.Fatalf("use-case switch failed: %+v", h.root.ov)
+	}
+	h.fireKey(t, "space")
+	pausedToken := h.root.ov.helpToken
+	h.fire(t, WalkthroughTickMsg{Token: pausedToken})
+	if h.root.ov.helpStep != 0 || h.root.ov.helpPlaying {
+		t.Fatalf("paused walkthrough advanced: %+v", h.root.ov)
+	}
+	h.fireKey(t, "enter")
+	if h.root.ov != nil || h.root.activeLocation().Route != ui.RouteWorkspaces {
+		t.Fatalf("walkthrough launch = overlay=%+v route=%s", h.root.ov, h.root.activeLocation().Route)
+	}
+}
 
 // TestProductionSchedulerCmds verifies the production scheduler emits the
 // typed timer/toast messages.
@@ -122,6 +152,13 @@ func TestProductionSchedulerCmds(t *testing.T) {
 	}
 	if tm, is := msg.(ToastExpiredMsg); !is || tm.Seq != 3 {
 		t.Fatalf("toast cmd produced %T%v", msg, msg)
+	}
+	msg, ok = testutil.RunCmdFast(s.WalkthroughCmd(11), 3*time.Second)
+	if !ok {
+		t.Fatal("walkthrough cmd did not finish")
+	}
+	if tm, is := msg.(WalkthroughTickMsg); !is || tm.Token != 11 {
+		t.Fatalf("walkthrough cmd produced %T%v", msg, msg)
 	}
 }
 

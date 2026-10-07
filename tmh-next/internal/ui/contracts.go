@@ -73,7 +73,7 @@ func RouteTitle(r Route) string {
 	case RouteEvents:
 		return "Events"
 	case RouteConfig:
-		return "Config"
+		return "Settings"
 	default:
 		return string(r)
 	}

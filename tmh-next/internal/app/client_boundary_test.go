@@ -9,7 +9,9 @@ import (
 	"github.com/mark1708/tmh-next/internal/control"
 	"github.com/mark1708/tmh-next/internal/domain"
 	"github.com/mark1708/tmh-next/internal/mock"
+	"github.com/mark1708/tmh-next/internal/testutil"
 	"github.com/mark1708/tmh-next/internal/ui"
+	"github.com/mark1708/tmh-next/internal/ui/pages"
 )
 
 type snapshotClient struct {
@@ -61,5 +63,35 @@ func TestRootInitializesThroughRuntimeClientSnapshot(t *testing.T) {
 	}
 	if loaded == nil || loaded.Revision != catalog.Revision {
 		t.Fatalf("loaded catalog = %#v", loaded)
+	}
+}
+
+func TestProductionSnapshotRendersLiveChromeAndConfirmation(t *testing.T) {
+	catalog, err := mock.Fixture(domain.ScenarioDefault)
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog.Scenario = domain.Scenario("production")
+	root := NewRoot(Options{
+		Client:  &snapshotClient{},
+		Stack:   []ui.Location{{Route: ui.RouteDashboard}},
+		Factory: pages.Factory,
+	})
+	root.Update(LoadCatalogMsg{Catalog: catalog, EventSeq: 1})
+	root.Update(testutil.Size(120, 36))
+
+	rendered := root.View()
+	view := rendered.Content
+	if rendered.WindowTitle != "tmh-next — control panel" || !testutil.Contains(view, "LIVE") ||
+		testutil.Contains(view, "Dashboard  MOCK") {
+		t.Fatalf("production chrome title=%q:\n%s", rendered.WindowTitle, testutil.Plain(view))
+	}
+	root.Update(ui.ConfirmActionMsg{
+		Title: "Kill terminal", Detail: "terminal exits",
+		Action: domain.Action{Kind: domain.ActionKill, Target: domain.Ref(domain.KindTerminal, "term-0001")},
+	})
+	confirm := root.View().Content
+	if !testutil.Contains(confirm, "LIVE ACTION") || testutil.Contains(confirm, "MOCK ONLY") {
+		t.Fatalf("production confirmation:\n%s", testutil.Plain(confirm))
 	}
 }

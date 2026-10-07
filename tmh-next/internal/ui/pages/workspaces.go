@@ -87,6 +87,9 @@ func (p *workspacesPage) Update(msg tea.Msg) tea.Cmd {
 	case "enter":
 		return pushRoute(ui.Location{Route: ui.RouteWorkspace, Primary: p.target()}, false)
 	case "a":
+		if !ws.Live(p.cat.Terminals) {
+			return toast("No live Zellij session in "+ws.Name+"; open the workspace to inspect its terminals", "warn")
+		}
 		return execute(domain.Action{Kind: domain.ActionAttach, Target: p.target()})
 	case "f":
 		return confirm("Freeze workspace "+ws.ID, "desired := observed; drift cleared",
@@ -220,17 +223,20 @@ func (p *workspacesPage) workspaceSelection() string {
 func (p *workspacesPage) Commands() []ui.Command {
 	var commands []ui.Command
 	if sel := p.selected(); sel != "" {
+		workspace := p.cat.WorkspaceByID(sel)
+		live := workspace != nil && workspace.Live(p.cat.Terminals)
 		commands = append(commands,
-			ui.Command{ID: "ws.open", Title: "Open workspace", Description: "workspace graph view", Shortcut: "enter",
+			ui.Command{ID: "ws.open", Title: "Open workspace", Description: "inspect topology and create terminal panes", Shortcut: "enter",
 				Run: func() tea.Cmd { return pushRoute(ui.Location{Route: ui.RouteWorkspace, Primary: p.target()}, false) }},
-			ui.Command{ID: "ws.attach", Title: "Attach", Description: "mock attach to a live terminal", Shortcut: "a",
+			ui.Command{ID: "ws.attach", Title: "Attach session", Description: "leave tmh-next and enter this workspace's live Zellij session", Shortcut: "a",
+				Disabled: !live, DisabledReason: "workspace has no live Zellij session",
 				Run: func() tea.Cmd { return execute(domain.Action{Kind: domain.ActionAttach, Target: p.target()}) }},
 			ui.Command{ID: "ws.freeze", Title: "Freeze", Description: "desired := observed", Shortcut: "f",
 				Run: func() tea.Cmd {
 					return confirm("Freeze workspace "+sel, "desired := observed; drift cleared",
 						domain.Action{Kind: domain.ActionFreeze, Target: p.target()})
 				}},
-			ui.Command{ID: "ws.snapshot", Title: "Snapshot", Description: "create a mock snapshot", Shortcut: "s",
+			ui.Command{ID: "ws.snapshot", Title: "Snapshot", Description: "create a durable snapshot", Shortcut: "s",
 				Run: func() tea.Cmd { return execute(domain.Action{Kind: domain.ActionSnapshotCreate, Target: p.target()}) }},
 			ui.Command{ID: "ws.diff", Title: "Local diff", Description: "desired vs observed fields", Shortcut: "d",
 				Run: func() tea.Cmd {
@@ -289,12 +295,16 @@ func (p *workspacePage) Update(msg tea.Msg) tea.Cmd {
 	p.cursorKeys(k, surfaces)
 	switch k.String() {
 	case "enter":
-		return execute(domain.Action{Kind: domain.ActionAttach, Target: ref})
-	case "s":
-		if len(ws.TerminalIDs) == 0 {
-			return toast("no terminal to split from", "warn")
+		if !ws.Live(p.cat.Terminals) {
+			return toast("No live Zellij session to attach; create or restore the session first", "warn")
 		}
-		return execute(domain.Action{Kind: domain.ActionSplit, Target: domain.Ref(domain.KindTerminal, ws.TerminalIDs[0])})
+		return execute(domain.Action{Kind: domain.ActionAttach, Target: ref})
+	case "n":
+		terminal := firstLiveTerminal(p.cat, ws)
+		if terminal == nil {
+			return toast("A live Zellij terminal is required before creating another pane", "warn")
+		}
+		return execute(domain.Action{Kind: domain.ActionSplit, Target: domain.Ref(domain.KindTerminal, terminal.ID)})
 	case "l":
 		if len(ws.TerminalIDs) == 0 {
 			return toast("no terminal to link", "warn")
@@ -315,6 +325,18 @@ func (p *workspacePage) current() *domain.Workspace {
 		return nil
 	}
 	return p.cat.WorkspaceByID(p.selected())
+}
+
+func firstLiveTerminal(catalog *domain.Catalog, workspace *domain.Workspace) *domain.Terminal {
+	if catalog == nil || workspace == nil {
+		return nil
+	}
+	for _, id := range workspace.TerminalIDs {
+		if terminal := catalog.TerminalByID(id); terminal != nil && terminal.State == domain.TerminalLive {
+			return terminal
+		}
+	}
+	return nil
 }
 
 func (p *workspacePage) View() string {
@@ -416,6 +438,15 @@ func (p *workspacePage) detailView(ws *domain.Workspace) string {
 		}
 	}
 
+	live := firstLiveTerminal(p.cat, ws)
+	b.WriteString("\n\n" + p.styles.Dim.Render("SESSION ACTIONS"))
+	if live == nil {
+		b.WriteString("\n" + p.styles.Warn.Render("No live Zellij session · attach and new pane unavailable"))
+	} else {
+		b.WriteString("\n" + p.styles.Accent.Render("ENTER  Attach to Zellij session"))
+		b.WriteString("\n" + p.styles.Terminal.Render("N      New terminal pane in the current tab"))
+		b.WriteString("\n" + p.styles.Dim.Render("tmh-next suspends while Zellij owns the terminal; detach to return."))
+	}
 	b.WriteString("\n\n" + p.styles.Dim.Render("ATTACHED RESOURCES"))
 	for _, id := range ws.TerminalIDs {
 		if term := p.cat.TerminalByID(id); term != nil {
@@ -446,13 +477,15 @@ func (p *workspacePage) Commands() []ui.Command {
 		return nil
 	}
 	ref := domain.Ref(domain.KindWorkspace, ws.ID)
+	live := firstLiveTerminal(p.cat, ws)
 	return []ui.Command{
-		{ID: "w.focus", Title: "Focus", Description: "mock attach/focus", Shortcut: "enter",
+		{ID: "w.attach", Title: "Attach Zellij session", Description: "suspend tmh-next, enter the session, and return after detach", Shortcut: "enter",
+			Disabled: live == nil, DisabledReason: "workspace has no live Zellij session",
 			Run: func() tea.Cmd { return execute(domain.Action{Kind: domain.ActionAttach, Target: ref}) }},
-		{ID: "w.split", Title: "Split terminal", Description: "new deterministic terminal", Shortcut: "s",
-			Disabled: len(ws.TerminalIDs) == 0, DisabledReason: "no live terminal in workspace",
+		{ID: "w.new-terminal", Title: "New terminal pane", Description: "create a right-hand shell pane in the current Zellij tab", Shortcut: "n",
+			Disabled: live == nil, DisabledReason: "a live terminal is required to locate the Zellij tab",
 			Run: func() tea.Cmd {
-				return execute(domain.Action{Kind: domain.ActionSplit, Target: domain.Ref(domain.KindTerminal, ws.TerminalIDs[0])})
+				return execute(domain.Action{Kind: domain.ActionSplit, Target: domain.Ref(domain.KindTerminal, live.ID)})
 			}},
 		{ID: "w.history", Title: "Scoped history", Description: "history for this workspace terminals", Shortcut: "h",
 			Run: func() tea.Cmd { return pushRoute(ui.Location{Route: ui.RouteHistory, Context: ref}, false) }},
@@ -460,5 +493,5 @@ func (p *workspacePage) Commands() []ui.Command {
 }
 
 func (p *workspacePage) Help() []key.Binding {
-	return pageHelp([2]string{"enter", "focus"}, [2]string{"s", "split"}, [2]string{"l", "link"}, [2]string{"h", "history"}, [2]string{"tab", "region"})
+	return pageHelp([2]string{"enter", "attach session"}, [2]string{"n", "new terminal"}, [2]string{"l", "link"}, [2]string{"h", "history"}, [2]string{"tab", "region"})
 }

@@ -1,31 +1,31 @@
 tmh-next PTY smoke transcript — pty-launch-b.txt
-command: /var/folders/z4/x3ywqk814ss5rtyx02cl78780000gn/T/tmh-pty1061567802/tmh-next --live=false --scenario degraded --page backends --resource backend:native
+command: /var/folders/z4/x3ywqk814ss5rtyx02cl78780000gn/T/tmh-pty1415019517/tmh-next --demo --live=false --scenario degraded --page backends --resource backend:native
 
-03:24:37.240 EXPECT native (backends:native stack)
-03:24:37.302 HIT native
-03:24:37.903 HIT-SCREEN Backends native
-03:24:37.904 SEND "p"
-03:24:37.904 EXPECT probe_timeout (inline probe failure)
-03:24:37.968 HIT probe_timeout
-03:24:38.269 SEND "j"
-03:24:39.373 HIT-SCREEN Capabilities · tmux
-03:24:39.374 SEND "p"
-03:24:39.374 EXPECT backend-probe tmux: ok (tmux probe ok)
-03:24:39.443 HIT backend-probe tmux: ok
-03:24:39.443 SEND "\x10"
-03:24:39.844 SEND "Machines"
-03:24:40.545 SEND "\r"
-03:24:42.251 HIT-SCREEN no diagnostics recorded
-03:24:42.752 SEND "c"
-03:24:42.752 EXPECT machine-connect failed (connect unreachable)
-03:24:42.841 HIT machine-connect failed
-03:24:42.847 SEND "\x1b"
-03:24:43.798 SEND "\x1b"
-03:24:44.751 HIT-SCREEN Attention queue
-03:24:44.751 EXPECT machine unreachable (degraded event visible)
-03:24:44.768 HIT machine unreachable
-03:24:44.768 SEND "q"
-03:24:44.775 EXIT 0
+14:16:53.425 EXPECT native (backends:native stack)
+14:16:53.486 HIT native
+14:16:54.088 HIT-SCREEN Backends native
+14:16:54.090 SEND "p"
+14:16:54.090 EXPECT Backend probe timed out (inline probe failure)
+14:16:54.153 HIT Backend probe timed out
+14:16:54.454 SEND "j"
+14:16:55.557 HIT-SCREEN Capabilities · tmux
+14:16:55.557 SEND "p"
+14:16:55.557 EXPECT backend-probe tmux: ok (tmux probe ok)
+14:16:55.624 HIT backend-probe tmux: ok
+14:16:55.624 SEND "\x10"
+14:16:56.025 SEND "Machines"
+14:16:56.727 SEND "\r"
+14:16:58.431 HIT-SCREEN no diagnostics recorded
+14:16:58.931 SEND "c"
+14:16:58.931 EXPECT Machine connect unavailable (connect unreachable)
+14:16:59.011 HIT Machine connect unavailable
+14:16:59.015 SEND "\x1b"
+14:16:59.966 SEND "\x1b"
+14:17:00.919 HIT-SCREEN Attention queue
+14:17:00.919 EXPECT machine unreachable (degraded event visible)
+14:17:00.933 HIT machine unreachable
+14:17:00.933 SEND "q"
+14:17:00.940 EXIT 0
 
 --- final plain output (tail) ---
 ��────╯  ╰─────────────────────╯

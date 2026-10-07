@@ -3,6 +3,10 @@ package app
 import (
 	"context"
 	"fmt"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
@@ -47,6 +51,7 @@ func (r *Root) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case LoadCatalogMsg:
 		r.cat = m.Catalog
+		r.eventSeq = m.EventSeq
 		r.broadcastCatalog()
 		for i := range r.stack {
 			r.stack[i] = r.resolveDefaults(r.stack[i])
@@ -66,11 +71,52 @@ func (r *Root) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			r.quickSwitch = false
 			cmds = append(cmds, func() tea.Msg { return OpenQuickSwitchMsg{} })
 		}
+		if watch := r.waitWatch(); watch != nil {
+			cmds = append(cmds, watch)
+		}
 		return r, tea.Batch(cmds...)
 
 	case LoadFailedMsg:
 		r.fatal = fmt.Sprintf("control-plane snapshot failed: %v", m.Err)
 		return r, nil
+	case RuntimeWatchMsg:
+		if m.Event.Seq > r.eventSeq {
+			r.eventSeq = m.Event.Seq
+		}
+		if m.Event.Revision <= r.currentRevision() {
+			return r, r.waitWatch()
+		}
+		return r, func() tea.Msg {
+			snapshot, err := r.client.Snapshot(context.Background())
+			if err != nil {
+				return RuntimeWatchFailedMsg{Err: err}
+			}
+			return RuntimeSnapshotMsg{Snapshot: snapshot}
+		}
+
+	case RuntimeSnapshotMsg:
+		if err := m.Snapshot.Validate(); err != nil {
+			return r, func() tea.Msg { return RuntimeWatchFailedMsg{Err: err} }
+		}
+		if m.Snapshot.Revision >= r.currentRevision() {
+			r.cat = m.Snapshot.Catalog
+			r.eventSeq = m.Snapshot.EventSeq
+			r.broadcastCatalog()
+		}
+		return r, r.waitWatch()
+
+	case RuntimeWatchFailedMsg:
+		toast := r.pushToast(notificationText("Live updates", m.Err), "warn")
+		return r, tea.Batch(toast, tea.Tick(2*time.Second, func(time.Time) tea.Msg { return RetryWatchMsg{} }))
+
+	case RetryWatchMsg:
+		return r, r.waitWatch()
+
+	case InteractiveDoneMsg:
+		if m.Err != nil {
+			return r, r.pushToast(notificationText("Attach", m.Err), "err")
+		}
+		return r, r.pushToast("Detached from Zellij · tmh is active again", "ok")
 
 	case ReloadedMsg:
 		if r.mut.kind != mutReload {
@@ -87,6 +133,20 @@ func (r *Root) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, r.launchTick())
 		} else if t := r.armTimer(); t != nil {
 			cmds = append(cmds, t)
+		}
+		return r, tea.Batch(cmds...)
+
+	case ReloadFailedMsg:
+		if r.mut.kind != mutReload {
+			return r, nil
+		}
+		r.mut = mutator{kind: mutNone}
+		cmds := []tea.Cmd{r.pushToast(notificationText("Reload", m.Err), "err")}
+		if r.tickPending {
+			r.tickPending = false
+			cmds = append(cmds, r.launchTick())
+		} else if timer := r.armTimer(); timer != nil {
+			cmds = append(cmds, timer)
 		}
 		return r, tea.Batch(cmds...)
 
@@ -149,8 +209,7 @@ func (r *Root) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return r, r.openQuickSwitch()
 
 	case OpenHelpMsg:
-		r.openOverlay(&overlay{kind: ovHelp})
-		return r, nil
+		return r, r.openHelpWalkthrough()
 
 	case OpenSelectorMsg:
 		return r, r.openContextSelector(m.Title, m.Options)
@@ -163,13 +222,17 @@ func (r *Root) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return r, nil
 
 	case ConfirmActionMsg:
-		c := components.NewConfirm(m.Title, m.Detail, r.styles)
+		c := components.NewConfirm(m.Title, m.Detail, r.styles, r.isProduction())
 		r.ov = &overlay{kind: ovConfirm, confirm: c, confirmAction: m.Action, confirmAccept: m.OnAccept, title: m.Title}
 		return r, nil
 
 	case OpenConfigFormMsg:
-		form, harvest := r.buildConfigForm(m.Draft)
-		r.ov = &overlay{kind: ovConfig, form: form, formHarvest: harvest}
+		form, harvest := r.buildConfigSectionForm(m.Draft, m.Section)
+		title := "Settings"
+		if m.Section != "" {
+			title += " · " + strings.ToUpper(m.Section[:1]) + m.Section[1:]
+		}
+		r.ov = &overlay{kind: ovConfig, form: form, formHarvest: harvest, title: title}
 		return r, form.Init()
 
 	case ShowToastMsg:
@@ -184,6 +247,9 @@ func (r *Root) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		r.toasts = kept
 		return r, nil
+
+	case WalkthroughTickMsg:
+		return r, r.advanceWalkthrough(m)
 
 	case QuitNowMsg:
 		return r, tea.Quit
@@ -218,11 +284,12 @@ func (r *Root) checkFormCompletion(cmd tea.Cmd) tea.Cmd {
 		draft, save := r.ov.formHarvest()
 		r.closeOverlay()
 		if !save {
-			return tea.Batch(cmd, r.pushToast("config draft discarded (save=No)", "info"))
+			return tea.Batch(cmd, r.pushToast("Settings changes discarded", "info"))
 		}
+		// Do not show optimistic success: the mutation result owns the only
+		// success/error notification after the daemon or demo backend commits.
 		return tea.Batch(cmd,
-			r.requestAction(domain.Action{Kind: domain.ActionConfigSave, Value: encodeConfig(draft)}),
-			r.pushToast("config draft submitted [MOCK]", "mock"))
+			r.requestAction(domain.Action{Kind: domain.ActionConfigSave, Value: encodeConfig(draft)}))
 	}
 	return cmd
 }
@@ -256,8 +323,7 @@ func (r *Root) updateKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+k":
 		return r, r.openQuickSwitch()
 	case "?":
-		r.openOverlay(&overlay{kind: ovHelp})
-		return r, nil
+		return r, r.openHelpWalkthrough()
 	case "space":
 		return r, r.openPageCommands()
 	case "esc":
@@ -280,7 +346,7 @@ func (r *Root) updateOverlayKey(k tea.KeyPressMsg) tea.Cmd {
 		// Root-owned Esc discards the draft without contacting the backend.
 		if k.String() == "esc" {
 			r.closeOverlay()
-			return r.pushToast("config draft discarded", "info")
+			return r.pushToast("Settings changes discarded", "info")
 		}
 		var cmd tea.Cmd
 		ov.form, cmd = ov.form.Update(k)
@@ -321,11 +387,7 @@ func (r *Root) updateOverlayKey(k tea.KeyPressMsg) tea.Cmd {
 		return cmd
 
 	case ovHelp:
-		switch k.String() {
-		case "esc", "q", "?", "enter", "space":
-			return r.closeOverlay()
-		}
-		return nil
+		return r.updateHelpOverlayKey(k)
 
 	default: // selector-based overlays: palette, quick switch, context actions
 		if ov.sel == nil {
@@ -394,6 +456,16 @@ func (r *Root) acceptMutation(res domain.MutationResult) tea.Cmd {
 	if !res.IsTick {
 		cmds = append(cmds, r.pushToast(res.Message, "ok"))
 	}
+	if len(res.InteractiveCommand) > 0 {
+		if filepath.Base(res.InteractiveCommand[0]) != "zellij" {
+			cmds = append(cmds, r.pushToast("refused unsupported interactive command", "err"))
+		} else {
+			command := exec.Command(res.InteractiveCommand[0], res.InteractiveCommand[1:]...)
+			cmds = append(cmds, tea.ExecProcess(command, func(err error) tea.Msg {
+				return InteractiveDoneMsg{Err: err}
+			}))
+		}
+	}
 	if r.tickPending {
 		r.tickPending = false
 		cmds = append(cmds, r.launchTick())
@@ -422,7 +494,7 @@ func (r *Root) rejectMutation(m MutationFailedMsg) tea.Cmd {
 
 	r.mut = mutator{kind: mutNone}
 	var cmds []tea.Cmd
-	cmds = append(cmds, r.pushToast(fmt.Sprintf("%s failed [%s]: %v", label(m), domain.ErrCodeOf(m.Err), m.Err), "err"))
+	cmds = append(cmds, r.pushToast(notificationText(label(m), m.Err), "err"))
 	if r.tickPending {
 		r.tickPending = false
 		cmds = append(cmds, r.launchTick())
@@ -441,10 +513,10 @@ func (r *Root) startReload(reason string) tea.Cmd {
 	return func() tea.Msg {
 		snapshot, err := r.client.Snapshot(context.Background())
 		if err != nil {
-			return ShowToastMsg{Text: "reload failed: " + err.Error(), Kind: "err"}
+			return ReloadFailedMsg{Err: err}
 		}
 		if err := snapshot.Validate(); err != nil {
-			return ShowToastMsg{Text: "reload failed: " + err.Error(), Kind: "err"}
+			return ReloadFailedMsg{Err: err}
 		}
 		return ReloadedMsg{Catalog: snapshot.Catalog}
 	}
@@ -452,9 +524,52 @@ func (r *Root) startReload(reason string) tea.Cmd {
 
 func label(m MutationFailedMsg) string {
 	if m.IsTick {
-		return "tick"
+		return "Refresh"
 	}
-	return string(m.Kind)
+	switch m.Kind {
+	case domain.ActionAttach:
+		return "Attach"
+	case domain.ActionSplit:
+		return "New terminal"
+	case domain.ActionSend:
+		return "Send input"
+	case domain.ActionKill:
+		return "Close terminal"
+	case domain.ActionConfigSave:
+		return "Save settings"
+	case domain.ActionConfigReload:
+		return "Reload settings"
+	case domain.ActionPerfRecord:
+		return "Record trace"
+	case domain.ActionPerfBenchmark:
+		return "Run benchmark"
+	}
+	title := strings.ReplaceAll(string(m.Kind), "-", " ")
+	if title == "" {
+		return "Action"
+	}
+	return strings.ToUpper(title[:1]) + title[1:]
+}
+
+func notificationText(operation string, err error) string {
+	detail := domain.ErrorMessage(err)
+	switch domain.ErrCodeOf(err) {
+	case domain.CodeNotLive, domain.CodeUnreachable:
+		return operation + " unavailable — " + detail
+	case domain.CodeProtected:
+		return operation + " blocked — " + detail
+	case domain.CodeInvalidState, domain.CodeStalePlan, domain.CodeUndoStale:
+		return operation + " not completed — " + detail
+	case domain.CodeProbeTimeout:
+		return operation + " timed out — " + detail
+	case domain.CodeBusy:
+		return operation + " busy — " + detail
+	case domain.CodeValidation, domain.CodeBadTarget, domain.CodeEmptyValue, domain.CodeEmptySelection:
+		return "Check input — " + detail
+	case domain.CodeConfirmationNeeded:
+		return "Confirmation required — " + detail
+	}
+	return operation + " failed — " + detail
 }
 
 // --- overlay constructors ------------------------------------------------------
@@ -556,7 +671,11 @@ func (r *Root) openQuickSwitch() tea.Cmd {
 			},
 		})
 	}
-	return r.openSelectorOverlay(ovQuickSwitch, "Quick switch (mock focus + jump)", opts)
+	title := "Quick switch (focus + jump)"
+	if !r.isProduction() {
+		title = "Quick switch (mock focus + jump)"
+	}
+	return r.openSelectorOverlay(ovQuickSwitch, title, opts)
 }
 
 // openPageCommands opens the Space context selector with the page commands.
@@ -585,4 +704,30 @@ func (r *Root) openSelectorOverlay(kind overlayKind, title string, options []ui.
 	sel := components.NewSelector(title, options, min(r.width-8, 64), r.height-4, r.styles)
 	r.openOverlay(&overlay{kind: kind, sel: sel, title: title})
 	return nil
+}
+
+func (r *Root) waitWatch() tea.Cmd {
+	if r.watcher == nil {
+		return nil
+	}
+	after := r.eventSeq
+	return func() tea.Msg {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		events, errs := r.watcher.Watch(ctx, after)
+		select {
+		case event, ok := <-events:
+			if !ok {
+				return RuntimeWatchFailedMsg{Err: fmt.Errorf("watch stream closed")}
+			}
+			return RuntimeWatchMsg{Event: event}
+		case err, ok := <-errs:
+			if !ok || err == nil {
+				err = fmt.Errorf("watch stream closed")
+			}
+			return RuntimeWatchFailedMsg{Err: err}
+		case <-ctx.Done():
+			return RuntimeWatchFailedMsg{Err: ctx.Err()}
+		}
+	}
 }

@@ -1,119 +1,113 @@
 tmh-next PTY smoke transcript — pty-launch-a.txt
-command: /var/folders/z4/x3ywqk814ss5rtyx02cl78780000gn/T/tmh-pty1061567802/tmh-next --live=false --scenario default
+command: /var/folders/z4/x3ywqk814ss5rtyx02cl78780000gn/T/tmh-pty1415019517/tmh-next --demo --live=false --scenario default
 
-03:24:10.758 EXPECT Quick switch (picker opens)
-03:24:11.002 HIT Quick switch
-03:24:11.002 SEND "\x1b"
-03:24:11.353 EXPECT Attention queue (dashboard)
-03:24:11.356 HIT Attention queue
-03:24:11.356 SEND "\x10"
-03:24:11.356 EXPECT Command palette (palette opens)
-03:24:11.419 HIT Command palette
-03:24:11.420 SEND "Agents"
-03:24:12.120 SEND "\r"
-03:24:12.371 SEND "\r"
-03:24:12.371 EXPECT agent-0001 (agents page)
-03:24:12.376 HIT agent-0001
-03:24:12.376 SEND "j"
-03:24:12.678 SEND "p"
-03:24:12.678 EXPECT Prompt agent ledger-audit (prompt overlay)
-03:24:12.747 HIT Prompt agent ledger-audit
-03:24:12.747 SEND "use fiscal 2025 and summarize drift"
-03:24:12.747 SEND "\r"
-03:24:12.747 EXPECT prompt accepted by agent-0002 (mock success toast)
-03:24:12.945 HIT prompt accepted by agent-0002
-03:24:12.946 EXPECT use fiscal 2025 (prompt echoed in timeline/history)
-03:24:12.952 HIT use fiscal 2025
-03:24:12.952 SEND "\x10"
-03:24:13.354 SEND "Snapshots"
-03:24:14.055 SEND "\r"
-03:24:15.760 HIT-SCREEN snap-0001
-03:24:15.761 SEND "jjj"
-03:24:16.062 SEND "r"
-03:24:16.062 EXPECT plan plan-0001 (reconcile after plan)
-03:24:16.144 HIT plan plan-0001
-03:24:16.144 SEND " "
-03:24:16.144 EXPECT Reconcile actions (context selector)
-03:24:16.225 HIT Reconcile actions
-03:24:16.225 SEND "\x1b"
-03:24:16.576 EXPECT plan plan-0001 (selector closed)
-03:24:16.588 HIT plan plan-0001
-03:24:16.589 SEND "\t"
-03:24:16.889 SEND "a"
-03:24:16.889 EXPECT MOCK ONLY (apply confirmation)
-03:24:16.971 HIT MOCK ONLY
-03:24:16.971 SEND "y"
-03:24:16.971 EXPECT applied plan plan-0001 (apply accepted)
-03:24:17.053 HIT applied plan plan-0001
-03:24:17.053 SEND "u"
-03:24:17.053 EXPECT undid plan plan-0001 (field-level undo)
-03:24:17.133 HIT undid plan plan-0001
-03:24:17.133 SEND "\x10"
-03:24:17.534 SEND "Config"
-03:24:18.234 SEND "\r"
-03:24:19.941 HIT-SCREEN default page
-03:24:19.941 SEND "e"
-03:24:19.941 EXPECT Configuration draft (huh form opens)
-03:24:20.038 HIT Configuration draft
-03:24:20.038 SEND "\r"
-03:24:20.188 SEND "\r"
-03:24:20.339 SEND "\r"
-03:24:20.489 SEND "\r"
-03:24:20.640 SEND "\x7f"
-03:24:20.761 SEND "\x7f"
-03:24:20.882 SEND "\x7f"
-03:24:21.003 SEND "24"
-03:24:21.003 SEND "\r"
-03:24:21.154 SEND "\r"
-03:24:21.305 SEND "\r"
-03:24:21.456 SEND "\r"
-03:24:21.607 SEND "\r"
-03:24:21.758 SEND "\r"
-03:24:21.909 SEND "y"
-03:24:21.909 EXPECT config draft submitted (config save toast)
-03:24:22.007 HIT config draft submitted
-03:24:22.007 SEND "\t"
-03:24:22.007 SEND "\t"
-03:24:22.007 EXPECT 24h (history category shows 24h)
-03:24:22.030 HIT 24h
-03:24:22.030 SEND "e"
-03:24:22.030 EXPECT Configuration draft (form reopens)
-03:24:22.054 HIT Configuration draft
-03:24:22.054 SEND "k"
-03:24:22.054 SEND "\x1b"
-03:24:22.404 EXPECT config draft discarded (esc discard toast)
-03:24:22.430 HIT config draft discarded
-03:24:22.430 EXPECT Config (route remains config)
-03:24:22.455 HIT Config
-03:24:22.456 SEND "\x10"
-03:24:22.856 SEND "Search"
-03:24:23.556 SEND "\r"
-03:24:25.263 HIT-SCREEN scope: all
-03:24:25.863 SEND "ledger"
-03:24:25.863 EXPECT ledger (query echoed)
-03:24:25.896 HIT ledger
-03:24:26.697 EXPECT ledger-audit (search hits agent)
-03:24:26.732 HIT ledger-audit
-03:24:26.732 SEND "\r"
-03:24:27.332 EXPECT Agents agent-0002 (jump to owning agent)
-03:24:27.366 HIT Agents agent-0002
-03:24:27.366 SEND "\x1b"
-03:24:28.318 SEND "\x1b"
-03:24:29.272 SEND "\x1b"
-03:24:30.225 SEND "\x1b"
-03:24:31.178 SEND "\x1b"
-03:24:32.132 SEND "\x1b"
-03:24:33.687 HIT-SCREEN Attention queue
-03:24:33.711 SEND " "
-03:24:34.313 HIT-SCREEN Dashboard actions
-03:24:34.313 SEND "j"
-03:24:35.217 RESIZE 70x18
-03:24:35.819 HIT-SCREEN needs at least 72
-03:24:35.819 SEND "a"
-03:24:36.220 RESIZE 120x30
-03:24:36.852 SEND "\x1b"
-03:24:37.203 SEND "q"
-03:24:37.208 EXIT 0
+14:16:26.703 EXPECT Quick switch (picker opens)
+14:16:27.010 HIT Quick switch
+14:16:27.010 SEND "\x1b"
+14:16:27.361 EXPECT Attention queue (dashboard)
+14:16:27.368 HIT Attention queue
+14:16:27.368 SEND "\x10"
+14:16:27.368 EXPECT Command palette (palette opens)
+14:16:27.432 HIT Command palette
+14:16:27.432 SEND "Agents"
+14:16:28.133 SEND "\r"
+14:16:28.384 SEND "\r"
+14:16:28.384 EXPECT agent-0001 (agents page)
+14:16:28.394 HIT agent-0001
+14:16:28.394 SEND "j"
+14:16:28.695 SEND "p"
+14:16:28.695 EXPECT Prompt agent ledger-audit (prompt overlay)
+14:16:28.765 HIT Prompt agent ledger-audit
+14:16:28.766 SEND "use fiscal 2025 and summarize drift"
+14:16:28.766 SEND "\r"
+14:16:28.766 EXPECT prompt accepted by agent-0002 (mock success toast)
+14:16:28.964 HIT prompt accepted by agent-0002
+14:16:28.964 EXPECT use fiscal 2025 (prompt echoed in timeline/history)
+14:16:28.970 HIT use fiscal 2025
+14:16:28.970 SEND "\x10"
+14:16:29.371 SEND "Snapshots"
+14:16:30.072 SEND "\r"
+14:16:31.777 HIT-SCREEN snap-0001
+14:16:31.777 SEND "jjj"
+14:16:32.078 SEND "r"
+14:16:32.078 EXPECT plan plan-0001 (reconcile after plan)
+14:16:32.160 HIT plan plan-0001
+14:16:32.160 SEND " "
+14:16:32.160 EXPECT Reconcile actions (context selector)
+14:16:32.239 HIT Reconcile actions
+14:16:32.239 SEND "\x1b"
+14:16:32.589 EXPECT plan plan-0001 (selector closed)
+14:16:32.606 HIT plan plan-0001
+14:16:32.606 SEND "\t"
+14:16:32.906 SEND "a"
+14:16:32.906 EXPECT MOCK ONLY (apply confirmation)
+14:16:32.986 HIT MOCK ONLY
+14:16:32.986 SEND "y"
+14:16:32.986 EXPECT applied plan plan-0001 (apply accepted)
+14:16:33.067 HIT applied plan plan-0001
+14:16:33.067 SEND "u"
+14:16:33.067 EXPECT undid plan plan-0001 (field-level undo)
+14:16:33.147 HIT undid plan plan-0001
+14:16:33.147 SEND "\x10"
+14:16:33.548 SEND "Settings"
+14:16:34.249 SEND "\r"
+14:16:35.959 HIT-SCREEN Settings
+14:16:35.959 SEND "jj"
+14:16:35.959 EXPECT History (history settings selected)
+14:16:35.981 HIT History
+14:16:35.981 SEND "\r"
+14:16:35.981 EXPECT Settings · History (focused Huh form opens)
+14:16:36.078 HIT Settings · History
+14:16:36.078 SEND "\r"
+14:16:36.578 SEND "\x7f"
+14:16:36.759 SEND "\x7f"
+14:16:36.940 SEND "\x7f"
+14:16:37.120 SEND "24"
+14:16:37.421 SEND "\r"
+14:16:37.721 SEND "\r"
+14:16:38.022 SEND "y"
+14:16:38.022 EXPECT Settings saved in demo memory (settings save notification)
+14:16:38.175 HIT Settings saved in demo memory
+14:16:38.175 EXPECT 24 hours (history category shows 24h)
+14:16:38.213 HIT 24 hours
+14:16:38.213 SEND "\r"
+14:16:38.213 EXPECT Settings · History (focused form reopens)
+14:16:38.243 HIT Settings · History
+14:16:38.243 SEND "k"
+14:16:38.243 SEND "\x1b"
+14:16:38.593 EXPECT Settings changes discarded (esc discard notification)
+14:16:38.617 HIT Settings changes discarded
+14:16:38.617 EXPECT Settings (route remains settings)
+14:16:38.642 HIT Settings
+14:16:38.642 SEND "\x10"
+14:16:39.043 SEND "Search"
+14:16:39.744 SEND "\r"
+14:16:41.449 HIT-SCREEN scope: all
+14:16:42.050 SEND "ledger"
+14:16:42.050 EXPECT ledger (query echoed)
+14:16:42.085 HIT ledger
+14:16:42.886 EXPECT ledger-audit (search hits agent)
+14:16:42.920 HIT ledger-audit
+14:16:42.920 SEND "\r"
+14:16:43.520 EXPECT Agents agent-0002 (jump to owning agent)
+14:16:43.557 HIT Agents agent-0002
+14:16:43.557 SEND "\x1b"
+14:16:44.510 SEND "\x1b"
+14:16:45.463 SEND "\x1b"
+14:16:46.415 SEND "\x1b"
+14:16:47.369 SEND "\x1b"
+14:16:48.322 SEND "\x1b"
+14:16:49.878 HIT-SCREEN Attention queue
+14:16:49.907 SEND " "
+14:16:50.508 HIT-SCREEN Dashboard actions
+14:16:50.508 SEND "j"
+14:16:51.411 RESIZE 70x18
+14:16:52.011 HIT-SCREEN needs at least 72
+14:16:52.011 SEND "a"
+14:16:52.411 RESIZE 120x30
+14:16:53.039 SEND "\x1b"
+14:16:53.389 SEND "q"
+14:16:53.397 EXIT 0
 
 --- final plain output (tail) ---
 ate to the attention card  │0 need input  ·  │	│                                                                      │                 │	│                                                                      │─────────────────╯

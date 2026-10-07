@@ -1,40 +1,57 @@
-# tmh-next — terminal-native demo cockpit (Charm v2)
+# tmh-next — terminal-native control plane (Charm v2)
 
-A fullscreen Go TUI that demonstrates the full tmh-next product surface on
-**deterministic mock data**: picker-first startup, dashboard, 15 routes,
-typed navigation stack, serialized mock mutations with busy/error/success
-states, root-owned Huh config form, command palette, quick switch and a
-reproducible VHS tour.
+A fullscreen Go TUI for inspecting and controlling local Zellij workspaces,
+tabs, panes and agent processes. The default executable uses a local `tmhd`
+daemon, a permission-bounded Unix socket and a durable SQLite catalog. The
+original deterministic 15-page demo remains available with `--demo`.
 
-Everything that looks like a side effect (`attach`, `send`, `kill`,
-`restore`, `probe`, `connect`, `save`, …) mutates only an **in-memory
-catalog** and carries a visible `MOCK` badge. Nothing touches tmux, Zellij,
-processes, files, sockets or `~/.config/tmh`. Restarting resets to the
-fixture.
+Production mode currently targets Zellij **0.45.1 or newer**. It discovers the
+live runtime, reconciles desired workspaces from `~/.config/tmh/config.yml`,
+captures bounded/redacted pane history, persists snapshots and audit events,
+and revision-checks every command while deduplicating committed results.
+Interactive attach runs in the TUI process after Bubble Tea releases the
+terminal; the daemon never owns the user's PTY.
 
-## Run
+## Build and run
 
 ```bash
-go run ./cmd/tmh-next                       # picker-first: dashboard + quick switch
-go run ./cmd/tmh-next --dashboard           # dashboard only
-go run ./cmd/tmh-next --page agents \
-    --resource agent:agent-0002             # [dashboard, agents] deep link
-go run ./cmd/tmh-next --scenario degraded \
-    --page backends --resource backend:native
-go run ./cmd/tmh-next --live=false          # deterministic capture (no ticks)
+go build -trimpath -o ./bin/tmhd ./cmd/tmhd
+go build -trimpath -o ./bin/tmh-next ./cmd/tmh-next
+./bin/tmh-next                             # picker-first, production mode
+./bin/tmh-next --dashboard                 # open the live Dashboard directly
+./bin/tmh-next --page agents               # [dashboard, agents]
 ```
 
-Build: `go build -trimpath -o ./bin/tmh-next ./cmd/tmh-next`.
+`tmh-next` connects to the default Unix socket and, when necessary, starts the
+sibling `tmhd` binary automatically. Runtime state defaults to
+`~/.local/state/tmh/state.db`; daemon logs go to
+`~/.local/state/tmh/tmhd.log`. To supervise the daemon yourself:
+
+```bash
+./bin/tmhd --poll 2s
+./bin/tmh-next --dashboard
+```
+
+Deterministic demo mode is explicit and performs no external side effects:
+
+```bash
+./bin/tmh-next --demo
+./bin/tmh-next --demo --scenario degraded \
+  --page backends --resource backend:native
+./bin/tmh-next --demo --live=false
+```
 
 ## Flags
 
 | Flag | Meaning |
 |---|---|
 | `--dashboard` | open `[dashboard]` (mutually exclusive with `--page`) |
-| `--page <route>` | startup route; non-dashboard pages stack over Dashboard so `esc` returns home |
+| `--page <route>` | startup route; non-dashboard pages stack over Dashboard |
 | `--resource <kind>:<id>` | explicit primary/context resource for the page |
-| `--scenario default\|empty\|degraded` | deterministic fixture set |
-| `--live=false` | disable the 1s periodic mock ticks (user actions stay async) |
+| `--socket <path>` | production `tmhd` Unix socket |
+| `--demo` | use the deterministic in-memory backend |
+| `--scenario default\|empty\|degraded` | demo fixture set |
+| `--live=false` | disable periodic ticks in demo mode |
 
 Invalid combinations (`--dashboard` + `--page`, `--resource` without
 `--page`, unknown route/kind/scenario, resource on aggregate pages, wrong
@@ -49,15 +66,20 @@ with disabled actions — it is never silently replaced.
 | `ctrl+p` | command palette (navigate + page commands) |
 | `ctrl+k` | quick switch (workspaces · views · terminals · agents) |
 | `space` | current page's contextual command selector |
-| `?` | help overlay |
+| `?` | animated use-case help (attach, create terminal, recover drift, settings) |
 | `esc` | close overlay / exit filter / pop route (Dashboard is the bottom) |
 | `q`, `ctrl+c` | quit |
 | `/` | filter on list pages |
 | `tab`/`shift+tab` | compact master↔detail region · reconcile mode cycle |
 
-Page keys are listed in each page's footer help (e.g. Agents: `enter` focus,
-`p` prompt, `w` wait, `c` claim; destructive actions always confirm with a
-`MOCK ONLY` dialog first).
+Page keys are listed in each page's footer help (for example, Agents:
+`enter` focus, `p` prompt, `w` wait, `c` claim). Destructive production
+actions render a `LIVE ACTION` confirmation; demo confirmations render
+`MOCK ONLY`.
+
+The help overlay auto-advances through each workflow. Use `←`/`→` (or
+`h`/`l`) to switch use cases, `j`/`k` to inspect steps, `space` to
+pause/resume, and `enter` to open the relevant page.
 
 ## Routes
 
@@ -70,51 +92,84 @@ with `tab`; below 72×20 a dedicated too-small view (only `q`/`ctrl+c`).
 Colors are Catppuccin Mocha/Latte, switched after the terminal answers the
 background-color query; dark is the default until then.
 
+The `config` route is labeled **Settings** in the UI. It uses a vertical
+General/Runtime/History/Security browser and opens a focused Huh editor for
+only the selected category. Save success is shown only after the backend
+commits; `Esc` discards without contacting it.
+
+## Production behavior
+
+Real command paths include interactive session attach, pane input, new terminal
+pane creation (`n` from a workspace), confirmed pane close, durable snapshots,
+restore-plan push/pull/freeze, history export, backend probes, machine health
+checks and performance probes. Attach suspends Bubble Tea while Zellij owns the
+terminal; detaching resumes tmh-next and refreshes the catalog.
+Raw Zellij identifiers remain adapter-only bindings; product IDs are stable
+hashes scoped by backend and session.
+
+Mutation safety:
+
+- commands are argv-safe; no shell command strings are constructed;
+- every mutation carries the catalog revision and is committed atomically with
+  its idempotency result;
+- runtime-changing commands are rediscovered before the result is published;
+- pane input, split, close and restore-push are allowed only for `tmh-*`
+  sessions or sessions declared in `~/.config/tmh/config.yml`;
+- destructive operations require explicit confirmation;
+- socket directories and sockets are mode `0700`/`0600`;
+- pane captures are bounded, duplicate-suppressed and redact secret-like
+  `token`, `password`, `api_key` and `secret` assignments.
+
+Observed unmanaged sessions remain visible and attachable, but mutating them
+returns `protected`. Zellij 0.45.1 can accept an interactive split while no
+client is focused and then discard the shell pane; tmhd detects that missing
+runtime effect, returns `invalid_state`, and commits nothing. Native pane
+re-parenting and restore undo are rejected because Zellij cannot provide those
+operations safely. The production backend is local-only; tmux, SSH and
+remote-machine execution are not enabled.
+
 ## Architecture
 
+```text
+cmd/tmh-next              CLI, daemon auto-start, production/demo wiring
+cmd/tmhd                  Unix-socket daemon and reconciliation loop
+internal/control          snapshot/search/execute/watch contracts
+internal/runtimegraph     machine → backend → workspace → view → surface graph
+internal/backend/zellij   strict Zellij 0.45.1 discovery adapter
+internal/production       projection, commands, history and idempotency
+internal/store            SQLite catalog + command-result transactions
+internal/daemonapi        versioned local HTTP/JSON API
+internal/remote           Unix-socket TUI client
+internal/mock             opt-in deterministic demo backend
+internal/app              route stack, mutation lane, overlays and search
+internal/ui/pages         fifteen resident pages
 ```
-cmd/tmh-next              wiring: flags → demo client → resident pages → tea
-internal/domain           current UI catalog, actions and typed errors
-internal/control          runtime snapshot/client/watch contracts
-internal/runtimegraph     normalized machine/backend/workspace/view/surface graph
-internal/backend/zellij   read-only Zellij 0.45.1 discovery adapter
-internal/mock             deterministic demo provider and logical transitions
-internal/app              root shell: route stack, mutation lane, overlays, search
-internal/ui               shared route/page/command contracts, theme and layout
-internal/ui/pages         the fifteen resident pages
-```
 
-The shell depends on `control.Client`
-(`Snapshot`/`Search`/`Execute`). Mock-only time progression is the separate
-`control.DemoTicker` extension, so it cannot leak into a production
-transport. `mock.Client` preserves the existing deterministic demo.
+The TUI depends only on `control.Client`; production and demo providers
+implement the same snapshot/search/execute contract. Watch streaming is a
+separate extension. Demo time progression is isolated behind
+`control.DemoTicker` and is never available through the production transport.
 
-The production model is `runtimegraph.Graph`: Machine → BackendInstance →
-Workspace → View → Surface, with Terminal attached through a Surface and
-Agent optionally attached to a Terminal or View. Native Zellij ids are
-runtime bindings, not product ids. `backend/zellij.Adapter` currently
-implements strict, read-only discovery using argv-safe `zellij 0.45.1` CLI
-calls. It is deliberately not wired into the default demo executable yet;
-no mutation command is enabled before daemon-side ownership, capability,
-revision and idempotency gates exist.
-
-Mutation discipline: at most one `Execute` **or** `Tick` in flight (one
-armed 1s timer, a single pending-tick bit, identity+revision-checked
-results); search runs as a separate concurrent read lane that only accepts
-the latest sequence at the current revision. Failures never mutate the
-catalog, revision, logical clock or audit trail.
+Production reconciliation loads the previous SQLite catalog, current tmh YAML
+desired state and a fresh normalized Zellij graph. A revision is written only
+when observable state changes; unchanged polls update no durable revision or
+audit event.
 
 ## Development
 
 ```bash
-go fmt ./... && go vet ./...
-go test -race -coverpkg=./internal/... -coverprofile=coverage.out ./...
+gofmt -w ./cmd ./internal
+go mod tidy
+go vet ./...
+go test -count=1 -race -coverpkg=./internal/... \
+  -coverprofile=coverage.out ./...
 go tool cover -func=coverage.out | tail -1     # ≥80% gate
+go build -trimpath -o ./bin/tmhd ./cmd/tmhd
 go build -trimpath -o ./bin/tmh-next ./cmd/tmh-next
-vhs ./demo.tape                                 # → artifacts/tmh-next-tour.gif
+vhs ./demo.tape                                # deterministic demo tour
 ```
 
-Opt-in live Zellij discovery test (use only a disposable managed session):
+Opt-in live Zellij discovery test (use only a disposable `tmh-*` session):
 
 ```bash
 export ZELLIJ_SOCKET_DIR=/tmp/zellij-tmh
@@ -126,10 +181,5 @@ zellij kill-session tmh-integration-check
 ```
 
 The short socket directory avoids macOS `$TMPDIR` exceeding Zellij's Unix
-socket path limit.
-
-See `RESEARCH.md` (pinned Charm v2 evidence) and `VERIFICATION.md` (gates,
-red/green history, PTY transcripts).
-
-This demo is not a promise of production runtime durability or PTY
-semantics; it is the interactive product-surface specification.
+socket path limit. See `RESEARCH.md` for pinned Charm v2 evidence and
+`VERIFICATION.md` for automated gates, live daemon evidence and PTY results.

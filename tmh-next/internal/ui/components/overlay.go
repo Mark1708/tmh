@@ -89,19 +89,21 @@ func (p *Prompt) View() string {
 	return p.styles.Overlay.Render(theme.PaintBackground(b.String(), p.styles.Palette.Mantle))
 }
 
-// Confirm is the destructive-action confirmation overlay. Every confirm
-// surface carries a MOCK ONLY marker.
+// Confirm is the destructive-action confirmation overlay.
 type Confirm struct {
-	title    string
-	detail   string
-	styles   theme.Styles
-	accepted bool
-	rejected bool
+	title      string
+	detail     string
+	styles     theme.Styles
+	production bool
+	accepted   bool
+	rejected   bool
 }
 
-// NewConfirm builds a confirmation overlay.
-func NewConfirm(title, detail string, styles theme.Styles) *Confirm {
-	return &Confirm{title: title, detail: detail, styles: styles}
+// NewConfirm builds a confirmation overlay. The optional production flag
+// changes the safety marker without weakening the explicit confirmation.
+func NewConfirm(title, detail string, styles theme.Styles, production ...bool) *Confirm {
+	live := len(production) > 0 && production[0]
+	return &Confirm{title: title, detail: detail, styles: styles, production: live}
 }
 
 // Update drives the confirm dialog: y/enter accepts, n/esc rejects.
@@ -133,9 +135,15 @@ func (c *Confirm) View() string {
 	b.WriteString("\n")
 	b.WriteString(c.styles.Base.Render(c.detail))
 	b.WriteString("\n\n")
-	b.WriteString(c.styles.Mock.Render("MOCK ONLY"))
-	b.WriteString("  ")
-	b.WriteString(c.styles.Dim.Render("y/enter accept · n/esc reject — nothing leaves the demo"))
+	if c.production {
+		b.WriteString(c.styles.Warn.Render("LIVE ACTION"))
+		b.WriteString("  ")
+		b.WriteString(c.styles.Dim.Render("y/enter executes · n/esc rejects"))
+	} else {
+		b.WriteString(c.styles.Mock.Render("MOCK ONLY"))
+		b.WriteString("  ")
+		b.WriteString(c.styles.Dim.Render("y/enter accept · n/esc reject — nothing leaves the demo"))
+	}
 	return c.styles.Overlay.Render(theme.PaintBackground(b.String(), c.styles.Palette.Mantle))
 }
 

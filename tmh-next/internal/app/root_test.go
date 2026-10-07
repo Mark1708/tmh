@@ -817,6 +817,17 @@ func TestToastSequence(t *testing.T) {
 	}
 }
 
+func TestDuplicateNotificationsCoalesce(t *testing.T) {
+	h := newHarness(t, Startup{Scenario: domain.ScenarioDefault, Live: false})
+	h.boot(t)
+	h.fire(t, ShowToastMsg{Text: "Live updates unavailable", Kind: "warn"})
+	firstSeq := h.root.toasts[0].Seq
+	h.fire(t, ShowToastMsg{Text: "Live updates unavailable", Kind: "warn"})
+	if len(h.root.toasts) != 1 || h.root.toasts[0].Seq == firstSeq {
+		t.Fatalf("duplicate notifications = %+v", h.root.toasts)
+	}
+}
+
 // TestQuickSwitchEntityBranches covers every quick-switch entity kind.
 func TestQuickSwitchEntityBranches(t *testing.T) {
 	h := newHarness(t, Startup{Scenario: domain.ScenarioDefault, Live: false})
@@ -852,8 +863,8 @@ func TestQuickSwitchEntityBranches(t *testing.T) {
 	}
 }
 
-// TestActionFailureSurfacesErrorToast proves non-conflict failures show a
-// recoverable error toast with the typed code and re-arm the lane.
+// TestActionFailureSurfacesErrorToast proves non-conflict failures show an
+// actionable notification and re-arm the lane.
 func TestActionFailureSurfacesErrorToast(t *testing.T) {
 	h, _ := mutHarness(t, true)
 	h.rec.SetExecErr(domain.Fail(domain.CodeNotLive, "terminal term-0006 is not live"))
@@ -862,12 +873,15 @@ func TestActionFailureSurfacesErrorToast(t *testing.T) {
 
 	found := false
 	for _, toast := range h.root.toasts {
-		if strings.Contains(toast.Text, "not_live") && toast.Kind == "err" {
+		if strings.Contains(toast.Text, "Attach unavailable") &&
+			strings.Contains(toast.Text, "terminal term-0006 is not live") &&
+			!strings.Contains(toast.Text, "not_live:") &&
+			toast.Kind == "err" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("typed error toast missing: %+v", h.root.toasts)
+		t.Fatalf("actionable error toast missing: %+v", h.root.toasts)
 	}
 	if h.root.mut.kind != mutNone {
 		t.Fatal("lane stuck after recoverable failure")
@@ -880,6 +894,20 @@ func TestActionFailureSurfacesErrorToast(t *testing.T) {
 	}
 	if h.root.mut.kind != mutNone {
 		t.Fatal("lane stuck after the follow-up action completed")
+	}
+}
+
+func TestReloadFailureClearsMutationLane(t *testing.T) {
+	h := newHarness(t, Startup{Scenario: domain.ScenarioDefault, Live: false})
+	h.boot(t)
+	h.root.mut = mutator{kind: mutReload}
+	h.fire(t, ReloadFailedMsg{Err: domain.Fail(domain.CodeUnreachable, "tmhd socket closed")})
+	if h.root.mut.kind != mutNone {
+		t.Fatal("reload failure left mutation lane busy")
+	}
+	if len(h.root.toasts) == 0 ||
+		!strings.Contains(h.root.toasts[len(h.root.toasts)-1].Text, "Reload unavailable") {
+		t.Fatalf("reload notification = %+v", h.root.toasts)
 	}
 }
 

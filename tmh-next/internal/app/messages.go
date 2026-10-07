@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/mark1708/tmh-next/internal/control"
 	"github.com/mark1708/tmh-next/internal/domain"
 	"github.com/mark1708/tmh-next/internal/ui"
 )
@@ -28,13 +29,29 @@ type (
 // --- async backend results -------------------------------------------------
 
 // LoadCatalogMsg carries the initial control-plane snapshot.
-type LoadCatalogMsg struct{ Catalog *domain.Catalog }
+type LoadCatalogMsg struct {
+	Catalog  *domain.Catalog
+	EventSeq uint64
+}
 
 // LoadFailedMsg reports a failed initial load.
 type LoadFailedMsg struct{ Err error }
 
 // ReloadedMsg carries a conflict-recovery reload of the current backend state.
 type ReloadedMsg struct{ Catalog *domain.Catalog }
+
+// ReloadFailedMsg releases the mutation lane after conflict recovery could
+// not fetch a valid replacement snapshot.
+type ReloadFailedMsg struct{ Err error }
+type RuntimeWatchMsg struct{ Event control.WatchEvent }
+
+type RuntimeWatchFailedMsg struct{ Err error }
+
+type RuntimeSnapshotMsg struct{ Snapshot control.Snapshot }
+
+type RetryWatchMsg struct{}
+
+type InteractiveDoneMsg struct{ Err error }
 
 // MutationResultMsg carries one accepted Execute/Tick result.
 type MutationResultMsg struct{ Result domain.MutationResult }
@@ -52,3 +69,6 @@ type TickTimerMsg struct{ Token uint64 }
 
 // ToastExpiredMsg retires one toast by sequence number.
 type ToastExpiredMsg struct{ Seq uint64 }
+
+// WalkthroughTickMsg advances the active guided-help animation.
+type WalkthroughTickMsg struct{ Token uint64 }

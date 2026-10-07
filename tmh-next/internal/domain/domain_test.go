@@ -83,6 +83,9 @@ func TestCatalogCloneAndErrors(t *testing.T) {
 	if ErrCodeOf(err) != CodeNotFound || ErrCodeOf(nil) != "unknown" {
 		t.Fatal("error code extraction broken")
 	}
+	if got := ErrorMessage(err); got != "widget w-1 missing" {
+		t.Fatalf("error message = %q", got)
+	}
 	if !IsRevisionConflict(ErrRevisionConflict) || IsRevisionConflict(err) {
 		t.Fatal("revision conflict detection broken")
 	}

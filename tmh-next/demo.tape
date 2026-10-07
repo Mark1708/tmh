@@ -10,7 +10,7 @@ Set Height 1000
 Set TypingSpeed 60ms
 
 # Deterministic capture: no periodic ticks, default fixture.
-Type "./bin/tmh-next --live=false --scenario default"
+Type "./bin/tmh-next --demo --live=false --scenario default"
 Enter
 Sleep 700ms
 
@@ -20,6 +20,19 @@ Sleep 600ms
 # Dashboard
 Escape
 Sleep 600ms
+
+# Animated guided help: watch attach steps, switch to terminal creation,
+# pause, then launch its Workspaces destination.
+Type "?"
+Sleep 3200ms
+Type "l"
+Sleep 2200ms
+Type " "
+Sleep 600ms
+Enter
+Sleep 900ms
+Escape
+Sleep 500ms
 
 # Agents via command palette (filter settles, one Enter chooses)
 Ctrl+p
@@ -83,29 +96,22 @@ Sleep 700ms
 Type "jjp"
 Sleep 900ms
 
-# Config: root-owned Huh draft — walk to Save and accept
+# Settings: category browser → focused History form → validated save
 Ctrl+p
 Sleep 500ms
-Type "Config"
+Type "Settings"
 Sleep 1200ms
 Enter
 Sleep 700ms
-Type "e"
+Type "jj"
+Sleep 600ms
+Enter
 Sleep 800ms
-Enter@400ms
-Enter@400ms
-Enter@400ms
-Enter@400ms
-Enter@400ms
-Enter@400ms
-Enter@400ms
 Enter@400ms
 Enter@400ms
 Enter@400ms
 Type "y"
 Sleep 1000ms
-Escape
-Sleep 400ms
 
 # Search: jump to the owning agent context
 Ctrl+p

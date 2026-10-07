@@ -20,7 +20,7 @@ func (r *Root) View() tea.View {
 	v := tea.NewView(theme.PaintBackground(r.frame(), r.styles.Palette.Base))
 	v.AltScreen = true
 	v.ReportFocus = true
-	v.WindowTitle = "tmh-next — mock cockpit"
+	v.WindowTitle = "tmh-next — control panel"
 	v.ForegroundColor = r.styles.Palette.Text
 	v.BackgroundColor = r.styles.Palette.Base
 	return v
@@ -57,7 +57,7 @@ func (r *Root) frame() string {
 	return frame
 }
 
-// headerView renders route breadcrumb (left) + revision/scenario/MOCK (right).
+// headerView renders route breadcrumb and live/demo runtime status.
 func (r *Root) headerView() string {
 	var crumbs []string
 	for i, loc := range r.stack {
@@ -72,12 +72,12 @@ func (r *Root) headerView() string {
 		}
 	}
 	left := strings.Join(crumbs, " "+r.styles.Dim.Render("›")+" ")
-
+	badge := r.runtimeBadge()
 	right := strings.Join([]string{
 		"rev " + fmt.Sprint(r.cat.Revision),
 		string(r.cat.Scenario),
 		r.cat.Now.UTC().Format("15:04:05"),
-		r.styles.Mock.Render("MOCK"),
+		badge,
 	}, "  ")
 	if r.mut.kind != mutNone {
 		right += "  " + r.styles.Warn.Render("● "+r.busyReason())
@@ -177,7 +177,7 @@ func (r *Root) overlayView() string {
 		if r.ov.form != nil {
 			form := r.ov.form
 			if wide := layout.Classify(r.width, r.height) == layout.ModeWide; wide {
-				content := "Configuration draft — " + r.styles.Mock.Render("MOCK") + "\n\n" + form.View()
+				content := r.ov.title + " — " + r.runtimeBadge() + "\n\n" + form.View()
 				return r.styles.Overlay.Render(theme.PaintBackground(content, r.styles.Palette.Mantle))
 			}
 			return form.View()
@@ -186,16 +186,16 @@ func (r *Root) overlayView() string {
 	return ""
 }
 
-// helpOverlayView renders the global help panel.
+// helpOverlayView renders the animated, use-case-oriented help panel.
 func (r *Root) helpOverlayView() string {
-	var b strings.Builder
-	b.WriteString(r.styles.Title.Render("tmh-next — global keys"))
-	b.WriteString("  " + r.styles.Mock.Render("MOCK"))
-	b.WriteString("\n\n")
-	b.WriteString(r.help.View(bindingKeyMap{ui.GlobalBindings()}))
-	b.WriteString("\n")
-	b.WriteString(r.styles.Dim.Render("page keys: j/k move · enter opens · / filters · space opens page actions"))
-	return r.styles.Overlay.Render(theme.PaintBackground(b.String(), r.styles.Palette.Mantle))
+	return r.walkthroughView()
+}
+
+func (r *Root) runtimeBadge() string {
+	if r.isProduction() {
+		return r.styles.OK.Render("LIVE")
+	}
+	return r.styles.Mock.Render("MOCK")
 }
 
 // --- small helpers ---------------------------------------------------------

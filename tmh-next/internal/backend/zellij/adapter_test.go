@@ -139,6 +139,19 @@ func TestProbeRejectsUnsupportedVersion(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 }
+func TestDiscoverTreatsNoActiveSessionsAsEmptyRuntime(t *testing.T) {
+	runner := &fakeRunner{results: map[string]fakeResult{
+		commandKey("--version"):                                   {out: "zellij 0.45.1\n"},
+		commandKey("list-sessions", "--short", "--no-formatting"): {err: errors.New("exit status 1: No active zellij sessions found.")},
+	}}
+	graph, err := newAdapter(runner).Discover(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(graph.Workspaces) != 0 || len(graph.BackendInstances) != 1 {
+		t.Fatalf("empty graph = %+v", graph)
+	}
+}
 
 func workspaceByName(graph *runtimegraph.Graph, name string) *runtimegraph.Workspace {
 	for _, workspace := range graph.Workspaces {

@@ -290,7 +290,7 @@ func TestPTYSmokeLaunchA(t *testing.T) {
 	if testing.Short() {
 		t.Skip("pty smoke is interactive")
 	}
-	s := startPTY(t, "--live=false", "--scenario", "default")
+	s := startPTY(t, "--demo", "--live=false", "--scenario", "default")
 
 	// 1. Quick switch opens picker-first; Esc lands on Dashboard.
 	s.expect("Quick switch", "picker opens", 8*time.Second)
@@ -338,37 +338,34 @@ func TestPTYSmokeLaunchA(t *testing.T) {
 	s.send("u")
 	s.expect("undid plan plan-0001", "field-level undo", 6*time.Second)
 
-	// 5. Config form: edit retention, submit; reopen, change, Esc discards.
-	s.paletteGo("Config", "default page")
-	s.send("e")
-	s.expect("Configuration draft", "huh form opens", 6*time.Second)
-	// walk to retention (4 fields in), set 24h, walk to save, accept
-	for range 4 {
-		s.send(keyEnter)
-		time.Sleep(150 * time.Millisecond)
-	}
+	// 5. Settings: choose History, edit retention, save; reopen and discard.
+	s.paletteGo("Settings", "Settings")
+	s.send("jj")
+	s.expect("History", "history settings selected", 5*time.Second)
+	s.send(keyEnter)
+	s.expect("Settings · History", "focused Huh form opens", 6*time.Second)
+	s.send(keyEnter) // keep persistent → retention
+	time.Sleep(500 * time.Millisecond)
 	for range 3 {
-		s.send("\x7f") // backspace
-		time.Sleep(120 * time.Millisecond)
+		s.send("\x7f")
+		time.Sleep(180 * time.Millisecond)
 	}
 	s.send("24")
-	for range 6 {
-		s.send(keyEnter)
-		time.Sleep(150 * time.Millisecond)
-	}
+	time.Sleep(300 * time.Millisecond)
+	s.send(keyEnter) // overflow
+	time.Sleep(300 * time.Millisecond)
+	s.send(keyEnter) // save
+	time.Sleep(300 * time.Millisecond)
 	s.send("y")
-	s.expect("config draft submitted", "config save toast", 8*time.Second)
-	// history category reflects 24h retention
-	s.send(keyTab)
-	s.send(keyTab)
-	s.expect("24h", "history category shows 24h", 5*time.Second)
-	// reopen, change, discard with Esc — route stays Config
-	s.send("e")
-	s.expect("Configuration draft", "form reopens", 6*time.Second)
+	s.expect("Settings saved in demo memory", "settings save notification", 8*time.Second)
+	s.expect("24 hours", "history category shows 24h", 5*time.Second)
+	// Reopen, change, discard with Esc — route and category stay selected.
+	s.send(keyEnter)
+	s.expect("Settings · History", "focused form reopens", 6*time.Second)
 	s.send("k")
 	s.sendEsc()
-	s.expect("config draft discarded", "esc discard toast", 6*time.Second)
-	s.expect("Config", "route remains config", 3*time.Second)
+	s.expect("Settings changes discarded", "esc discard notification", 6*time.Second)
+	s.expect("Settings", "route remains settings", 3*time.Second)
 
 	// 6. Search the sent prompt → jump to owning agent context.
 	s.paletteGo("Search", "scope: all")
@@ -426,15 +423,15 @@ func TestPTYSmokeLaunchB(t *testing.T) {
 	if testing.Short() {
 		t.Skip("pty smoke is interactive")
 	}
-	s := startPTY(t, "--live=false", "--scenario", "degraded", "--page", "backends", "--resource", "backend:native")
+	s := startPTY(t, "--demo", "--live=false", "--scenario", "degraded", "--page", "backends", "--resource", "backend:native")
 
 	s.expect("native", "backends:native stack", 8*time.Second)
 	s.expectScreen("Backends native", "initial stack [dashboard, backends]", 8*time.Second)
 
-	// 1. Native probe fails inline with probe_timeout; revision unchanged.
+	// 1. Native probe fails with a clear timeout; revision remains unchanged.
 	rev := revisionNow(s.plain())
 	s.send("p")
-	s.expect("probe_timeout", "inline probe failure", 6*time.Second)
+	s.expect("Backend probe timed out", "inline probe failure", 6*time.Second)
 	time.Sleep(300 * time.Millisecond)
 	if got := revisionNow(s.plain()); got != rev {
 		t.Fatalf("failed probe changed revision: %s → %s", rev, got)
@@ -450,7 +447,7 @@ func TestPTYSmokeLaunchB(t *testing.T) {
 	s.paletteGo("Machines", "no diagnostics recorded")
 	time.Sleep(500 * time.Millisecond)
 	s.send("c")
-	s.expect("machine-connect failed", "connect unreachable", 8*time.Second)
+	s.expect("Machine connect unavailable", "connect unreachable", 8*time.Second)
 	if got := revisionNow(s.plain()); got != rev && got == "" {
 		t.Fatal("lost header")
 	}

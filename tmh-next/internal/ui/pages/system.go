@@ -481,10 +481,10 @@ func (p *performancePage) sloStatus(actual, target int) string {
 
 func (p *performancePage) Commands() []ui.Command {
 	return []ui.Command{
-		{ID: "pf.record", Title: "Record trace", Description: "append a mock trace", Shortcut: "r",
+		{ID: "pf.record", Title: "Record trace", Description: "record a live discovery trace", Shortcut: "r",
 			Disabled: !p.cat.Performance.Available, DisabledReason: "performance service unavailable",
 			Run: func() tea.Cmd { return execute(domain.Action{Kind: domain.ActionPerfRecord}) }},
-		{ID: "pf.benchmark", Title: "Run benchmark", Description: "append a mock benchmark", Shortcut: "b",
+		{ID: "pf.benchmark", Title: "Run benchmark", Description: "measure live discovery latency", Shortcut: "b",
 			Disabled: !p.cat.Performance.Available, DisabledReason: "performance service unavailable",
 			Run: func() tea.Cmd { return execute(domain.Action{Kind: domain.ActionPerfBenchmark}) }},
 		{ID: "pf.pause", Title: "Pause / resume chart", Description: "local projection freeze (not a backend mutation)", Shortcut: "",
@@ -496,13 +496,25 @@ func (p *performancePage) Help() []key.Binding {
 	return pageHelp([2]string{"r", "record"}, [2]string{"b", "benchmark"})
 }
 
-// configPage renders configuration categories and opens the root-owned draft.
+// configPage presents settings as a vertical category browser and opens a
+// focused root-owned Huh editor for the selected section.
 type configPage struct {
 	base
 	category int
 }
 
-var configCategories = []string{"General", "Backends", "History", "Security", "Tmux"}
+type configCategory struct {
+	id          string
+	title       string
+	description string
+}
+
+var configCategories = []configCategory{
+	{id: "general", title: "General", description: "Startup, navigation and leader display"},
+	{id: "runtime", title: "Runtime", description: "Default backend and discovered providers"},
+	{id: "history", title: "History", description: "Capture, retention and overflow policy"},
+	{id: "security", title: "Security", description: "Redaction, raw input and remote trust"},
+}
 
 func newConfigPage() *configPage {
 	return &configPage{base: base{route: ui.RouteConfig}}
@@ -519,13 +531,23 @@ func (p *configPage) Update(msg tea.Msg) tea.Cmd {
 	}
 	switch k.String() {
 	case "tab", "shift+tab":
+		if !p.isWide() {
+			p.region = (p.region + 1) % 2
+		}
+		return nil
+	case "j", "down":
 		p.category = (p.category + 1) % len(configCategories)
+		return nil
+	case "k", "up":
+		p.category = (p.category - 1 + len(configCategories)) % len(configCategories)
 		return nil
 	case "e", "enter":
 		if p.cat == nil {
 			return nil
 		}
-		return func() tea.Msg { return ui.OpenConfigFormMsg{Draft: p.cat.Config} }
+		return func() tea.Msg {
+			return ui.OpenConfigFormMsg{Draft: p.cat.Config, Section: configCategories[p.category].id}
+		}
 	case "v":
 		if p.cat == nil {
 			return nil
@@ -546,61 +568,99 @@ func (p *configPage) View() string {
 	if p.cat == nil {
 		return p.emptyView("catalog")
 	}
-	cfg := p.cat.Config
-	var b strings.Builder
-	b.WriteString(p.titleBar("Config"))
-	b.WriteString("\n")
-	for i, cat := range configCategories {
+	category := configCategories[p.category]
+	var menu strings.Builder
+	for i, item := range configCategories {
+		label := fmt.Sprintf("%-10s", item.title)
 		if i == p.category {
-			b.WriteString(p.styles.Select("[" + cat + "]"))
+			menu.WriteString(p.styles.Select("▸ " + label))
 		} else {
-			b.WriteString(" " + cat + " ")
+			menu.WriteString("  " + label)
 		}
-		b.WriteString(p.styles.Dim.Render("·"))
+		menu.WriteString("\n  " + p.styles.Dim.Render(item.description))
+		if i < len(configCategories)-1 {
+			menu.WriteString("\n\n")
+		}
 	}
+
+	source := "in-memory demo fixture"
+	if p.cat.Scenario == domain.Scenario("production") {
+		source = "~/.config/tmh/config.yml"
+	}
+	var b strings.Builder
+	b.WriteString(p.titleBar("Settings"))
+	b.WriteString("\n")
+	b.WriteString(p.styles.Dim.Render("Configuration source") + "  " + p.styles.Info.Render(source))
 	b.WriteString("\n\n")
-	switch p.category {
-	case 0: // General
-		b.WriteString(p.keyValue("default page", cfg.DefaultPage))
-		b.WriteString(p.keyValue("leader display", string(cfg.LeaderDisplay)))
-		b.WriteString(p.keyValue("default backend", cfg.DefaultBackend))
-	case 1: // Backends
-		for _, be := range p.cat.Backends {
-			enabled := "enabled"
-			if !be.Enabled {
-				enabled = "disabled"
-			}
-			b.WriteString(fmt.Sprintf("%-8s %-9s default=%v\n", be.ID, enabled, be.Default))
-		}
-	case 2: // History
-		b.WriteString(p.keyValue("mode", string(cfg.HistoryMode)))
-		b.WriteString(p.keyValue("retention", fmt.Sprintf("%dh", cfg.RetentionHours)))
-		b.WriteString(p.keyValue("overflow", string(cfg.Overflow)))
-	case 3: // Security
-		b.WriteString(p.keyValue("redact secrets", fmt.Sprint(cfg.RedactSecrets)))
-		b.WriteString(p.keyValue("raw input", fmt.Sprint(cfg.AllowRawInput)))
-		b.WriteString(p.keyValue("remote trust", string(cfg.RemoteTrust)))
-		b.WriteString(p.keyValue("allowlisted", strings.Join(cfg.AllowlistedMachines, ", ")))
-	case 4: // Tmux compatibility
-		b.WriteString(p.keyValue("default-server-socket", "$TMUX_TMPDIR/tmux-0/default"))
-		b.WriteString(p.keyValue("copy-mode", "vi"))
-		b.WriteString(p.styles.Dim.Render("compatibility knobs are display-only in the demo"))
-		b.WriteString("\n")
+	detail := p.settingsDetail(category.id)
+	if p.isWide() {
+		b.WriteString(p.panelSplitHeight(
+			"Categories", strings.TrimSuffix(menu.String(), "\n"),
+			category.title, detail, 34, p.remainingHeight(b.String(), 9),
+		))
+	} else if p.region == 0 {
+		b.WriteString(p.panel("Categories", strings.TrimSuffix(menu.String(), "\n"), p.width))
+	} else {
+		b.WriteString(p.panel(category.title, detail, p.width))
 	}
-	b.WriteString("\n" + p.styles.Dim.Render("e edit draft (Huh form) · v validate · r reload baseline"))
+	b.WriteString("\n" + p.styles.Dim.Render("j/k choose · enter edit this section · v validate · r reload from disk"))
 	return p.clip(b.String())
 }
 
+func (p *configPage) settingsDetail(section string) string {
+	cfg := p.cat.Config
+	var b strings.Builder
+	b.WriteString(p.styles.Dim.Render(configCategories[p.category].description) + "\n\n")
+	switch section {
+	case "general":
+		b.WriteString(p.keyValue("default page", cfg.DefaultPage))
+		b.WriteString(p.keyValue("leader display", string(cfg.LeaderDisplay)))
+	case "runtime":
+		b.WriteString(p.keyValue("default backend", cfg.DefaultBackend))
+		b.WriteString("\n" + p.styles.Dim.Render("DISCOVERED BACKENDS") + "\n")
+		for _, backend := range p.cat.Backends {
+			state := "disabled"
+			if backend.Enabled {
+				state = string(backend.Status)
+			}
+			b.WriteString(fmt.Sprintf("%s  %-18s %s\n", p.status(strings.ToUpper(state)), backend.Name, backend.ID))
+		}
+	case "history":
+		b.WriteString(p.keyValue("mode", string(cfg.HistoryMode)))
+		b.WriteString(p.keyValue("retention", fmt.Sprintf("%d hours", cfg.RetentionHours)))
+		b.WriteString(p.keyValue("overflow", string(cfg.Overflow)))
+		b.WriteString("\n" + p.styles.Dim.Render("History is bounded, ANSI-stripped and duplicate-suppressed."))
+	case "security":
+		b.WriteString(p.keyValue("redact secrets", fmt.Sprint(cfg.RedactSecrets)))
+		b.WriteString(p.keyValue("raw terminal input", fmt.Sprint(cfg.AllowRawInput)))
+		b.WriteString(p.keyValue("remote trust", string(cfg.RemoteTrust)))
+		allowlisted := "none"
+		if len(cfg.AllowlistedMachines) > 0 {
+			allowlisted = strings.Join(cfg.AllowlistedMachines, ", ")
+		}
+		b.WriteString(p.keyValue("allowlisted machines", allowlisted))
+		b.WriteString("\n" + p.styles.Warn.Render("Raw input bypasses command-level safeguards."))
+	}
+	b.WriteString("\n\n" + p.styles.Accent.Render("ENTER  Edit "+configCategories[p.category].title))
+	return strings.TrimSuffix(b.String(), "\n")
+}
+
 func (p *configPage) Commands() []ui.Command {
+	section := configCategories[p.category]
 	commands := []ui.Command{
-		{ID: "cf.edit", Title: "Edit draft", Description: "root-owned Huh form", Shortcut: "e",
-			Run: func() tea.Cmd { return func() tea.Msg { return ui.OpenConfigFormMsg{Draft: p.cat.Config} } }},
-		{ID: "cf.reload", Title: "Reload baseline", Description: "reset to the scenario config", Shortcut: "r",
+		{ID: "cf.edit", Title: "Edit " + section.title, Description: section.description, Shortcut: "enter",
+			Disabled: p.cat == nil, DisabledReason: "settings are not loaded",
+			Run: func() tea.Cmd {
+				return func() tea.Msg {
+					return ui.OpenConfigFormMsg{Draft: p.cat.Config, Section: section.id}
+				}
+			}},
+		{ID: "cf.reload", Title: "Reload from disk", Description: "discard cached values and read the configured source", Shortcut: "r",
 			Run: func() tea.Cmd { return execute(domain.Action{Kind: domain.ActionConfigReload}) }},
 	}
 	if p.cat != nil {
 		commands = append(commands, ui.Command{
-			ID: "cf.validate", Title: "Validate current", Description: "validation badge only", Shortcut: "v",
+			ID: "cf.validate", Title: "Validate settings", Description: "check the active configuration", Shortcut: "v",
 			Run: func() tea.Cmd {
 				return execute(domain.Action{Kind: domain.ActionConfigValidate, Value: encodeDraft(p.cat.Config)})
 			},
@@ -610,5 +670,5 @@ func (p *configPage) Commands() []ui.Command {
 }
 
 func (p *configPage) Help() []key.Binding {
-	return pageHelp([2]string{"e", "edit"}, [2]string{"v", "validate"}, [2]string{"r", "reload"}, [2]string{"tab", "category"})
+	return pageHelp([2]string{"j/k", "category"}, [2]string{"enter", "edit section"}, [2]string{"v", "validate"}, [2]string{"r", "reload"}, [2]string{"tab", "region"})
 }

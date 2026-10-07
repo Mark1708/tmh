@@ -1,4 +1,4 @@
-# VERIFICATION.md — tmh-next demo evidence
+# VERIFICATION.md — tmh-next implementation evidence
 
 ## Environment
 
@@ -105,9 +105,9 @@ commands — dropping the filter command kept matches from ever computing in a
 real terminal), **navigating home collapses the stack**, and a
 history-search hit now carries its typed scope (`terminal:term-0001`) so jumps
 land on the right context. Final tape uses settled single-Enter palette
-navigation; verified frame-by-frame (agents prompt accepted → snapshots plan →
-reconcile apply+undo → tmux probe → machines → Huh config walk → search jump →
-clean quit to shell).
+navigation; verified frame-by-frame (animated attach/terminal-creation help →
+agents prompt accepted → snapshots plan → reconcile apply+undo → tmux probe →
+machines → category-scoped Settings form → search jump → clean quit to shell).
 
 ### PTY smoke launches (real pseudo-terminals, `internal/app/ptysmoke_test.go`)
 
@@ -116,20 +116,22 @@ into an Alt-sequence (settled `sendEsc`), stale renderer diffs pollute plain
 buffers (full-repaint `snapshot`/`expectScreen` via size nudge at the current
 size class), and the palette apply/choose Enter race (race-tolerant `paletteGo`).
 
-**Launch A — default** (`./bin/tmh-next --live=false --scenario default`): all 8
+**Launch A — default** (`./bin/tmh-next --live=false --scenario default`): all
 checklist steps PASS — picker opens, Esc → Dashboard, palette → Agents,
 needs_input agent prompted (running + timeline/event/history + MOCK success),
 snapshots → plan → Reconcile include/exclude selector → apply confirm →
-field-level undo, config draft saved (24h retention visible; reopen+Esc
-discards, route stays Config), search `ledger` jumps to owning agent, context
-selector survives 70×18 too-small with selection/revision unchanged, `q`
-exits 0. Transcript: `artifacts/pty-launch-a.txt`.
+field-level undo, Settings → History saves 24h retention through a focused Huh
+form (reopen+Esc discards while keeping the category and route), search
+`ledger` jumps to the owning agent, context selector survives 70×18 too-small
+with selection/revision unchanged, `q` exits 0. Transcript:
+`artifacts/pty-launch-a.txt`.
 
 **Launch B — degraded** (`--scenario degraded --page backends --resource
-backend:native`): initial stack `[dashboard, backends]`; native probe fails
-inline `probe_timeout` with revision unchanged; input still live (tmux probe
-ok); machines build-01 connect → `unreachable` without mutation; Esc×2 →
-Dashboard; `q` exits 0. Transcript: `artifacts/pty-launch-b.txt`.
+backend:native`): initial stack `[dashboard, backends]`; native probe shows
+`Backend probe timed out` with revision unchanged; input remains live (tmux
+probe succeeds); machines build-01 connect shows `Machine connect unavailable`
+without mutation; Esc×2 → Dashboard; `q` exits 0. Transcript:
+`artifacts/pty-launch-b.txt`.
 
 ### Final automated gate (project root, 2026-10-07)
 
@@ -158,45 +160,109 @@ warnings.
 | coverage | 86.8% of `./internal/...` statements |
 
 
-## Production-boundary migration (feature/tmh-next-zellij)
+## Production implementation (2026-10-07)
 
-The migrated branch adds the normalized runtime graph, the
-`control.Client` snapshot boundary, and a strict read-only Zellij 0.45.1
-discovery adapter. Focused red/green regressions cover:
+The production path now includes:
 
-- graph identity, referential integrity and shared-terminal surfaces;
-- malformed Zellij JSON and minimum-version rejection;
-- session-local pane ID collisions (`terminal_1` in two sessions);
-- separation of stderr diagnostics from JSON stdout;
-- root initialization through `control.Client.Snapshot`;
-- preservation of the deterministic demo through `mock.Client`.
+- normalized Zellij discovery with stable product IDs and adapter-only native
+  identifiers;
+- a reconciliation daemon over a permission-bounded Unix HTTP/JSON socket;
+- SQLite catalog, audit-event and idempotency-result persistence;
+- desired-state loading from `~/.config/tmh/config.yml`;
+- revision-checked mutations, runtime rediscovery and watch-stream updates;
+- bounded, ANSI-stripped, duplicate-suppressed and secret-redacted pane
+  capture;
+- TUI-side interactive attach after Bubble Tea releases the terminal;
+- an explicit `--demo` switch preserving the original deterministic backend.
 
-Verification from the repository path:
+Focused regression coverage includes graph referential integrity, malformed
+Zellij JSON, minimum-version rejection, session-local native ID collisions,
+stdout/stderr separation, ownership gates, command argument safety, timeout
+handling, atomic catalog/result commits, persisted idempotency results,
+history capture and redaction, production-aware confirmation copy, daemon API
+round trips and TUI initialization through the remote client.
+
+### Final automated gate
 
 | Command | Result |
 |---|---|
+| `gofmt -w ./cmd ./internal` | 0 |
+| `go mod tidy` | 0 |
 | `go vet ./...` | 0 |
-| `go test -count=1 -race -coverpkg=./internal/... -coverprofile=coverage.out ./...` | **0** — 12 packages ok, 1 package with no tests |
-| `go tool cover -func=coverage.out \| tail -1` | total **85.4%** ≥ 80.0 — PASS |
+| `go test -count=1 -race -coverpkg=./internal/... -coverprofile=coverage.out ./...` | **0** — 17 packages ok, 2 command packages with no tests |
+| `go tool cover -func=coverage.out \| sed -n '$p'` | total **81.7%** ≥ 80.0 — PASS |
+| `go build -trimpath -o ./bin/tmhd ./cmd/tmhd` | 0 |
 | `go build -trimpath -o ./bin/tmh-next ./cmd/tmh-next` | 0 |
-| PTY launch `./bin/tmh-next --dashboard --live=false`, then `q` | exit 0 |
+| `vhs ./demo.tape` | 0 |
+| `stat artifacts/tmh-next-tour.gif` | 3,536,714 bytes |
 
-Live adapter verification used disposable session
-`tmh-integration-20261007-0958` with one real `sleep 300` terminal pane:
+### Runtime-feedback and usability revision
+
+The requested review items are covered by focused regressions and real terminal
+journeys:
+
+- `TestProjectRuntimeBuildsValidatedLiveCatalog` proves every production
+  snapshot exposes the local performance service, target SLOs, trace storage
+  and benchmark storage. Persisted stale/unavailable performance state is
+  repaired during live projection.
+- Typed backend failures now render operation-specific messages without
+  duplicating the machine error code. Conflict reload failures use a dedicated
+  `ReloadFailedMsg`, release the serialized mutation lane and re-arm refresh.
+  Repeated identical notifications coalesce instead of flooding the screen.
+- Settings is a vertical General/Runtime/History/Security browser. Each category
+  opens a focused Huh form; source, current values and safety descriptions stay
+  visible. The UI shows success only after backend commit.
+- Workspace and terminal details explain Zellij ownership. `n` creates a new
+  terminal pane beside a live managed terminal; `enter` attaches and returns
+  after detach. Exited terminals are rejected locally with actionable copy.
+- `?` opens four auto-advancing walkthroughs: attach a session, create a
+  terminal, recover workspace drift and change settings. Playback, manual
+  stepping, use-case switching, restart and destination launch are covered by
+  `TestGuidedHelpAnimationAndUseCaseLaunch`.
+- The revised VHS tour renders the animated help and focused Settings path.
+  Both real PTY demo launches pass after the copy and interaction changes.
+
+An isolated production smoke used `tmhd` with an empty temporary YAML config,
+its own Unix socket and SQLite state. `tmh-next` rendered `LIVE`, animated and
+switched help use cases, launched the empty Workspaces destination, opened the
+available Performance page, completed `recorded live discovery trace`, opened
+Settings → History, discarded the draft with `Settings changes discarded`,
+and exited with code 0. The daemon and temporary state were removed afterward.
+
+### Live Zellij and daemon evidence
+
+Live-adapter verification used disposable Zellij sessions under the short
+socket root `/tmp/zellij-tmh-final`; all were deleted afterward.
+
+1. `tmhd` started against Zellij 0.45.1 and the real user config. `/v1/snapshot`
+   reported scenario `production`, backend `healthy`, and an observed managed
+   workspace with a live terminal.
+2. A pane containing `history-secret token=abc123` was captured as bounded
+   history with `token=[REDACTED]`; repeated screen content was not duplicated.
+3. Sending `visible` through `/v1/execute` wrote to the live pane. Repeating
+   the exact action with the same idempotency key returned the stored result
+   and did not append a second `visible`.
+4. A confirmed close transitioned the real pane to `exited`; reconciliation
+   retained its historical terminal record while the live surface binding was
+   removed.
+5. With a Zellij client focused on `tmh-shell-fresh`, a production split moved
+   revision 7 → 8 and the returned catalog contained two live shell terminals.
+   A detached-session probe that Zellij accepted but did not retain was
+   rejected as `invalid_state` and did not commit a catalog revision.
+6. `./bin/tmh-next --socket /tmp/tmhd-final.LixHhO/tmhd.sock --dashboard`
+   rendered the production `LIVE` Dashboard, opened the command palette via
+   `ctrl+p`, and exited 0 via `ctrl+c`.
+
+The opt-in integration test also passed against disposable session
+`tmh-integration-20261007-0958`:
 
 ```bash
-ZELLIJ_SOCKET_DIR=/tmp/zellij-tmh \
-  zellij attach --create-background tmh-integration-20261007-0958 -- sleep 300
 ZELLIJ_SOCKET_DIR=/tmp/zellij-tmh \
 TMH_ZELLIJ_INTEGRATION=1 \
 TMH_ZELLIJ_SESSION=tmh-integration-20261007-0958 \
   go test -tags=integration ./internal/backend/zellij \
     -run TestLiveDiscoveryOfManagedSession -count=1 -v
-ZELLIJ_SOCKET_DIR=/tmp/zellij-tmh \
-  zellij kill-session tmh-integration-20261007-0958
 ```
 
-Result: PASS in 0.07s. The adapter discovered and validated the real session,
-tab, plugin surfaces and terminal. Cleanup left no active sessions. On macOS,
-the default `$TMPDIR` made the Unix socket path exceed Zellij's 103-byte
-limit; the explicit short `ZELLIJ_SOCKET_DIR` is required for this setup.
+Result: PASS. On macOS, a short `ZELLIJ_SOCKET_DIR` is required because the
+default `$TMPDIR` can exceed Zellij's Unix-socket path limit.

@@ -304,22 +304,32 @@ func (b *Backend) apply(c *domain.Catalog, a domain.Action) (string, error) {
 		pre()
 		newID := b.nextID("term")
 		sfID := b.nextID("sf")
-		newWin := domain.WindowSpec{
-			ID: b.nextID("win"), Index: len(ws.Observed.Windows), Layout: "even-horizontal",
-			Surfaces: []domain.SurfaceSpec{surface(sfID, "split", t.CWD)},
+		newSurface := surface(sfID, "terminal", t.CWD)
+		inserted := false
+		for index := range ws.Observed.Windows {
+			if windowHasSurface(ws.Observed.Windows[index], t.SurfaceID) {
+				ws.Observed.Windows[index].Layout = "even-horizontal"
+				ws.Observed.Windows[index].Surfaces = append(ws.Observed.Windows[index].Surfaces, newSurface)
+				inserted = true
+				break
+			}
 		}
-		ws.Observed.Windows = append(ws.Observed.Windows, newWin)
-		ws.Desired.Windows = append(ws.Desired.Windows, cloneWindows([]domain.WindowSpec{newWin})[0])
+		if !inserted {
+			return "", domain.Fail(domain.CodeInvalidState, "source terminal surface is not in the observed workspace")
+		}
+		// Creating a pane through tmh updates both the live topology and its
+		// desired definition; it must not manufacture reconciliation drift.
+		ws.Desired.Windows = cloneWindows(ws.Observed.Windows)
 		nt := &domain.Terminal{
-			ID: newID, Name: ws.Name + "-split", WorkspaceID: ws.ID, SurfaceID: sfID,
+			ID: newID, Name: ws.Name + "-terminal", WorkspaceID: ws.ID, SurfaceID: sfID,
 			BackendID: t.BackendID, State: domain.TerminalLive, Process: "zsh", CWD: t.CWD,
 			Capabilities: append([]string(nil), t.Capabilities...), LastIO: c.Now, CreatedAt: c.Now,
 		}
 		c.Terminals = append(c.Terminals, nt)
 		ws.TerminalIDs = append(ws.TerminalIDs, newID)
 		b.addEvent(c, domain.EventTerminal, domain.SeverityInfo, domain.Ref(domain.KindTerminal, newID),
-			fmt.Sprintf("split from %s", t.ID))
-		return fmt.Sprintf("split %s → new %s on surface %s", t.ID, newID, sfID), nil
+			fmt.Sprintf("created pane beside %s", t.ID))
+		return fmt.Sprintf("New terminal pane %s created", newID), nil
 
 	case domain.ActionLink:
 		t := c.TerminalByID(a.Target.ID)
@@ -848,8 +858,8 @@ func (b *Backend) apply(c *domain.Catalog, a domain.Action) (string, error) {
 			return "", err
 		}
 		pre()
-		b.addEvent(c, domain.EventConfig, domain.SeverityInfo, domain.Ref(domain.KindConfig, "config"), "draft validated: ok")
-		return "draft config valid", nil
+		b.addEvent(c, domain.EventConfig, domain.SeverityInfo, domain.Ref(domain.KindConfig, "config"), "settings validated: ok")
+		return "Settings are valid", nil
 
 	case domain.ActionConfigSave:
 		cfg, err := decodeConfig(a.Value)
@@ -863,13 +873,13 @@ func (b *Backend) apply(c *domain.Catalog, a domain.Action) (string, error) {
 		c.Config = cfg
 		b.addEvent(c, domain.EventConfig, domain.SeverityInfo, domain.Ref(domain.KindConfig, "config"),
 			fmt.Sprintf("saved: history=%s retention=%dh", cfg.HistoryMode, cfg.RetentionHours))
-		return "config saved (in-memory only)", nil
+		return "Settings saved in demo memory", nil
 
 	case domain.ActionConfigReload:
 		pre()
 		c.Config = baseConfig()
-		b.addEvent(c, domain.EventConfig, domain.SeverityInfo, domain.Ref(domain.KindConfig, "config"), "reloaded scenario baseline")
-		return "config reloaded from baseline", nil
+		b.addEvent(c, domain.EventConfig, domain.SeverityInfo, domain.Ref(domain.KindConfig, "config"), "reset demo settings baseline")
+		return "Settings reset to demo baseline", nil
 
 	default:
 		return "", domain.Fail(domain.CodeValidation, "unknown action kind %q", a.Kind)
@@ -1188,4 +1198,13 @@ func primeCounters(c *domain.Catalog) map[string]int {
 		}
 	}
 	return counters
+}
+
+func windowHasSurface(window domain.WindowSpec, surfaceID string) bool {
+	for _, surface := range window.Surfaces {
+		if surface.ID == surfaceID {
+			return true
+		}
+	}
+	return false
 }

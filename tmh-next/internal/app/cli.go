@@ -20,6 +20,8 @@ type Scheduler interface {
 	TimerCmd(token uint64) tea.Cmd
 	// ToastCmd arms the toast expiry for a sequence number.
 	ToastCmd(seq uint64) tea.Cmd
+	// WalkthroughCmd advances the animated help walkthrough.
+	WalkthroughCmd(token uint64) tea.Cmd
 }
 
 // ProductionScheduler converts armed tokens into real tea timers.
@@ -41,10 +43,18 @@ func (p ProductionScheduler) ToastCmd(seq uint64) tea.Cmd {
 	return tea.Tick(2500*time.Millisecond, func(time.Time) tea.Msg { return ToastExpiredMsg{Seq: seq} })
 }
 
+// WalkthroughCmd advances guided help at a readable cadence.
+func (p ProductionScheduler) WalkthroughCmd(token uint64) tea.Cmd {
+	return tea.Tick(1400*time.Millisecond, func(time.Time) tea.Msg {
+		return WalkthroughTickMsg{Token: token}
+	})
+}
+
 // ManualScheduler records armed tokens without running anything.
 type ManualScheduler struct {
-	TimerTokens []uint64
-	ToastSeqs   []uint64
+	TimerTokens       []uint64
+	ToastSeqs         []uint64
+	WalkthroughTokens []uint64
 }
 
 // TimerCmd records the timer token and returns nil.
@@ -59,11 +69,19 @@ func (m *ManualScheduler) ToastCmd(seq uint64) tea.Cmd {
 	return nil
 }
 
+// WalkthroughCmd records the active walkthrough token and returns nil.
+func (m *ManualScheduler) WalkthroughCmd(token uint64) tea.Cmd {
+	m.WalkthroughTokens = append(m.WalkthroughTokens, token)
+	return nil
+}
+
 // --- CLI flags ----------------------------------------------------------------
 
 // Startup is the validated CLI startup specification.
 type Startup struct {
 	Scenario    domain.Scenario
+	Demo        bool
+	Socket      string
 	Live        bool
 	Stack       []ui.Location
 	QuickSwitch bool
@@ -79,7 +97,9 @@ func ParseStartup(args []string) (Startup, error) {
 	page := fs.String("page", "", "startup page route slug")
 	resource := fs.String("resource", "", "target resource as <kind>:<id>")
 	scenario := fs.String("scenario", "default", "fixture scenario: default|empty|degraded")
-	live := fs.Bool("live", true, "run periodic mock ticks (disable for deterministic capture)")
+	demo := fs.Bool("demo", false, "use deterministic in-memory demo backend")
+	socket := fs.String("socket", "", "tmhd Unix socket path")
+	live := fs.Bool("live", true, "run periodic demo ticks when --demo is set")
 	if err := fs.Parse(args); err != nil {
 		return Startup{}, fmt.Errorf("invalid flags: %w", err)
 	}
@@ -92,7 +112,7 @@ func ParseStartup(args []string) (Startup, error) {
 		return Startup{}, fmt.Errorf("unknown --scenario %q (want default, empty or degraded)", *scenario)
 	}
 
-	start := Startup{Scenario: sc, Live: *live}
+	start := Startup{Scenario: sc, Live: *live, Demo: *demo, Socket: *socket}
 
 	switch {
 	case *dashboard && *page != "":
@@ -166,7 +186,7 @@ func parseResource(v string) (domain.ResourceKind, string, error) {
 func RunCLI(args []string) Startup {
 	start, err := ParseStartup(args)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "tmh-next: %v\n\nusage: tmh-next [--dashboard] [--page <route>] [--resource <kind>:<id>] [--scenario default|empty|degraded] [--live=true|false]\n", err)
+		fmt.Fprintf(os.Stderr, "tmh-next: %v\n\nusage: tmh-next [--dashboard] [--page <route>] [--resource <kind>:<id>] [--demo] [--socket <path>] [--scenario default|empty|degraded] [--live=true|false]\n", err)
 		os.Exit(2)
 	}
 	return start

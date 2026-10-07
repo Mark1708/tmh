@@ -77,13 +77,14 @@ func (a Action) Identity() string {
 
 // MutationResult is the backend response for Execute and Tick.
 type MutationResult struct {
-	BaseRevision uint64   `json:"base_revision"`
-	NewRevision  uint64   `json:"new_revision"`
-	Catalog      *Catalog `json:"catalog"`
-	Action       Action   `json:"action"`
-	IsTick       bool     `json:"is_tick"`
-	TickToken    uint64   `json:"tick_token,omitempty"`
-	Message      string   `json:"message"`
+	BaseRevision       uint64   `json:"base_revision"`
+	NewRevision        uint64   `json:"new_revision"`
+	Catalog            *Catalog `json:"catalog"`
+	Action             Action   `json:"action"`
+	IsTick             bool     `json:"is_tick"`
+	TickToken          uint64   `json:"tick_token,omitempty"`
+	Message            string   `json:"message"`
+	InteractiveCommand []string `json:"interactive_command,omitempty"`
 }
 
 // SearchQuery is a concurrent read query.
@@ -159,6 +160,20 @@ func ErrCodeOf(err error) ErrCode {
 		return ae.Code
 	}
 	return "unknown"
+}
+
+// ErrorMessage returns the human-readable detail without repeating a typed
+// error code. Transport and UI adapters use it when they render the code
+// separately.
+func ErrorMessage(err error) string {
+	var actionErr *Error
+	if errors.As(err, &actionErr) {
+		return actionErr.Msg
+	}
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 // Clock abstracts logical time for the backend (mock-only implementations).

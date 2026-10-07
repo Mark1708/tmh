@@ -122,6 +122,36 @@ func TestWorkspaceFilterFlow(t *testing.T) {
 	}
 }
 
+func TestSettingsUseCategoryNavigationAndScopedEditing(t *testing.T) {
+	page, _ := pageFor(t, ui.RouteConfig, domain.ScenarioDefault)
+	page.Enter(ui.Location{Route: ui.RouteConfig})
+	settings := page.(*configPage)
+	view := testutil.Plain(page.View())
+	for _, want := range []string{"Settings", "General", "Runtime", "History", "Security", "Configuration source"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("settings view missing %q:\n%s", want, view)
+		}
+	}
+	message := firstMsg(page.Update(testutil.Special(tea.KeyEnter)))
+	open, ok := message.(ui.OpenConfigFormMsg)
+	if !ok || open.Section != "general" {
+		t.Fatalf("general edit message = %#v", message)
+	}
+	page.Update(testutil.Rune('j'))
+	if settings.category != 1 {
+		t.Fatalf("j selected category %d, want 1", settings.category)
+	}
+	message = firstMsg(page.Update(testutil.Special(tea.KeyEnter)))
+	open, ok = message.(ui.OpenConfigFormMsg)
+	if !ok || open.Section != "runtime" {
+		t.Fatalf("runtime edit message = %#v", message)
+	}
+	page.Update(testutil.Rune('k'))
+	if settings.category != 0 {
+		t.Fatalf("k selected category %d, want 0", settings.category)
+	}
+}
+
 // TestPageCommandsDisabledReasons proves disabled commands carry reasons and
 // the corresponding keys do not dispatch actions.
 func TestPageCommandsDisabledReasons(t *testing.T) {
@@ -156,13 +186,15 @@ func TestTerminalKeysEmitTypedIntents(t *testing.T) {
 	p.Enter(ui.Location{Route: ui.RouteTerminals, Primary: domain.Ref(domain.KindTerminal, "term-0006")})
 	tp := p.(*terminalsPage)
 
-	// attach on exited terminal: key still emits action (backend rejects not_live)
-	if msg := firstMsg(p.Update(testutil.Special(tea.KeyEnter))); msg == nil {
-		t.Fatal("enter did not emit an intent")
+	// Attach on an exited terminal is blocked locally with actionable copy.
+	msg := firstMsg(p.Update(testutil.Special(tea.KeyEnter)))
+	blocked, ok := msg.(ui.ShowToastMsg)
+	if !ok || !strings.Contains(blocked.Text, "has exited") {
+		t.Fatalf("exited attach response = %#v", msg)
 	}
 
 	// h → scoped history with context ref
-	msg := firstMsg(p.Update(testutil.Rune('h')))
+	msg = firstMsg(p.Update(testutil.Rune('h')))
 	push, ok := msg.(ui.PushRouteMsg)
 	if !ok {
 		t.Fatalf("h emitted %T, want PushRouteMsg", msg)
@@ -178,6 +210,22 @@ func TestTerminalKeysEmitTypedIntents(t *testing.T) {
 		t.Fatalf("s emitted %T, want OpenPromptMsg", msg)
 	}
 	_ = tp
+}
+
+func TestWorkspaceExplainsAttachAndTerminalCreation(t *testing.T) {
+	page, _ := pageFor(t, ui.RouteWorkspace, domain.ScenarioDefault)
+	page.Enter(ui.Location{Route: ui.RouteWorkspace, Primary: domain.Ref(domain.KindWorkspace, "base")})
+	view := testutil.Plain(page.View())
+	for _, want := range []string{"Attach to Zellij session", "New terminal pane", "suspends while Zellij owns"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("workspace detail missing %q:\n%s", want, view)
+		}
+	}
+	message := firstMsg(page.Update(testutil.Rune('n')))
+	action, ok := message.(ui.ExecuteActionMsg)
+	if !ok || action.Action.Kind != domain.ActionSplit || action.Action.Target.Kind != domain.KindTerminal {
+		t.Fatalf("new terminal intent = %#v", message)
+	}
 }
 
 // TestHistoryFollowRespectsScroll proves movement disables follow and f

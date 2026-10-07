@@ -133,7 +133,7 @@ func (p *historyPage) exportSelector() tea.Cmd {
 			Desc: fmt.Sprintf("%d lines", len(h.Lines)),
 		})
 	}
-	return openSelector("Export history rows (mock)", opts)
+	return openSelector("Export history rows", opts)
 }
 
 func (p *historyPage) View() string {
@@ -198,7 +198,7 @@ func (p *historyPage) Commands() []ui.Command {
 			Run: func() tea.Cmd { return func() tea.Msg { return ui.OpenSelectorMsg{Title: "noop"} } }},
 		{ID: "h.search", Title: "Scoped search", Description: "search within this scope", Shortcut: "/",
 			Run: func() tea.Cmd { return pushRoute(ui.Location{Route: ui.RouteSearch, Context: p.loc.Context}, false) }},
-		{ID: "h.export", Title: "Export rows", Description: "record a mock export", Shortcut: "e",
+		{ID: "h.export", Title: "Export rows", Description: "write a bounded history export", Shortcut: "e",
 			Disabled: len(p.chunks()) == 0, DisabledReason: "no history rows",
 			Run: func() tea.Cmd {
 				ids := make([]string, 0, len(p.chunks()))
