@@ -1,0 +1,51 @@
+tmh-next PTY smoke transcript — pty-launch-b.txt
+command: /var/folders/z4/x3ywqk814ss5rtyx02cl78780000gn/T/tmh-pty1061567802/tmh-next --live=false --scenario degraded --page backends --resource backend:native
+
+03:24:37.240 EXPECT native (backends:native stack)
+03:24:37.302 HIT native
+03:24:37.903 HIT-SCREEN Backends native
+03:24:37.904 SEND "p"
+03:24:37.904 EXPECT probe_timeout (inline probe failure)
+03:24:37.968 HIT probe_timeout
+03:24:38.269 SEND "j"
+03:24:39.373 HIT-SCREEN Capabilities · tmux
+03:24:39.374 SEND "p"
+03:24:39.374 EXPECT backend-probe tmux: ok (tmux probe ok)
+03:24:39.443 HIT backend-probe tmux: ok
+03:24:39.443 SEND "\x10"
+03:24:39.844 SEND "Machines"
+03:24:40.545 SEND "\r"
+03:24:42.251 HIT-SCREEN no diagnostics recorded
+03:24:42.752 SEND "c"
+03:24:42.752 EXPECT machine-connect failed (connect unreachable)
+03:24:42.841 HIT machine-connect failed
+03:24:42.847 SEND "\x1b"
+03:24:43.798 SEND "\x1b"
+03:24:44.751 HIT-SCREEN Attention queue
+03:24:44.751 EXPECT machine unreachable (degraded event visible)
+03:24:44.768 HIT machine unreachable
+03:24:44.768 SEND "q"
+03:24:44.775 EXIT 0
+
+--- final plain output (tail) ---
+��────╯  ╰─────────────────────╯
+  ╭──────────────────────────────────────────────────────────────╮      ╭────────────────────────────────────────╮
+  │ Attention queue                                              │      │ System health                          │
+  │ DRIFT workspace kb 1 drifted field(s)                        │      │ OK tmux       4 instances · 13ms probe │
+  │ NEEDS INPUT agent ledger-audit                     codex on  │      │ WARN zellij     1 instances · 9ms      │
+  │ ecp · progress 61%                                           │      │ probe                                  │
+  │ OFFLINE machine build-01                       unreachable   │      │ OFFLINE native     0 instances · 0ms   │
+  │ since 13:26                                                  │      │ probe                                  │
+  │ UNAVAILABLE backend native                         panes:    │      │                                        │
+  │ not implemented; session-share: not available; probe times   │      │ AGENTS  2 running  ·  1 need input  ·  │
+  │ out on this fixture                                          │      │ 1 waiting                              │
+  │ WARN view platform/deploy                   unpinned and     │      ╰────────────────────────────────────────╯
+  │ past TTL — prune it                                          │
+  ╰──────────────────────────────────────────────────────────────╯
+  ╭───────────────────────────────────────────────────╮      ╭───────────────────────────────────────────────────╮
+  │ Performance                                       │      │ Recent activity                                   │
+  │ ▆▆▇▇█▆▆▇▇█▆▆                                      │      │ WARN 13:06:00  probe failed: timeout              │
+  │ 13ms input  21ms redraw  38ms action              │      │ ERROR 13:07:00  machine unreachable               │
+  │ 12 samples · queue depth 2                        │      │ WARN 13:08:00  drift detected: 1 field            │
+
+ ctrl+p command palette  ·  ctrl+k quick switch  ·  space actions  ·  ? help  ·  esc back  ·  q quit  ·  j/k cards  · [>4m[<1u

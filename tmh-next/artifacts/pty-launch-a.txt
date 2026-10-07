@@ -1,0 +1,127 @@
+tmh-next PTY smoke transcript — pty-launch-a.txt
+command: /var/folders/z4/x3ywqk814ss5rtyx02cl78780000gn/T/tmh-pty1061567802/tmh-next --live=false --scenario default
+
+03:24:10.758 EXPECT Quick switch (picker opens)
+03:24:11.002 HIT Quick switch
+03:24:11.002 SEND "\x1b"
+03:24:11.353 EXPECT Attention queue (dashboard)
+03:24:11.356 HIT Attention queue
+03:24:11.356 SEND "\x10"
+03:24:11.356 EXPECT Command palette (palette opens)
+03:24:11.419 HIT Command palette
+03:24:11.420 SEND "Agents"
+03:24:12.120 SEND "\r"
+03:24:12.371 SEND "\r"
+03:24:12.371 EXPECT agent-0001 (agents page)
+03:24:12.376 HIT agent-0001
+03:24:12.376 SEND "j"
+03:24:12.678 SEND "p"
+03:24:12.678 EXPECT Prompt agent ledger-audit (prompt overlay)
+03:24:12.747 HIT Prompt agent ledger-audit
+03:24:12.747 SEND "use fiscal 2025 and summarize drift"
+03:24:12.747 SEND "\r"
+03:24:12.747 EXPECT prompt accepted by agent-0002 (mock success toast)
+03:24:12.945 HIT prompt accepted by agent-0002
+03:24:12.946 EXPECT use fiscal 2025 (prompt echoed in timeline/history)
+03:24:12.952 HIT use fiscal 2025
+03:24:12.952 SEND "\x10"
+03:24:13.354 SEND "Snapshots"
+03:24:14.055 SEND "\r"
+03:24:15.760 HIT-SCREEN snap-0001
+03:24:15.761 SEND "jjj"
+03:24:16.062 SEND "r"
+03:24:16.062 EXPECT plan plan-0001 (reconcile after plan)
+03:24:16.144 HIT plan plan-0001
+03:24:16.144 SEND " "
+03:24:16.144 EXPECT Reconcile actions (context selector)
+03:24:16.225 HIT Reconcile actions
+03:24:16.225 SEND "\x1b"
+03:24:16.576 EXPECT plan plan-0001 (selector closed)
+03:24:16.588 HIT plan plan-0001
+03:24:16.589 SEND "\t"
+03:24:16.889 SEND "a"
+03:24:16.889 EXPECT MOCK ONLY (apply confirmation)
+03:24:16.971 HIT MOCK ONLY
+03:24:16.971 SEND "y"
+03:24:16.971 EXPECT applied plan plan-0001 (apply accepted)
+03:24:17.053 HIT applied plan plan-0001
+03:24:17.053 SEND "u"
+03:24:17.053 EXPECT undid plan plan-0001 (field-level undo)
+03:24:17.133 HIT undid plan plan-0001
+03:24:17.133 SEND "\x10"
+03:24:17.534 SEND "Config"
+03:24:18.234 SEND "\r"
+03:24:19.941 HIT-SCREEN default page
+03:24:19.941 SEND "e"
+03:24:19.941 EXPECT Configuration draft (huh form opens)
+03:24:20.038 HIT Configuration draft
+03:24:20.038 SEND "\r"
+03:24:20.188 SEND "\r"
+03:24:20.339 SEND "\r"
+03:24:20.489 SEND "\r"
+03:24:20.640 SEND "\x7f"
+03:24:20.761 SEND "\x7f"
+03:24:20.882 SEND "\x7f"
+03:24:21.003 SEND "24"
+03:24:21.003 SEND "\r"
+03:24:21.154 SEND "\r"
+03:24:21.305 SEND "\r"
+03:24:21.456 SEND "\r"
+03:24:21.607 SEND "\r"
+03:24:21.758 SEND "\r"
+03:24:21.909 SEND "y"
+03:24:21.909 EXPECT config draft submitted (config save toast)
+03:24:22.007 HIT config draft submitted
+03:24:22.007 SEND "\t"
+03:24:22.007 SEND "\t"
+03:24:22.007 EXPECT 24h (history category shows 24h)
+03:24:22.030 HIT 24h
+03:24:22.030 SEND "e"
+03:24:22.030 EXPECT Configuration draft (form reopens)
+03:24:22.054 HIT Configuration draft
+03:24:22.054 SEND "k"
+03:24:22.054 SEND "\x1b"
+03:24:22.404 EXPECT config draft discarded (esc discard toast)
+03:24:22.430 HIT config draft discarded
+03:24:22.430 EXPECT Config (route remains config)
+03:24:22.455 HIT Config
+03:24:22.456 SEND "\x10"
+03:24:22.856 SEND "Search"
+03:24:23.556 SEND "\r"
+03:24:25.263 HIT-SCREEN scope: all
+03:24:25.863 SEND "ledger"
+03:24:25.863 EXPECT ledger (query echoed)
+03:24:25.896 HIT ledger
+03:24:26.697 EXPECT ledger-audit (search hits agent)
+03:24:26.732 HIT ledger-audit
+03:24:26.732 SEND "\r"
+03:24:27.332 EXPECT Agents agent-0002 (jump to owning agent)
+03:24:27.366 HIT Agents agent-0002
+03:24:27.366 SEND "\x1b"
+03:24:28.318 SEND "\x1b"
+03:24:29.272 SEND "\x1b"
+03:24:30.225 SEND "\x1b"
+03:24:31.178 SEND "\x1b"
+03:24:32.132 SEND "\x1b"
+03:24:33.687 HIT-SCREEN Attention queue
+03:24:33.711 SEND " "
+03:24:34.313 HIT-SCREEN Dashboard actions
+03:24:34.313 SEND "j"
+03:24:35.217 RESIZE 70x18
+03:24:35.819 HIT-SCREEN needs at least 72
+03:24:35.819 SEND "a"
+03:24:36.220 RESIZE 120x30
+03:24:36.852 SEND "\x1b"
+03:24:37.203 SEND "q"
+03:24:37.208 EXIT 0
+
+--- final plain output (tail) ---
+ate to the attention card  │0 need input  ·  │	│                                                                      │                 │	│                                                                      │─────────────────╯
+  ╭─────────────────────╰──────────────────────────────────────────────────────────────────────╯─────────────────╮
+  │ Performance                                       │      │ Recent activity                                   │
+  │ ▆▆▇▇█▆▆▇▇█▆▆▇▇█▆▆▇▇█▆▆▇▇                          │      │ OK 14:00:03  plan built: 2 ops                    │
+  │ 15ms input  21ms redraw  36ms action              │      │ OK 14:00:04  applied 1 pull ops (freeze snapshot  │
+  │ 24 samples · queue depth 2                        │      │ )                                                 │
+  ╰───────────────────────────────────────────────────╯      │ OK 14:00:05  reconcile undone                     ││ OK 14:00:06  saved: history=persistent            ││ retention=24h                                     │
+
+ ctrl+p command palette  ·  ctrl+k quick switch  ·  space actions  ·  ? help  ·  esc back  ·  q quit  ·  j/k cards  · ╯                           ╰─────────────────────╯  ╰───────────────────────────────────────────────────────────╮      ╭───────────────────────                                         │      │ System health          drifted field(s)                        │      │ OK tmux       4 instannative                         panes:    │      │ WARN zellij     1 instsion-share: not available; probe times   │      │ probe                                                          │      │ OFFLINE native     0 ieploy                   unpinned and     │      │ probe                                                          │      │                       ─────────────────────────────────────────╯      │ AGENTS  3 running  ·  	│ 1 waiting             	╰─────────────────────────────────────────────────────╮      ╭──────────────────────────────────[>4m[<1u
