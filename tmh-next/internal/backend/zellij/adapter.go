@@ -153,9 +153,10 @@ func (a *Adapter) discoverSession(ctx context.Context, graph *runtimegraph.Graph
 			prefix = "plugin"
 			kind = runtimegraph.SurfacePlugin
 		}
-		nativeID := prefix + "_" + strconv.Itoa(*pane.ID)
+		paneID := prefix + "_" + strconv.Itoa(*pane.ID)
+		nativeID := "session/" + session + "/" + prefix + "/" + paneID
 		surface := &runtimegraph.Surface{
-			ID:     stableID("surface", a.opts.BackendInstanceID, session, nativeID),
+			ID:     stableID("surface", a.opts.BackendInstanceID, session, paneID),
 			ViewID: view.ID, Kind: kind, NativeID: nativeID, Title: *pane.Title,
 			Geometry: runtimegraph.Geometry{
 				X: valueOrZero(pane.X), Y: valueOrZero(pane.Y), Rows: valueOrZero(pane.Rows), Columns: valueOrZero(pane.Columns),
@@ -163,7 +164,7 @@ func (a *Adapter) discoverSession(ctx context.Context, graph *runtimegraph.Graph
 			Focused: valueOrFalse(pane.Focused), Floating: valueOrFalse(pane.Floating),
 		}
 		if kind == runtimegraph.SurfaceTerminal {
-			terminalID := stableID("terminal", a.opts.BackendInstanceID, session, nativeID)
+			terminalID := stableID("terminal", a.opts.BackendInstanceID, session, paneID)
 			surface.TerminalID = terminalID
 			state := runtimegraph.TerminalLive
 			if *pane.Exited {
@@ -179,7 +180,7 @@ func (a *Adapter) discoverSession(ctx context.Context, graph *runtimegraph.Graph
 		}
 		view.SurfaceIDs = append(view.SurfaceIDs, surface.ID)
 		graph.Surfaces = append(graph.Surfaces, surface)
-		viewByPane[nativeID] = view
+		viewByPane[paneID] = view
 	}
 
 	for _, client := range parseClients(string(clientsRaw)) {
