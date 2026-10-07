@@ -13,7 +13,7 @@
 | `vhs --version` | vhs version 0.11.0 |
 | terminal (captures) | ghostty 1.3.1, macOS darwin 24.6.0, arm64 |
 
-Commands run from `/Users/mark/tmp/tmh-next` unless noted.
+Commands run from the repository `tmh-next/` directory unless noted.
 
 ## Phase 2 — Charm v2 compatibility gate
 
@@ -155,3 +155,30 @@ warnings.
 | `vhs --version` | vhs version 0.11.0 |
 | capture terminal | 1600×1000, font size 14 (per demo.tape) |
 | coverage | 86.8% of `./internal/...` statements |
+
+
+## Production-boundary migration (feature/tmh-next-zellij)
+
+The migrated branch adds the normalized runtime graph, the
+`control.Client` snapshot boundary, and a strict read-only Zellij 0.45.1
+discovery adapter. Focused red/green regressions cover:
+
+- graph identity, referential integrity and shared-terminal surfaces;
+- malformed Zellij JSON and minimum-version rejection;
+- session-local pane ID collisions (`terminal_1` in two sessions);
+- separation of stderr diagnostics from JSON stdout;
+- root initialization through `control.Client.Snapshot`;
+- preservation of the deterministic demo through `mock.Client`.
+
+Verification from the repository path:
+
+| Command | Result |
+|---|---|
+| `go vet ./...` | 0 |
+| `go test -count=1 -race -coverpkg=./internal/... -coverprofile=coverage.out ./...` | **0** — 12 packages ok, 1 package with no tests |
+| `go tool cover -func=coverage.out \| tail -1` | total **85.4%** ≥ 80.0 — PASS |
+| `go build -trimpath -o ./bin/tmh-next ./cmd/tmh-next` | 0 |
+| PTY launch `./bin/tmh-next --dashboard --live=false`, then `q` | exit 0 |
+
+`zellij` is not installed on this workstation, so the adapter is verified
+against deterministic CLI fixtures; no live Zellij process was started.
