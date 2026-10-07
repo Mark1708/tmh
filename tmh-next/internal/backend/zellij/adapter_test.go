@@ -52,7 +52,7 @@ func discoveryRunner() *fakeRunner {
 	)
 	addSession("external",
 		`[{"tab_id":4,"position":0,"name":"ops","active":true}]`,
-		`[{"id":8,"is_plugin":false,"is_focused":true,"is_floating":true,"title":"ops","exited":true,"exit_status":2,"pane_x":2,"pane_y":3,"pane_rows":20,"pane_columns":80,"tab_id":4,"pane_command":"bash","pane_cwd":"/srv"}]`,
+		`[{"id":1,"is_plugin":false,"is_focused":true,"is_floating":true,"title":"ops","exited":true,"exit_status":2,"pane_x":2,"pane_y":3,"pane_rows":20,"pane_columns":80,"tab_id":4,"pane_command":"bash","pane_cwd":"/srv"}]`,
 		"CLIENT_ID ZELLIJ_PANE_ID RUNNING_COMMAND\n",
 	)
 	return f
@@ -95,7 +95,7 @@ func TestDiscoverBuildsNormalizedGraph(t *testing.T) {
 	for _, surface := range graph.Surfaces {
 		if surface.Kind == runtimegraph.SurfacePlugin {
 			pluginCount++
-			if surface.TerminalID != "" || surface.NativeID != "plugin_1" {
+			if surface.TerminalID != "" || surface.NativeID != "session/tmh-alpha/plugin/plugin_1" {
 				t.Fatalf("plugin surface = %#v", surface)
 			}
 		}
