@@ -114,6 +114,20 @@ go build -trimpath -o ./bin/tmh-next ./cmd/tmh-next
 vhs ./demo.tape                                 # → artifacts/tmh-next-tour.gif
 ```
 
+Opt-in live Zellij discovery test (use only a disposable managed session):
+
+```bash
+export ZELLIJ_SOCKET_DIR=/tmp/zellij-tmh
+zellij attach --create-background tmh-integration-check -- sleep 300
+TMH_ZELLIJ_INTEGRATION=1 TMH_ZELLIJ_SESSION=tmh-integration-check \
+  go test -tags=integration ./internal/backend/zellij \
+    -run TestLiveDiscoveryOfManagedSession -count=1 -v
+zellij kill-session tmh-integration-check
+```
+
+The short socket directory avoids macOS `$TMPDIR` exceeding Zellij's Unix
+socket path limit.
+
 See `RESEARCH.md` (pinned Charm v2 evidence) and `VERIFICATION.md` (gates,
 red/green history, PTY transcripts).
 

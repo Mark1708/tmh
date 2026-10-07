@@ -11,6 +11,7 @@
 | lipgloss | charm.land/lipgloss/v2 v2.0.6 (sum h1:EaGKeuA8FvF+v2BT5VmZd2LoYLaMZJXA5n34th8nCIQ=) |
 | huh | charm.land/huh/v2 v2.0.3 (sum h1:2cJsMqEPwSywGHvdlKsJyQKPtSJLVnFKyFbsYZTlLkU=) |
 | `vhs --version` | vhs version 0.11.0 |
+| `zellij --version` | zellij 0.45.1 (Homebrew arm64 bottle) |
 | terminal (captures) | ghostty 1.3.1, macOS darwin 24.6.0, arm64 |
 
 Commands run from the repository `tmh-next/` directory unless noted.
@@ -180,5 +181,22 @@ Verification from the repository path:
 | `go build -trimpath -o ./bin/tmh-next ./cmd/tmh-next` | 0 |
 | PTY launch `./bin/tmh-next --dashboard --live=false`, then `q` | exit 0 |
 
-`zellij` is not installed on this workstation, so the adapter is verified
-against deterministic CLI fixtures; no live Zellij process was started.
+Live adapter verification used disposable session
+`tmh-integration-20261007-0958` with one real `sleep 300` terminal pane:
+
+```bash
+ZELLIJ_SOCKET_DIR=/tmp/zellij-tmh \
+  zellij attach --create-background tmh-integration-20261007-0958 -- sleep 300
+ZELLIJ_SOCKET_DIR=/tmp/zellij-tmh \
+TMH_ZELLIJ_INTEGRATION=1 \
+TMH_ZELLIJ_SESSION=tmh-integration-20261007-0958 \
+  go test -tags=integration ./internal/backend/zellij \
+    -run TestLiveDiscoveryOfManagedSession -count=1 -v
+ZELLIJ_SOCKET_DIR=/tmp/zellij-tmh \
+  zellij kill-session tmh-integration-20261007-0958
+```
+
+Result: PASS in 0.07s. The adapter discovered and validated the real session,
+tab, plugin surfaces and terminal. Cleanup left no active sessions. On macOS,
+the default `$TMPDIR` made the Unix socket path exceed Zellij's 103-byte
+limit; the explicit short `ZELLIJ_SOCKET_DIR` is required for this setup.
