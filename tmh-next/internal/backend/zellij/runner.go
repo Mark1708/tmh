@@ -24,17 +24,18 @@ func (r ExecRunner) Run(ctx context.Context, args ...string) ([]byte, error) {
 	if limit <= 0 {
 		limit = defaultOutputLimit
 	}
-	output := &cappedBuffer{remaining: limit}
+	stdout := &cappedBuffer{remaining: limit}
+	stderr := &cappedBuffer{remaining: limit}
 	command := exec.CommandContext(ctx, binary, args...)
-	command.Stdout = output
-	command.Stderr = output
+	command.Stdout = stdout
+	command.Stderr = stderr
 	if err := command.Run(); err != nil {
-		return output.Bytes(), fmt.Errorf("%s %v: %w: %s", binary, args, err, output.String())
+		return stdout.Bytes(), fmt.Errorf("%s %v: %w: %s", binary, args, err, stderr.String())
 	}
-	if output.Truncated() {
+	if stdout.Truncated() || stderr.Truncated() {
 		return nil, fmt.Errorf("%s %v: output exceeds %d bytes", binary, args, limit)
 	}
-	return output.Bytes(), nil
+	return stdout.Bytes(), nil
 }
 
 type cappedBuffer struct {
